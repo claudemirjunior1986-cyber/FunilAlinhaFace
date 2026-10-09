@@ -1,0 +1,1881 @@
+<title>Funil Alinha Face</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#F4F6F9; --surface:#FFFFFF; --surface-2:#EDF1F6; --surface-3:#E4EAF2;
+    --line:#DBE3EC; --line-strong:#C3CFDD;
+    --ink:#0F1D33; --ink-2:#4A5A73; --ink-3:#7C8CA5;
+    --accent:#17325C; --accent-ink:#FFFFFF; --accent-soft:#E3EBF5;
+    --gold:#A97A1C; --ok:#1F7A55; --warn:#9A6410; --crit:#A83228;
+    --ok-bg:#E2F2EA; --warn-bg:#FBF0DC; --crit-bg:#FAE6E3;
+    --shadow:0 1px 2px rgba(15,29,51,.06), 0 6px 18px rgba(15,29,51,.06);
+    --radius:10px;
+    --font-display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+    --font-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B1424; --surface:#121E33; --surface-2:#182742; --surface-3:#1F3050;
+      --line:#26385A; --line-strong:#35496E;
+      --ink:#E8EEF7; --ink-2:#AAB9CF; --ink-3:#7387A2;
+      --accent:#8FBEDC; --accent-ink:#0B1424; --accent-soft:#1B2E4D;
+      --gold:#D7A94A; --ok:#5EC098; --warn:#E5AC4E; --crit:#EC8078;
+      --ok-bg:#12332A; --warn-bg:#33280F; --crit-bg:#3A1E1B;
+      --shadow:0 1px 2px rgba(0,0,0,.35), 0 8px 22px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B1424; --surface:#121E33; --surface-2:#182742; --surface-3:#1F3050;
+    --line:#26385A; --line-strong:#35496E;
+    --ink:#E8EEF7; --ink-2:#AAB9CF; --ink-3:#7387A2;
+    --accent:#8FBEDC; --accent-ink:#0B1424; --accent-soft:#1B2E4D;
+    --gold:#D7A94A; --ok:#5EC098; --warn:#E5AC4E; --crit:#EC8078;
+    --ok-bg:#12332A; --warn-bg:#33280F; --crit-bg:#3A1E1B;
+    --shadow:0 1px 2px rgba(0,0,0,.35), 0 8px 22px rgba(0,0,0,.28);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--font-body); font-size:14px; line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,input,select,textarea{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+  /* ---------- shell ---------- */
+  .shell{max-width:1600px;margin:0 auto;padding:18px 20px 60px}
+  .topbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+  .brand{display:flex;align-items:center;gap:11px;margin-right:auto}
+  .brand svg{display:block;flex:none}
+  .brand h1{
+    font-family:var(--font-display); font-weight:700; font-size:21px; margin:0; letter-spacing:-.02em;
+    line-height:1.1;
+  }
+  .brand .sub{font-size:11.5px;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;font-weight:500}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-strong);
+    background:var(--surface);color:var(--ink);border-radius:8px;padding:7px 13px;
+    cursor:pointer;font-weight:500;transition:background .12s,border-color .12s;
+  }
+  .btn:hover{background:var(--surface-2);border-color:var(--ink-3)}
+  .btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .btn-primary:hover{background:var(--accent);filter:brightness(1.08);border-color:var(--accent)}
+  .btn-ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
+  .btn-ghost:hover{background:var(--surface-2);color:var(--ink)}
+  .btn-sm{padding:4px 9px;font-size:12.5px;border-radius:7px}
+  .btn-danger{color:var(--crit);border-color:var(--line-strong)}
+  .btn-danger:hover{background:var(--crit-bg);border-color:var(--crit)}
+
+  .seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:3px}
+  .seg button{border:0;background:transparent;padding:6px 14px;border-radius:6px;cursor:pointer;color:var(--ink-2);font-weight:500}
+  .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+
+  /* ---------- kpis ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px;margin-bottom:14px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+  .kpi .lbl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+  .kpi .val{font-family:var(--font-display);font-weight:700;font-size:26px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.15}
+  .kpi .hint{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .kpi.money .val{color:var(--gold)}
+
+  /* ---------- alerts ---------- */
+  .alertbar{
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    background:var(--warn-bg);border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);
+    border-radius:var(--radius);padding:9px 13px;margin-bottom:14px;font-size:13px;color:var(--ink);
+  }
+  .alertbar strong{font-weight:600}
+  .alertbar .dotw{width:8px;height:8px;border-radius:50%;background:var(--warn);flex:none}
+
+  /* ---------- filters ---------- */
+  .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field > label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+  input[type="text"],input[type="tel"],input[type="date"],input[type="number"],select,textarea{
+    background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;padding:7px 10px;
+    color:var(--ink);width:100%;
+  }
+  textarea{resize:vertical;min-height:72px;line-height:1.5}
+  .filters input[type="text"]{min-width:230px}
+  .filters select{min-width:140px}
+  .filters .field{gap:0}
+  .chipcount{margin-left:auto;font-size:12.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+  /* ---------- board ---------- */
+  .board{display:flex;gap:12px;overflow-x:auto;padding-bottom:14px;align-items:flex-start}
+  .col{
+    flex:0 0 246px;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:var(--radius);display:flex;flex-direction:column;max-height:min(70vh,780px);
+  }
+  .col.over{border-color:var(--accent);background:var(--accent-soft)}
+  .col.off{opacity:.85}
+  .col-head{padding:10px 12px 9px;border-bottom:1px solid var(--line);position:sticky;top:0;background:inherit;border-radius:var(--radius) var(--radius) 0 0}
+  .col-head .stripe{height:3px;border-radius:2px;margin-bottom:8px}
+  .col-head .row{display:flex;align-items:baseline;gap:8px}
+  .col-head .name{font-weight:600;font-size:13px;letter-spacing:-.01em}
+  .col-head .n{margin-left:auto;font-family:var(--font-mono);font-size:12px;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:0 7px}
+  .col-head .sum{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;margin-top:3px}
+  .col-body{padding:9px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-height:118px}
+  .col-empty{font-size:12px;color:var(--ink-3);padding:10px 4px;text-align:center;border:1px dashed var(--line-strong);border-radius:8px}
+
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line-strong);
+    border-radius:8px;padding:9px 10px;cursor:pointer;display:flex;flex-direction:column;gap:6px;
+    box-shadow:var(--shadow);transition:transform .1s,border-color .12s;
+  }
+  .card:hover{border-color:var(--ink-3)}
+  .card.dragging{opacity:.45}
+  .card .top{display:flex;align-items:flex-start;gap:6px}
+  .card .nm{font-weight:600;font-size:13.5px;line-height:1.25;letter-spacing:-.01em;flex:1;overflow-wrap:anywhere}
+  .card .flag{width:7px;height:7px;border-radius:50%;flex:none;margin-top:5px}
+  .card .meta{display:flex;flex-wrap:wrap;gap:5px}
+  .card .line{font-size:11.5px;color:var(--ink-2);font-family:var(--font-mono);display:flex;gap:5px;align-items:center}
+  .card .money{font-size:11.5px;color:var(--gold);font-family:var(--font-mono);font-weight:500}
+
+  .tag{font-size:10.5px;padding:1.5px 7px;border-radius:20px;border:1px solid var(--line-strong);color:var(--ink-2);background:var(--surface-2);white-space:nowrap}
+  .tag.t-atm{background:var(--accent-soft);border-color:transparent;color:var(--accent);font-weight:600}
+  .tag.t-orto{background:var(--warn-bg);border-color:transparent;color:var(--warn);font-weight:600}
+  .tag.ex{background:transparent;border-style:dashed;color:var(--ink-3)}
+
+  /* ---------- table ---------- */
+  .tablewrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto}
+  table{border-collapse:collapse;width:100%;min-width:940px;font-size:13px}
+  th{
+    text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);
+    font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2);
+  }
+  th.sortable{cursor:pointer}
+  th.sortable:hover{color:var(--ink)}
+  td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:var(--surface-2)}
+  td.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .stagepill{display:inline-flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap}
+  .stagepill i{width:8px;height:8px;border-radius:2px;flex:none}
+  .empty-state{padding:44px 20px;text-align:center;color:var(--ink-3)}
+  .empty-state h3{font-family:var(--font-display);color:var(--ink);margin:0 0 6px;font-size:17px}
+
+  /* ---------- drawer / modal ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(9,17,31,.45);backdrop-filter:blur(2px);z-index:40}
+  .drawer{
+    position:fixed;top:0;right:0;bottom:0;width:min(470px,100%);background:var(--surface);
+    border-left:1px solid var(--line);z-index:50;display:flex;flex-direction:column;box-shadow:-12px 0 34px rgba(9,17,31,.18);
+  }
+  .drawer header,.modal header{
+    display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);
+  }
+  .drawer header h2,.modal header h2{font-family:var(--font-display);font-size:17px;margin:0;font-weight:700;letter-spacing:-.02em;flex:1}
+  .drawer .body{padding:16px 18px 26px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+  .drawer footer{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;background:var(--surface-2)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  fieldset{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+  .legend{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600;
+    display:flex;align-items:center;gap:9px}
+  .legend::after{content:"";flex:1;height:1px;background:var(--line)}
+  .modal{
+    position:fixed;z-index:50;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:min(720px,94vw);max-height:88vh;background:var(--surface);border:1px solid var(--line);
+    border-radius:14px;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(9,17,31,.28);
+  }
+  .modal .body{padding:16px 18px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+  .modal footer{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;background:var(--surface-2);border-radius:0 0 14px 14px}
+  .hint{font-size:12px;color:var(--ink-3);line-height:1.5}
+  .hint code{font-family:var(--font-mono);font-size:11.5px;background:var(--surface-2);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:60;
+    background:var(--accent);color:var(--accent-ink);padding:9px 16px;border-radius:22px;
+    box-shadow:0 10px 30px rgba(9,17,31,.3);font-weight:500;font-size:13px;
+  }
+  .statusline{
+    display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-3);
+    margin:10px 2px 0;
+  }
+  .statusline .dot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+  .statusline .dot.off{background:var(--warn)}
+  [hidden]{display:none!important}
+  @media (max-width:640px){
+    .shell{padding:14px 12px 50px}
+    .grid2,.grid3{grid-template-columns:1fr}
+    .brand h1{font-size:18px}
+  }
+
+  /* ---------- rotina do dia ---------- */
+  .hoje-head{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .hoje-head h2{font-family:var(--font-display);font-size:19px;margin:0;letter-spacing:-.02em}
+  .hoje-head .dt{font-size:12.5px;color:var(--ink-3)}
+  .hoje-head .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .hoje-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;align-items:start}
+  @media (max-width:980px){.hoje-grid{grid-template-columns:1fr}}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .panel-head{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+  .panel-head h3{margin:0;font-size:13px;font-weight:600;letter-spacing:-.01em}
+  .panel-head .n{font-family:var(--font-mono);font-size:12px;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:0 7px}
+  .panel-head .sp{margin-left:auto}
+  .grp{padding:9px 14px 4px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+  .task{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 14px;border-top:1px solid var(--line)}
+  .task:first-of-type{border-top:0}
+  .task .sev{width:9px;height:9px;border-radius:50%;background:var(--accent)}
+  .task.late .sev{background:var(--crit)}
+  .task.warn .sev{background:var(--warn)}
+  .task.ok .sev{background:var(--ok)}
+  .task .t1{font-weight:600;font-size:13.5px;overflow-wrap:anywhere}
+  .task .t1 button{all:unset;cursor:pointer;border-bottom:1px dotted var(--ink-3)}
+  .task .t1 button:focus-visible{outline:2px solid var(--accent)}
+  .task .t2{font-size:12px;color:var(--ink-2)}
+  .task .t2 .late-txt{color:var(--crit);font-weight:600}
+  .task .ops{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .step{font-family:var(--font-mono);font-size:10.5px;padding:1px 6px;border-radius:5px;background:var(--accent-soft);color:var(--accent);margin-right:6px;font-weight:500}
+  .step.v{background:var(--warn-bg);color:var(--warn)}
+  .step.p{background:var(--crit-bg);color:var(--crit)}
+  .done-empty{padding:26px 16px;text-align:center;color:var(--ink-3);font-size:13px}
+  .done-empty strong{display:block;color:var(--ok);font-family:var(--font-display);font-size:16px;margin-bottom:3px}
+  .enc{padding:10px 14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:5px}
+  .enc:first-child{border-top:0}
+  .enc .r1{display:flex;gap:8px;align-items:center}
+  .enc .r1 .nm{font-weight:600;flex:1;overflow-wrap:anywhere}
+  .enc .r2{font-size:12px;color:var(--ink-2)}
+  .pill{font-size:11px;padding:1.5px 8px;border-radius:20px;white-space:nowrap;font-weight:600}
+  .pill.ok{background:var(--ok-bg);color:var(--ok)}
+  .pill.warn{background:var(--warn-bg);color:var(--warn)}
+  .pill.crit{background:var(--crit-bg);color:var(--crit)}
+  .pill.neu{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+  .kpi.alert .val{color:var(--crit)}
+  .kpi.warnk .val{color:var(--warn)}
+  .resumo{font-family:var(--font-mono);font-size:12.5px;white-space:pre-wrap;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:12px;line-height:1.6}
+  .mini-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+  .mini-stats div{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .mini-stats b{display:block;font-family:var(--font-display);font-size:20px;font-variant-numeric:tabular-nums}
+  .mini-stats span{font-size:11.5px;color:var(--ink-3)}
+
+  .card .line.atrasada{color:var(--crit);font-weight:600}
+  .card .line.feito{color:var(--ok)}
+  .hist{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow-y:auto}
+  .hist-item{display:flex;gap:9px;font-size:12.5px;align-items:baseline;border-bottom:1px dashed var(--line);padding-bottom:5px}
+  .hist-d{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3);flex:none}
+
+  /* ---------- relatórios ---------- */
+  .rel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+  @media (max-width:900px){.rel-grid{grid-template-columns:1fr}}
+  .panel-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:10px}
+  .bars{display:flex;flex-direction:column;gap:7px}
+  .bar-row{display:grid;grid-template-columns:minmax(90px,38%) minmax(0,1fr) 36px;gap:10px;align-items:center;font-size:12.5px}
+  .bar-lbl{color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bar-track{height:12px;background:var(--surface-2);border-radius:0 4px 4px 0;overflow:hidden}
+  .bar-fill{height:100%;background:var(--accent);border-radius:0 4px 4px 0;min-width:2px}
+  .bar-val{font-family:var(--font-mono);font-variant-numeric:tabular-nums;text-align:right;color:var(--ink)}
+  .bar-row:hover .bar-lbl{color:var(--ink)}
+</style>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+        <circle cx="17" cy="17" r="16" fill="var(--accent-soft)"></circle>
+        <path d="M17 1a16 16 0 0 0 0 32Z" fill="var(--accent)"></path>
+        <path d="M5 26 L27 7" stroke="var(--gold)" stroke-width="1.6" fill="none"></path>
+      </svg>
+      <div>
+        <h1>Funil Alinha Face</h1>
+        <div class="sub">Pacientes · DTM e ortognática</div>
+      </div>
+    </div>
+    <div class="seg" role="group" aria-label="Modo de visualização">
+      <button id="viewNovos" aria-pressed="false">Novos</button>
+      <button id="viewGus" aria-pressed="false">Dr. Gustavo</button>
+      <button id="viewHoje" aria-pressed="false">Rotina do dia</button>
+      <button id="viewBoard" aria-pressed="true">Funil</button>
+      <button id="viewTable" aria-pressed="false">Tabela</button>
+      <button id="viewRel" aria-pressed="false">Relatórios</button>
+    </div>
+    <button class="btn" id="btnImport">Importar</button>
+    <button class="btn" id="btnExport">Exportar CSV</button>
+    <button class="btn btn-primary" id="btnNew">+ Paciente</button>
+  </div>
+
+  <div id="funilTop">
+  <div class="kpis" id="kpis"></div>
+
+  <div class="alertbar" id="alertbar" hidden>
+    <span class="dotw"></span>
+    <span id="alertText"></span>
+    <button class="btn btn-sm" id="btnAlerts">Ver esses pacientes</button>
+    <button class="btn btn-sm btn-ghost" id="btnAlertsClear" hidden>Limpar filtro</button>
+  </div>
+
+  <div class="filters">
+    <div class="field"><label for="fBusca">Buscar</label><input type="text" id="fBusca" placeholder="Nome ou telefone"></div>
+    <div class="field"><label for="fEtapa">Etapa</label><select id="fEtapa"></select></div>
+    <div class="field"><label for="fOrigem">Origem</label><select id="fOrigem"></select></div>
+    <div class="field"><label for="fTrat">Tratamento</label><select id="fTrat"></select></div>
+    <div class="field"><label for="fConv">Convênio</label><select id="fConv"></select></div>
+    <div class="field"><label for="fPer">Cadastro</label><select id="fPer">
+      <option value="">Todo o período</option>
+      <option value="7">Últimos 7 dias</option>
+      <option value="30">Últimos 30 dias</option>
+      <option value="90">Últimos 90 dias</option>
+    </select></div>
+    <button class="btn btn-sm btn-ghost" id="btnLimpar" hidden>Limpar filtros</button>
+    <span class="chipcount" id="chipcount"></span>
+  </div>
+  </div>
+
+  <div id="board" class="board"></div>
+
+  <div id="novosview" hidden></div>
+  <div id="gusview" hidden></div>
+  <div id="hojeview" hidden></div>
+  <div id="relview" hidden></div>
+
+  <div id="tableview" hidden>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="nome">Paciente</th>
+            <th>Etapa</th>
+            <th>Origem</th>
+            <th>Tratamento</th>
+            <th class="sortable" data-sort="dataConsulta">Consulta</th>
+            <th>Convênio</th>
+            <th class="sortable" data-sort="opme">OPME est.</th>
+            <th>Próxima ação</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="statusline"><span class="dot" id="statusDot"></span><span id="statusText">Conectando à base…</span></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+/* ============ modelo ============ */
+const STAGES = [
+  {k:"triagem",    l:"A classificar",      c:"#6C7A8C"},
+  {k:"lead",       l:"Lead novo",          c:"#2C5A93"},
+  {k:"agendou",    l:"Agendou consulta",   c:"#34689E"},
+  {k:"compareceu", l:"Compareceu",         c:"#3F79A8"},
+  {k:"exames_sol", l:"Exames solicitados", c:"#4F89A8"},
+  {k:"exames_ok",  l:"Exames entregues",   c:"#63959F"},
+  {k:"retorno",    l:"Retorno realizado",  c:"#7A9E92"},
+  {k:"proposta",   l:"Proposta enviada",   c:"#94A47F"},
+  {k:"docs_conv",  l:"Documentos do convênio", c:"#9A8F63"},
+  {k:"autorizacao",l:"Aguardando autorização",c:"#B4913F"},
+  {k:"autorizado", l:"Autorizado — agendar",  c:"#B79A45"},
+  {k:"cir_marcada",l:"Cirurgia marcada",   c:"#AFA162"},
+  {k:"cir_feita",  l:"Cirurgia realizada", c:"#C08A2E"},
+  {k:"posop",      l:"Pós-operatório",     c:"#A97A1C"},
+  {k:"noshow",     l:"Faltou / remarcar",  c:"#8B93A3", off:true},
+  {k:"perdido",    l:"Perdido",            c:"#8B93A3", off:true}
+];
+const STAGE_BY_KEY = Object.fromEntries(STAGES.map(s=>[s.k,s]));
+const ORIGENS = ["Quiz do site","Anúncio (clique no WhatsApp)","Clique na foto (Instagram)","Meta Ads","Google Ads","Instagram / bio","Indicação","Outro"];
+const TRATAMENTOS = ["DTM / ATM","Ortognática","DTM + Ortognática","A definir"];
+const OPME_PADRAO = {"DTM / ATM":11400,"Ortognática":25000,"DTM + Ortognática":36400,"A definir":0};
+const MODALIDADES = ["Online","Presencial"];
+const LOCAIS = ["Online","SP · Moema (Av. Jandira, 257)","SP · Vila Mariana (R. Francisco Cruz, 131)","Porto Alegre (R. Dr. Florêncio Ygartua, 422)"];
+const CONVENIOS = ["Sim","Não","Não sabe"];
+const PAGAMENTOS = ["Pelo convênio","Particular à vista","Particular parcelado","A definir"];
+const ACOES = [
+  "Confirmar presença na consulta",
+  "Remarcar consulta",
+  "Verificar se vai agendar consulta",
+  "Cobrar retorno do Dr. Gustavo",
+  "Cobrar retorno de outro parceiro",
+  "Registrar o que o cirurgião pediu",
+  "Cobrar os exames com o paciente",
+  "Enviar exames ao cirurgião",
+  "Agendar o retorno",
+  "Verificar uso do voucher Blume",
+  "Enviar proposta / orçamento",
+  "Cobrar resposta da proposta",
+  "Pedir carteirinha e documentos ao paciente",
+  "Enviar guia/documentos ao convênio",
+  "Cobrar autorização do convênio",
+  "Agendar a cirurgia",
+  "Falar sobre formas de pagamento",
+  "Reativar paciente parado",
+  "Outro (escrever)"
+];
+const HORARIOS = (()=>{const a=[];for(let m=9*60+15;m<=19*60+45;m+=30){a.push(String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"));}return a;})();
+const PIPELINE = ["agendou","compareceu","exames_sol","exames_ok","retorno","proposta","docs_conv","autorizacao","autorizado","cir_marcada"];
+const CIRURGIA = ["docs_conv","autorizacao","autorizado"];
+const CIR_LABEL = {docs_conv:"Cobrar carteirinha e documentos do paciente", autorizacao:"Cobrar a autorização com o convênio", autorizado:"Agendar a cirurgia com o hospital e o cirurgião"};
+const FEITAS = ["cir_feita","posop"];
+
+/* ============ estado ============ */
+let DB = null;                 // capability db, ou null (modo local)
+let DOWNLOADS = null;
+let pacientes = new Map();     // id -> obj
+let filtros = {busca:"",etapa:"",origem:"",trat:"",conv:"",periodo:"",somenteAlerta:false};
+let sortBy = {campo:"dataConsulta",dir:"asc"};
+let editandoId = null;
+let modo = "board";
+try{ const m = localStorage.getItem("funil_modo"); if(["board","table","hoje","rel","novos","gus"].includes(m)) modo = m; }catch(e){}
+let encaminhamentos = new Map();
+
+const $ = s=>document.querySelector(s);
+const el = (t,c,txt)=>{const e=document.createElement(t); if(c) e.className=c; if(txt!=null) e.textContent=txt; return e;};
+const hoje = ()=> new Date().toISOString().slice(0,10);
+const diasDesde = d => d ? Math.floor((Date.parse(hoje()) - Date.parse(d))/86400000) : null;
+const brl = n => (n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+const dataBR = d => d ? d.slice(8,10)+"/"+d.slice(5,7) : "";
+// telefone no formato (DD) 9XXXX-XXXX, tirando o 55 quando vier junto
+function telBR(v){
+  let t = String(v||"").replace(/\D/g,"");
+  if(!t) return "";
+  if(t.length>11 && t.startsWith("55")) t = t.slice(2);
+  if(t.length===11) return "("+t.slice(0,2)+") "+t.slice(2,7)+"-"+t.slice(7);
+  if(t.length===10) return "("+t.slice(0,2)+") "+t.slice(2,6)+"-"+t.slice(6);
+  return String(v||"").trim();
+}
+
+function toast(msg){
+  document.querySelectorAll(".toast").forEach(t=>t.remove());
+  const t = el("div","toast",msg); document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2600);
+}
+function novoId(){ return "p"+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+/* ============ persistência ============ */
+async function conectar(){
+  try{ DB = await window.claude?.use?.("db") ?? null; }catch(e){ DB = null; }
+  try{ DOWNLOADS = await window.claude?.use?.("downloads") ?? null; }catch(e){ DOWNLOADS = null; }
+  if(DB){
+    $("#statusText").textContent = "Base conectada — tudo que você editar fica salvo para a equipe.";
+    $("#statusDot").classList.remove("off");
+    DB.collection("encaminhamentos").onSnapshot(snap=>{
+      encaminhamentos = new Map(snap.docs.map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
+      render();
+    }, ()=>{});
+    DB.collection("pacientes").onSnapshot(snap=>{
+      pacientes = new Map(snap.docs.map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
+      render();
+    }, err=>{
+      $("#statusText").textContent = "A base parou de sincronizar ("+err.code+"). Recarregue a página.";
+      $("#statusDot").classList.add("off");
+    });
+  }else{
+    $("#statusText").textContent = "Modo local: as alterações valem só nesta aba e não são salvas.";
+    $("#statusDot").classList.add("off");
+    render();
+  }
+}
+async function salvar(p){
+  p.atualizadoEm = new Date().toISOString();
+  pacientes.set(p.id, p);
+  render();
+  if(!DB) return;
+  const body = Object.assign({}, p); delete body.id;
+  try{ await DB.doc("pacientes/"+p.id).set(body); }
+  catch(e){ toast(e.code==="quota_exceeded" ? "Base cheia — arquive pacientes antigos." : "Não consegui salvar. Tente de novo."); }
+}
+async function remover(id){
+  pacientes.delete(id); render();
+  if(DB){ try{ await DB.doc("pacientes/"+id).delete(); }catch(e){ toast("Não consegui excluir."); } }
+}
+
+/* ============ derivações ============ */
+function alertasDe(p){
+  const a = [];
+  if(p.etapa==="triagem") a.push("Conversa nova do WhatsApp — classificar");
+  if(p.etapa==="lead" && diasDesde(p.criadoEm?.slice(0,10)) >= 2) a.push("Lead sem agendamento há 2+ dias");
+  if(p.etapa==="agendou" && p.dataConsulta && p.dataConsulta < hoje()) a.push("Consulta já passou — marcar comparecimento");
+  if(p.etapa==="exames_sol" && diasDesde(p.dataExames) >= 14) a.push("Exames pedidos há 14+ dias sem retorno");
+  if(p.etapa==="proposta" && diasDesde(p.dataProposta) >= 10) a.push("Proposta enviada há 10+ dias sem resposta");
+  if(p.dataProximaAcao && p.dataProximaAcao < hoje()) a.push("Próxima ação atrasada: "+(p.proximaAcao||"—"));
+  return a;
+}
+function visiveis(){
+  const q = filtros.busca.trim().toLowerCase();
+  return [...pacientes.values()].filter(p=>{
+    if(q){
+      const qd = q.replace(/\D/g,"");
+      const achouNome = (p.nome||"").toLowerCase().includes(q);
+      const achouTel = qd.length>=3 && (p.telefone||"").replace(/\D/g,"").includes(qd);
+      const achouCidade = (p.cidade||"").toLowerCase().includes(q);
+      if(!achouNome && !achouTel && !achouCidade) return false;
+    }
+    if(q) return true;   // buscando por nome, cidade ou telefone: ignora os demais filtros
+    if(filtros.etapa && p.etapa !== filtros.etapa) return false;
+    if(filtros.origem && p.origem !== filtros.origem) return false;
+    if(filtros.trat && p.tratamento !== filtros.trat) return false;
+    if(filtros.conv && (p.convenio||"") !== filtros.conv) return false;
+    if(filtros.periodo){
+      const d = diasDesde((p.criadoEm||"").slice(0,10));
+      if(d==null || d > Number(filtros.periodo)) return false;
+    }
+    if(filtros.somenteAlerta && alertasDe(p).length===0) return false;
+    return true;
+  });
+}
+
+/* ============ render ============ */
+function render(){
+  const bl = document.getElementById("btnLimpar");
+  if(bl) bl.hidden = !(filtros.busca||filtros.etapa||filtros.origem||filtros.trat||filtros.conv||filtros.periodo||filtros.somenteAlerta);
+  const bn = document.getElementById("viewNovos");
+  if(bn){ const n = novos().length; bn.textContent = n ? "Novos · "+n : "Novos"; }
+  const bg = document.getElementById("viewGus");
+  if(bg){ const n = casosGustavo().length; bg.textContent = n ? "Dr. Gustavo · "+n : "Dr. Gustavo"; }
+  if(modo==="novos"){ renderNovos(); return; }
+  if(modo==="gus"){ renderGus(); return; }
+  if(modo==="hoje"){ renderHoje(); return; } if(modo==="rel"){ renderRel(); return; } renderKpis(); renderAlertas(); modo==="board" ? renderBoard() : renderTable(); }
+
+/* ============ novos: falaram com a gente e ninguém decidiu o próximo passo ============ */
+function semProximaAcao(p){
+  if(["perdido","noshow"].includes(p.etapa)) return false;
+  return !((p.proximaAcao||"").trim() || (p.dataProximaAcao||"").trim());
+}
+function novos(){
+  return [...pacientes.values()].filter(semProximaAcao)
+    .sort((a,b)=> String(b.ultimaMensagemEm||b.criadoEm||"").localeCompare(String(a.ultimaMensagemEm||a.criadoEm||"")));
+}
+
+function renderNovos(){
+  const box = $("#novosview"); box.textContent = "";
+  const lista = novos();
+
+  const head = el("div","hoje-head");
+  const hl = el("div");
+  hl.append(el("h2",null,"Novos"),
+            el("div","dt","Pacientes que falaram com a gente e ainda não têm o próximo passo definido."));
+  head.append(hl); box.appendChild(head);
+
+  const parados = lista.filter(p=>{ const d = diasDesde((p.ultimaMensagemEm||p.criadoEm||"").slice(0,10)); return d!=null && d>=2; });
+  const k = el("div","kpis");
+  [{l:"Sem próxima ação", v:lista.length, h:"aguardando uma decisão"},
+   {l:"Parados há 2+ dias", v:parados.length, h:"desde a última mensagem", c:parados.length?"alert":""},
+   {l:"Chegaram hoje", v:lista.filter(p=>(p.ultimaMensagemEm||p.criadoEm||"").slice(0,10)===hoje()).length, h:"mensagens de hoje"}
+  ].forEach(t=>{ const d = el("div","kpi"+(t.c?" "+t.c:"")); d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",t.h)); k.appendChild(d); });
+  box.appendChild(k);
+
+  const pt = el("section","panel");
+  const ph = el("div","panel-head");
+  ph.append(el("h3",null,"Aguardando uma decisão"), el("span","n",String(lista.length)));
+  pt.appendChild(ph);
+  if(!lista.length){
+    const e = el("div","done-empty");
+    e.append(el("strong",null,"Nada parado"), document.createTextNode("Todo paciente ativo já tem uma próxima ação marcada."));
+    pt.appendChild(e);
+  }
+  for(const p of lista) pt.appendChild(linhaNovo(p));
+  const nota = el("div","hint"); nota.style.padding="10px 14px"; nota.style.borderTop="1px solid var(--line)";
+  nota.textContent = "Assim que você gravar uma próxima ação na ficha, o paciente sai desta lista e passa a aparecer na Rotina do dia.";
+  pt.appendChild(nota);
+  box.appendChild(pt);
+}
+
+function linhaNovo(p){
+  const quando = (p.ultimaMensagemEm||p.criadoEm||"").slice(0,10);
+  const dias = diasDesde(quando);
+  const row = el("div","task"+(dias!=null && dias>=2 ? " late" : ""));
+  row.appendChild(el("span","sev"));
+  const mid = el("div");
+  const t1 = el("div","t1");
+  const nm = el("button",null,p.nome||"Sem nome"); nm.title="Abrir ficha"; nm.addEventListener("click",()=>abrirDrawer(p.id));
+  t1.append(el("span","step",(STAGE_BY_KEY[p.etapa]||{}).l||"Novo"), nm);
+  const t2 = el("div","t2");
+  t2.append(document.createTextNode(
+    (p.ultimaMensagem ? "“"+String(p.ultimaMensagem).slice(0,90)+(String(p.ultimaMensagem).length>90?"…":"")+"”" : "Sem mensagem registrada")
+    + (quando ? " · "+dataBR(quando) : "")
+    + (p.telefone ? " · "+p.telefone : "")));
+  if(dias!=null && dias>=2){ t2.append(document.createTextNode(" · ")); t2.append(el("span","late-txt","parado há "+dias+" dias")); }
+  mid.append(t1,t2); row.appendChild(mid);
+  const ops = el("div","ops");
+  const w = el("button","btn btn-sm","WhatsApp"); w.title="Abrir a conversa com uma mensagem pronta";
+  w.addEventListener("click",()=>abrirWhats(p,MSG.reat(p)));
+  const perd = el("button","btn btn-sm btn-ghost","Perdemos"); perd.addEventListener("click",()=>marcarPerdido(p));
+  const a = el("button","btn btn-sm btn-primary","Definir ação"); a.addEventListener("click",()=>abrirDrawer(p.id));
+  ops.append(w,perd,a); row.appendChild(ops);
+  return row;
+}
+
+/* ============ Dr. Gustavo: casos que dependem de um retorno dele ============ */
+const semAcento = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+function marcadoGustavo(p){
+  if(["perdido","noshow"].includes(p.etapa)) return false;
+  return semAcento(p.observacoes).includes("gustavo") || semAcento(p.proximaAcao).includes("gustavo");
+}
+// desde quando esse caso está esperando: última cobrança, senão a data marcada, senão a entrada
+const esperaDesde = p => ((p.regua||{}).gus) || p.dataProximaAcao || (p.criadoEm||"").slice(0,10) || "";
+function casosGustavo(){
+  return [...pacientes.values()].filter(marcadoGustavo)
+    .sort((a,b)=> String(esperaDesde(a)).localeCompare(String(esperaDesde(b))));
+}
+// o que estamos esperando dele, em uma linha
+function pedidoGustavo(p){
+  const o = (p.observacoes||"").trim();
+  const a = (p.proximaAcao||"").trim();
+  // só aproveita o texto que fala do Gustavo; "gustavo" sozinho é apenas a marcação
+  const curta = o && o.length<=110 && !o.includes(" ; ") && semAcento(o).includes("gustavo") ? o : "";
+  if(curta && semAcento(curta)!=="gustavo") return curta;
+  if(a && semAcento(a).includes("gustavo") && semAcento(a)!=="gustavo") return a;
+  return "Cobrar retorno do Dr. Gustavo";
+}
+
+function renderGus(){
+  const box = $("#gusview"); box.textContent = "";
+  const lista = casosGustavo();
+  const t = hoje();
+  const dias = p => { const d = diasDesde(esperaDesde(p)); return d==null ? 0 : Math.max(d,0); };
+
+  const head = el("div","hoje-head");
+  const hl = el("div");
+  hl.append(el("h2",null,"Dr. Gustavo"),
+            el("div","dt","Casos que dependem de um retorno dele. Entram aqui sozinhos quando a ficha tem “gustavo” nas observações ou na próxima ação."));
+  const acts = el("div","acts");
+  const bLista = el("button","btn btn-primary","Copiar lista para o Dr. Gustavo");
+  bLista.addEventListener("click",copiarListaGustavo);
+  acts.appendChild(bLista);
+  head.append(hl,acts); box.appendChild(head);
+
+  const parados = lista.filter(p=>dias(p)>=5);
+  const cobrados = lista.filter(p=>(p.regua||{}).gus);
+  const k = el("div","kpis");
+  [{l:"Casos em aberto", v:lista.length, h:"esperando o Dr. Gustavo"},
+   {l:"Parados há 5+ dias", v:parados.length, h:"sem retorno dele", c:parados.length?"alert":""},
+   {l:"Nunca cobrados", v:lista.length-cobrados.length, h:"ninguém cobrou ainda", c:(lista.length-cobrados.length)?"warnk":""},
+   {l:"OPME parado aqui", v:brl(lista.reduce((s,p)=>s+(Number(p.opme)||0),0)), h:"valor represado", money:true}
+  ].forEach(x=>{ const d = el("div","kpi"+(x.money?" money":"")+(x.c?" "+x.c:"")); d.append(el("span","lbl",x.l), el("span","val",String(x.v)), el("span","hint",x.h)); k.appendChild(d); });
+  box.appendChild(k);
+
+  const pt = el("section","panel");
+  const ph = el("div","panel-head");
+  ph.append(el("h3",null,"Esperando retorno"), el("span","n",String(lista.length)));
+  pt.appendChild(ph);
+  if(!lista.length){
+    const e = el("div","done-empty");
+    e.append(el("strong",null,"Nada pendente com ele"), document.createTextNode("Escreva “gustavo” nas observações de uma ficha para o caso aparecer aqui."));
+    pt.appendChild(e);
+  }
+  for(const p of lista) pt.appendChild(linhaGus(p, dias(p)));
+  const nota = el("div","hint"); nota.style.padding="10px 14px"; nota.style.borderTop="1px solid var(--line)";
+  nota.textContent = "Para tirar um caso daqui, apague a palavra “gustavo” das observações e da próxima ação da ficha.";
+  pt.appendChild(nota);
+  box.appendChild(pt);
+}
+
+function linhaGus(p, d){
+  const ult = (p.regua||{}).gus;
+  const row = el("div","task"+(d>=5?" late":(d>=2?" warn":"")));
+  row.appendChild(el("span","sev"));
+  const mid = el("div");
+  const t1 = el("div","t1");
+  const nm = el("button",null,p.nome||"Sem nome"); nm.title="Abrir ficha"; nm.addEventListener("click",()=>abrirDrawer(p.id));
+  t1.append(el("span","step "+(d>=5?"p":""),(STAGE_BY_KEY[p.etapa]||{}).l||"—"), nm);
+  const t2 = el("div","t2");
+  t2.append(document.createTextNode(pedidoGustavo(p)
+    + (ult ? " · cobrado em "+dataBR(ult) : " · nunca cobrado")
+    + (p.dataConsulta ? " · consulta "+dataBR(p.dataConsulta) : "")));
+  if(d>=2){ t2.append(document.createTextNode(" · ")); t2.append(el("span","late-txt","esperando há "+d+" dia"+(d===1?"":"s"))); }
+  mid.append(t1,t2); row.appendChild(mid);
+  const ops = el("div","ops");
+  const c = el("button","btn btn-sm","Cobrar"); c.title="Copiar a mensagem pronta para mandar ao Dr. Gustavo";
+  c.addEventListener("click",()=>copiar(MSG.gus(p),"Mensagem copiada — mande para o Dr. Gustavo."));
+  const j = el("button","btn btn-sm btn-primary","Cobrei hoje");
+  j.addEventListener("click",()=>{
+    const alvo = Object.assign({}, pacientes.get(p.id));
+    alvo.regua = Object.assign({}, alvo.regua, {gus:hoje()});
+    registrarHistorico(alvo, "Dr. Gustavo · cobrado o retorno");
+    salvar(alvo); toast("Cobrança registrada: "+(p.nome||""));
+  });
+  const f = el("button","btn btn-sm btn-ghost","Ficha"); f.addEventListener("click",()=>abrirDrawer(p.id));
+  ops.append(c,f,j); row.appendChild(ops);
+  return row;
+}
+
+function renderKpis(){
+  const todos = [...pacientes.values()];
+  const ativos = todos.filter(p=>p.etapa!=="perdido" && p.etapa!=="noshow");
+  const passouAgenda = todos.filter(p=>["agendou","noshow","compareceu","exames_sol","exames_ok","retorno","proposta","docs_conv","autorizacao","autorizado","cir_marcada","cir_feita","posop"].includes(p.etapa));
+  const compareceu = todos.filter(p=>["compareceu","exames_sol","exames_ok","retorno","proposta","docs_conv","autorizacao","autorizado","cir_marcada","cir_feita","posop"].includes(p.etapa));
+  const taxa = passouAgenda.length ? Math.round(compareceu.length/passouAgenda.length*100) : 0;
+  const exames = todos.filter(p=>p.etapa==="exames_sol"||p.etapa==="exames_ok");
+  const marcadas = todos.filter(p=>p.etapa==="cir_marcada");
+  const pipe = todos.filter(p=>PIPELINE.includes(p.etapa)).reduce((s,p)=>s+(Number(p.opme)||0),0);
+  const feito = todos.filter(p=>FEITAS.includes(p.etapa)).reduce((s,p)=>s+(Number(p.opme)||0),0);
+
+  const tiles = [
+    {l:"Pacientes ativos", v:ativos.length, h:todos.length+" no total"},
+    {l:"Agendaram consulta", v:passouAgenda.length, h:"inclui quem faltou"},
+    {l:"Comparecimento", v:taxa+"%", h:compareceu.length+" de "+passouAgenda.length},
+    {l:"Aguardando exames", v:exames.length, h:"entre consulta e retorno"},
+    {l:"Cirurgias em andamento", v:todos.filter(p=>["docs_conv","autorizacao","autorizado"].includes(p.etapa)).length, h:marcadas.length+" marcadas · "+todos.filter(p=>FEITAS.includes(p.etapa)).length+" realizadas"},
+    {l:"OPME no funil", v:brl(pipe), h:brl(feito)+" já realizado", money:true}
+  ];
+  const box = $("#kpis"); box.textContent="";
+  for(const t of tiles){
+    const d = el("div","kpi"+(t.money?" money":""));
+    d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",String(t.h)));
+    box.appendChild(d);
+  }
+}
+
+function renderAlertas(){
+  const n = [...pacientes.values()].filter(p=>alertasDe(p).length).length;
+  const bar = $("#alertbar");
+  bar.hidden = n===0 && !filtros.somenteAlerta;
+  if(n===0 && filtros.somenteAlerta){ bar.hidden=false; }
+  $("#alertText").innerHTML = n
+    ? "<strong>"+n+"</strong> paciente"+(n>1?"s precisam":" precisa")+" de follow-up hoje."
+    : "Nenhum follow-up pendente.";
+  $("#btnAlerts").hidden = filtros.somenteAlerta || n===0;
+  $("#btnAlertsClear").hidden = !filtros.somenteAlerta;
+}
+
+function cardDe(p){
+  const c = el("div","card");
+  c.draggable = true; c.dataset.id = p.id;
+  c.title = "Arraste para outra etapa, ou clique para abrir a ficha";
+  const st = STAGE_BY_KEY[p.etapa] || STAGES[0];
+  c.style.borderLeftColor = st.c;
+  const top = el("div","top");
+  top.appendChild(el("div","nm",p.nome||"Sem nome"));
+  const al = alertasDe(p);
+  if(al.length){ const f = el("span","flag"); f.style.background="var(--warn)"; f.title = al.join(" · "); top.appendChild(f); }
+  c.appendChild(top);
+
+  const meta = el("div","meta");
+  if(p.tratamento){
+    const cls = p.tratamento.startsWith("DTM / ")?"tag t-atm":(p.tratamento==="Ortognática"?"tag t-orto":"tag");
+    meta.appendChild(el("span",cls,p.tratamento));
+  }
+  if(p.origem) meta.appendChild(el("span","tag",p.origem.replace(" (Instagram)","")));
+  if(p.exemplo) meta.appendChild(el("span","tag ex","exemplo"));
+  c.appendChild(meta);
+
+  if(p.dataConsulta){
+    c.appendChild(el("div","line","📅 "+dataBR(p.dataConsulta)+(p.horaConsulta?" · "+p.horaConsulta:"")+(p.modalidade?" · "+p.modalidade.toLowerCase():"")));
+  }
+  if(p.proximaAcao){
+    const l = el("div","line"+(p.dataProximaAcao && p.dataProximaAcao<hoje() ? " atrasada":""),"→ "+p.proximaAcao+(p.dataProximaAcao?" · "+dataBR(p.dataProximaAcao):""));
+    c.appendChild(l);
+  }else if(p.historico && p.historico.length){
+    const u = p.historico[p.historico.length-1];
+    c.appendChild(el("div","line feito","✓ "+u.texto+" · "+dataBR(u.data)));
+  }
+  if(p.ultimaMensagem){
+    const um = el("div","line"); um.style.color="var(--ink-3)"; um.style.fontFamily="var(--font-body)";
+    um.textContent = "\u201C"+String(p.ultimaMensagem).slice(0,70)+(String(p.ultimaMensagem).length>70?"\u2026":"")+"\u201D";
+    c.appendChild(um);
+  }
+  if(Number(p.opme)) c.appendChild(el("div","money","OPME est. "+brl(Number(p.opme))));
+  c.addEventListener("click",()=>abrirDrawer(p.id));
+  c.addEventListener("dragstart",e=>{ e.dataTransfer.setData("text/plain",p.id); e.dataTransfer.effectAllowed="move"; c.classList.add("dragging"); });
+  c.addEventListener("dragend",()=>c.classList.remove("dragging"));
+  return c;
+}
+
+function renderBoard(){
+  const board = $("#board"); board.textContent="";
+  const lista = visiveis();
+  $("#chipcount").textContent = lista.length + (lista.length===1?" paciente":" pacientes");
+  if(!lista.length && filtros.busca){
+    const es = el("div","empty-state");
+    es.append(el("h3",null,"Nenhum paciente com \u201C"+filtros.busca+"\u201D"),
+              el("p",null,"A busca procura por nome, cidade e telefone (3 d\u00edgitos ou mais)."));
+    board.appendChild(es); return;
+  }
+  for(const s of STAGES){
+    if(filtros.etapa && s.k !== filtros.etapa) continue;
+    const col = el("div","col"+(s.off?" off":"")); col.dataset.stage = s.k;
+    const head = el("div","col-head");
+    const stripe = el("div","stripe"); stripe.style.background = s.c; head.appendChild(stripe);
+    const row = el("div","row");
+    row.append(el("span","name",s.l));
+    const doStage = lista.filter(p=>p.etapa===s.k);
+    row.append(el("span","n",String(doStage.length)));
+    head.appendChild(row);
+    const soma = doStage.reduce((a,p)=>a+(Number(p.opme)||0),0);
+    if(soma) head.appendChild(el("div","sum","OPME "+brl(soma)));
+    col.appendChild(head);
+
+    const body = el("div","col-body");
+    if(!doStage.length) body.appendChild(el("div","col-empty","—"));
+    doStage.sort((a,b)=>(a.dataConsulta||"9")<(b.dataConsulta||"9")?-1:1).forEach(p=>body.appendChild(cardDe(p)));
+    col.appendChild(body);
+
+    col.addEventListener("dragover",e=>{ e.preventDefault(); col.classList.add("over"); });
+    col.addEventListener("dragleave",()=>col.classList.remove("over"));
+    col.addEventListener("drop",e=>{
+      e.preventDefault(); col.classList.remove("over");
+      const id = e.dataTransfer.getData("text/plain");
+      const p = pacientes.get(id);
+      if(p && p.etapa!==s.k){ aplicarEtapa(p,s.k); salvar(p); toast(p.nome+" → "+s.l); }
+    });
+    board.appendChild(col);
+  }
+  board.scrollLeft = 0;   // sempre começa na primeira etapa, nada fica escondido à esquerda
+}
+
+function aplicarEtapa(p, etapa){
+  if(p.etapa!==etapa && typeof registrarHistorico==="function") registrarHistorico(p, "Etapa \u2192 "+((STAGE_BY_KEY[etapa]||{}).l||etapa));
+  p.etapa = etapa;
+  const t = hoje();
+  if(etapa==="exames_sol" && !p.dataExames) p.dataExames = t;
+  if(etapa==="proposta" && !p.dataProposta) p.dataProposta = t;
+  if(etapa==="compareceu" && !p.dataConsulta) p.dataConsulta = t;
+  if(etapa==="exames_ok" && !p.dataExamesOk) p.dataExamesOk = t;
+  if(etapa==="retorno" && !p.dataRetorno) p.dataRetorno = t;
+  if(["docs_conv","autorizacao","autorizado"].includes(etapa)) p.dataEtapaCir = t;
+  if(etapa==="autorizacao" && !p.dataGuiaEnviada) p.dataGuiaEnviada = t;
+  if(etapa==="autorizado" && !p.dataAutorizado) p.dataAutorizado = t;
+  if(etapa==="cir_marcada" && !p.dataCirurgiaMarcada) p.dataCirurgiaMarcada = t;
+}
+
+function renderTable(){
+  const lista = visiveis();
+  $("#chipcount").textContent = lista.length + (lista.length===1?" paciente":" pacientes");
+  const tb = $("#tbody"); tb.textContent="";
+  if(!lista.length){
+    const tr = el("tr"); const td = el("td"); td.colSpan=8;
+    const es = el("div","empty-state");
+    es.append(el("h3",null,"Nenhum paciente com esses filtros"), el("p",null,"Ajuste a busca ou cadastre o primeiro paciente."));
+    td.appendChild(es); tr.appendChild(td); tb.appendChild(tr); return;
+  }
+  const dir = sortBy.dir==="asc"?1:-1;
+  lista.sort((a,b)=>{
+    let x=a[sortBy.campo], y=b[sortBy.campo];
+    if(sortBy.campo==="opme"){ x=Number(x)||0; y=Number(y)||0; return (x-y)*dir; }
+    x=(x||"").toString().toLowerCase(); y=(y||"").toString().toLowerCase();
+    if(!x) return 1; if(!y) return -1;
+    return x<y?-dir:x>y?dir:0;
+  });
+  for(const p of lista){
+    const st = STAGE_BY_KEY[p.etapa]||STAGES[0];
+    const tr = el("tr"); tr.addEventListener("click",()=>abrirDrawer(p.id));
+    const tdNome = el("td");
+    tdNome.append(el("div",null,p.nome||"Sem nome"));
+    if(p.telefone){ const s=el("div","hint",p.telefone); tdNome.appendChild(s); }
+    tr.appendChild(tdNome);
+    const tdSt = el("td"); const pill = el("span","stagepill");
+    const i = el("i"); i.style.background=st.c; pill.append(i, document.createTextNode(st.l)); tdSt.appendChild(pill); tr.appendChild(tdSt);
+    tr.appendChild(el("td",null,p.origem||"—"));
+    tr.appendChild(el("td",null,p.tratamento||"—"));
+    tr.appendChild(el("td","num", p.dataConsulta ? dataBR(p.dataConsulta)+(p.horaConsulta?" "+p.horaConsulta:"") : "—"));
+    tr.appendChild(el("td",null, p.convenio==="Sim" ? (p.nomeConvenio||"Sim") : (p.convenio||"—")));
+    tr.appendChild(el("td","num", Number(p.opme)?brl(Number(p.opme)):"—"));
+    const tdAcao = el("td");
+    if(p.proximaAcao){
+      const t1 = el("div",null, p.proximaAcao+(p.dataProximaAcao?" ("+dataBR(p.dataProximaAcao)+")":""));
+      if(p.dataProximaAcao && p.dataProximaAcao<hoje()){ t1.style.color="var(--crit)"; t1.style.fontWeight="600"; }
+      tdAcao.appendChild(t1);
+    }else tdAcao.appendChild(el("div",null,"—"));
+    if(p.historico && p.historico.length){
+      const u = p.historico[p.historico.length-1];
+      tdAcao.appendChild(el("div","hint","✓ "+u.texto+" · "+dataBR(u.data)));
+    }
+    tr.appendChild(tdAcao);
+    tb.appendChild(tr);
+  }
+}
+
+/* ============ rotina do dia (aprendiz) ============ */
+const VOUCHER_DIAS = 5;
+const VOUCHER_STATUS = ["Aguardando uso","Usado","Venceu"];
+const ENC_STATUS = ["Enviado","Parceiro viu","Paciente contatado","Consulta marcada","Fechou","Não fechou"];
+const ENC_FECHADOS = ["Fechou","Não fechou"];
+const POS = ["compareceu","exames_sol","exames_ok","retorno"];
+const PRE_EXAME = ["compareceu","exames_sol"];
+
+const somaDias = (d,n)=>{ const t = new Date(d+"T12:00:00"); t.setDate(t.getDate()+n); return t.toISOString().slice(0,10); };
+const ontem = ()=> somaDias(hoje(),-1);
+const amanha = ()=> somaDias(hoje(),1);
+function diasUteisDesde(d){
+  if(!d) return 0;
+  let n = 0, t = new Date(d+"T12:00:00"); const fim = new Date(hoje()+"T12:00:00");
+  while(t < fim){ t.setDate(t.getDate()+1); const w = t.getDay(); if(w!==0 && w!==6) n++; }
+  return n;
+}
+const primeiroNome = p => (p.nome||"").trim().split(/\s+/)[0] || "tudo bem";
+const vencVoucher = p => p.voucherEmitido ? somaDias(p.voucherEmitido, VOUCHER_DIAS) : "";
+
+const MSG = {
+  d0: p=>`Oi, ${primeiroNome(p)}! Como cortesia da Alinha Face, você ganhou um voucher para a ressonância magnética na Blume Medicina Diagnóstica, sem nenhum custo. Ele é no seu nome e vale até ${dataBR(vencVoucher(p)||somaDias(hoje(),VOUCHER_DIAS))}. Segue em anexo com o endereço da clínica. Qualquer dúvida pra agendar, me chama!`,
+  d1: p=>`Oi, ${primeiroNome(p)}! Tudo bem? Aqui é da Alinha Face. Passando pra saber como você se sentiu na consulta com o Dr. Gustavo e se ficou alguma dúvida. Se puder, deixa sua avaliação pra gente no Google, ajuda muito: [link]`,
+  d3: p=>`Oi, ${primeiroNome(p)}! Conseguiu agendar os exames que o Dr. Gustavo pediu? Se precisar de ajuda pra encontrar um laboratório perto de você, me avisa que eu te ajudo.`,
+  d7: p=>`Oi, ${primeiroNome(p)}! Os exames já ficaram prontos? Pode me mandar por aqui mesmo que eu encaminho pro Dr. Gustavo e já deixo seu retorno agendado.`,
+  d15: p=>`Oi, ${primeiroNome(p)}, tudo certo? Notei que ainda não conseguimos seguir com os exames. Aconteceu alguma coisa? Me conta que a gente vê juntos o melhor caminho.`,
+  d30: p=>`Oi, ${primeiroNome(p)}! Vou pausar o acompanhamento por aqui pra não te incomodar. Quando quiser retomar, é só me chamar que seguimos de onde paramos.`,
+  v2: p=>`Oi, ${primeiroNome(p)}! Já conseguiu agendar sua ressonância na Blume? Lembrando que o voucher vale até ${dataBR(vencVoucher(p))}. Se quiser, te ajudo a marcar agora.`,
+  v4: p=>`Oi, ${primeiroNome(p)}! Passando só pra lembrar que seu voucher da ressonância vence amanhã (${dataBR(vencVoucher(p))}). Não deixa passar, tá? É cortesia e ajuda o Dr. Gustavo a seguir com seu caso.`,
+  conf: p=>`Oi, ${primeiroNome(p)}! Passando pra confirmar sua avaliação na Alinha Face ${p.dataConsulta===hoje()?"hoje":"amanhã"}${p.horaConsulta?" às "+p.horaConsulta:""}. ${p.modalidade==="Presencial"?"O endereço é "+(p.local||"")+".":"Vou te mandar o link da chamada um pouco antes."} Posso confirmar?`,
+  reat: p=>`Oi, ${primeiroNome(p)}! Aqui é da Alinha Face. Vi que a gente não conseguiu terminar de conversar. Sua primeira avaliação é uma cortesia nossa — quer que eu veja um horário pra você essa semana?`,
+  gus: p=>`Dr. Gustavo, tudo bem? Sobre o paciente ${p.nome||""}${p.dataConsulta?", que passou em consulta em "+dataBR(p.dataConsulta):""}: consegue me dar um retorno para eu atualizar aqui? Obrigado!`,
+  enc: e=>`${e.parceiro||"Doutor"}, tudo bem? Sobre o paciente ${e.paciente}, encaminhado em ${dataBR(e.dataEnvio)}: conseguiu falar com ele? Me passa o status pra eu atualizar aqui. Obrigada!`
+};
+
+const REGUA = [
+  {k:"d30", n:30, l:"D+30", t:"Última mensagem — sem resposta, encerrar e avisar o Junior", ok:PRE_EXAME},
+  {k:"d15", n:15, l:"D+15", t:"Lembrete gentil: entender o que está travando", ok:PRE_EXAME},
+  {k:"d7",  n:7,  l:"D+7",  t:"Perguntar se os exames ficaram prontos", ok:PRE_EXAME},
+  {k:"d3",  n:3,  l:"D+3",  t:"Confirmar se já agendou os exames", ok:PRE_EXAME},
+  {k:"d1",  n:1,  l:"D+1",  t:"Perguntar como foi a consulta e pedir avaliação no Google", ok:POS}
+];
+
+function tarefasDe(p){
+  const out = [], t = hoje(), r = p.regua || {};
+  // ação marcada à mão para o futuro pausa a régua automática até aquela data
+  const agendadaFrente = !!(p.dataProximaAcao && p.dataProximaAcao > t);
+  // qualquer ação marcada à mão e ainda não concluída manda no paciente:
+  // evita o mesmo paciente aparecer duas vezes na rotina do dia
+  const acaoPendente = !!p.dataProximaAcao;
+  // consulta hoje ou amanhã: SEMPRE aparece na rotina, confirmada ou não, em qualquer etapa
+  const consultaAgora = !!(p.dataConsulta && (p.dataConsulta===t || p.dataConsulta===amanha()) && !["perdido","noshow"].includes(p.etapa));
+  if(consultaAgora){
+    const feita = r.conf===p.dataConsulta;
+    const quando = (p.dataConsulta===t ? "hoje" : "amanhã")
+      + (p.horaConsulta ? " às "+p.horaConsulta : "")
+      + (p.modalidade ? " · "+p.modalidade.toLowerCase() : "")
+      + (p.modalidade==="Presencial" && p.local ? " · "+p.local : "");
+    const pend = (p.proximaAcao||"").trim() && p.dataProximaAcao && p.dataProximaAcao<=t ? p.proximaAcao : "";
+    out.push({g:"conf", k:"conf", step:"Consulta", cls:"",
+      txt: feita
+        ? "Confirmada — "+(p.modalidade==="Presencial"?"endereço enviado":"link enviado")
+        : "Confirmar presença e enviar "+(p.modalidade==="Presencial"?"endereço":"link"),
+      sub: quando + (pend ? " · também pendente: "+pend : ""),
+      late:false, doneVal:p.dataConsulta, msg:"conf", feito:feita});
+  }
+  if(POS.includes(p.etapa) && p.dataConsulta){
+    const dias = diasDesde(p.dataConsulta);
+    // D+0: registrar pedido e emitir voucher
+    if(!p.voucherEmitido && !r.d0 && dias>=0 && dias<=VOUCHER_DIAS && !agendadaFrente){
+      out.push({g:"pos", k:"d0", step:"D+0", cls:"v", txt:"Registrar o pedido do Dr. Gustavo e emitir o voucher Blume",
+        sub:"consulta em "+dataBR(p.dataConsulta), late:dias>=1, msg:"d0", voucher:true});
+    }
+    // régua: só o passo mais recente que ainda vale
+    for(const s of (acaoPendente ? [] : REGUA)){
+      if(dias < s.n || !s.ok.includes(p.etapa)) continue;
+      if(!r[s.k]) out.push({g:"pos", k:s.k, step:s.l, cls:"", txt:s.t, sub:"consulta em "+dataBR(p.dataConsulta), late:dias>s.n, msg:s.k, encerra:s.k==="d30"});
+      break;
+    }
+  }
+  // voucher
+  if(p.voucherEmitido && (p.voucherStatus||"Aguardando uso")==="Aguardando uso"){
+    const v = diasDesde(p.voucherEmitido), venc = vencVoucher(p);
+    if(v>=VOUCHER_DIAS){
+      out.push({g:"vou", k:"vbaixa", step:"Voucher", cls:"p", txt:"Voucher venceu — marcar se foi usado", sub:"venceu em "+dataBR(venc), late:true, baixa:true});
+    }else if(v>=4 && !r.v4){
+      out.push({g:"vou", k:"v4", step:"D+4", cls:"v", txt:"Voucher vence amanhã — último lembrete", sub:"vence "+dataBR(venc), late:false, msg:"v4", baixa:true});
+    }else if(v>=2 && !r.v2){
+      out.push({g:"vou", k:"v2", step:"D+2", cls:"v", txt:"Já agendou a ressonância na Blume?", sub:"vence "+dataBR(venc), late:v>2, msg:"v2", baixa:true});
+    }
+  }
+  // cirurgia em andamento: cobrar a cada 3 dias
+  if(CIRURGIA.includes(p.etapa) && !acaoPendente){
+    const chave = "cir_"+p.etapa;
+    const base = r[chave] || p.dataEtapaCir || (p.criadoEm||"").slice(0,10);
+    if(base && diasDesde(base) >= 3){
+      out.push({g:"cir", k:chave, step:"Cirurgia", cls:"v", txt:CIR_LABEL[p.etapa],
+        sub:"nessa etapa desde "+dataBR(p.dataEtapaCir||base), late: diasDesde(base) >= 7});
+    }
+  }
+  // próxima ação manual
+  if(p.dataProximaAcao && p.dataProximaAcao<=t && !["perdido","noshow"].includes(p.etapa) && !consultaAgora){
+    out.push({g:"acao", k:"acao", step:"Ação", cls:"", txt:p.proximaAcao||"Próxima ação sem descrição", sub:"marcada para "+dataBR(p.dataProximaAcao), late:p.dataProximaAcao<t});
+  }
+  // conversa nova a classificar
+  if(p.etapa==="triagem" && !acaoPendente){
+    const quando = (p.ultimaMensagemEm||p.criadoEm||"").slice(0,10);
+    out.push({g:"triagem", k:"triag", step:"Nova", cls:"", txt:"Classificar a conversa e completar a ficha"+(p.ultimaMensagem?": \u201C"+String(p.ultimaMensagem).slice(0,60)+"\u201D":""),
+      sub: quando ? "\u00faltima mensagem em "+dataBR(quando) : "sem data", late: quando ? diasDesde(quando)>=1 : false});
+  }
+  // lead parado
+  if(p.etapa==="lead" && diasDesde((p.criadoEm||"").slice(0,10))>=2 && !r.reat && !acaoPendente){
+    out.push({g:"lead", k:"reat", step:"Lead", cls:"", txt:"Uma tentativa de reativação no WhatsApp", sub:"entrou em "+dataBR((p.criadoEm||"").slice(0,10)), late:false, msg:"reat"});
+  }
+  // marcado com "gustavo": o caso mora na aba Dr. Gustavo e sai da rotina do dia.
+  // só a consulta de hoje/amanhã continua aqui, porque é hora marcada com o paciente.
+  const soConsulta = marcadoGustavo(p) ? out.filter(x=>x.g==="conf") : out;
+  return soConsulta.map(x=>Object.assign(x,{p}));
+}
+
+function estadoEnc(e){
+  if(ENC_FECHADOS.includes(e.status)) return {cls:"neu", l:e.status, d:0};
+  const d = diasUteisDesde(e.dataEnvio), c = Number(e.cobrancas)||0;
+  if(d>=5) return {cls:"crit", l:"Avisar o Junior", d};
+  if(d>=4 && c<2) return {cls:"warn", l:"2ª cobrança", d};
+  if(d>=2 && c<1) return {cls:"warn", l:"Cobrar", d};
+  return {cls:"ok", l:"No prazo", d};
+}
+
+function copiar(txt, ok){
+  navigator.clipboard?.writeText(txt).then(()=>toast(ok||"Mensagem copiada."), ()=>toast("Não consegui copiar — selecione o texto à mão."));
+}
+function abrirWhats(p, txt){
+  const tel = (p.telefone||"").replace(/\D/g,"");
+  if(!tel){ copiar(txt,"Sem telefone na ficha — mensagem copiada."); return; }
+  const n = tel.length<=11 ? "55"+tel : tel;
+  window.open("https://wa.me/"+n+"?text="+encodeURIComponent(txt),"_blank","noopener");
+}
+function registrarHistorico(p, texto){
+  p.historico = (p.historico||[]).concat([{data:hoje(), texto}]).slice(-40);
+}
+function concluir(tk, extra){
+  const p = Object.assign({}, pacientes.get(tk.p.id));
+  p.regua = Object.assign({}, p.regua);
+  registrarHistorico(p, tk.step+" · "+tk.txt);
+  if(tk.k==="conf") p.regua.conf = tk.doneVal;
+  else if(tk.k==="acao"){ p.ultimaAcao = (p.proximaAcao||"")+" ("+dataBR(hoje())+")"; p.proximaAcao=""; p.dataProximaAcao=""; }
+  else if(tk.k!=="vbaixa") p.regua[tk.k] = hoje();
+  if(tk.k==="d0" && !p.voucherEmitido){ p.voucherEmitido = hoje(); p.voucherStatus = "Aguardando uso"; }
+  if(extra) extra(p);
+  salvar(p);
+}
+function baixarVoucher(tk, status){
+  concluir(tk, p=>{ p.voucherStatus = status; p.voucherBaixa = hoje(); });
+  toast("Voucher marcado como "+status.toLowerCase()+".");
+}
+
+const MOTIVOS = ["Paciente desistiu","Sem retorno / sumiu","Achou caro","Vai fazer com outro profissional","Convênio negou","Adiou para mais tarde","Outro"];
+function marcarPerdido(p, depois){
+  fecharOverlays();
+  const scrim = el("div","scrim"); scrim.addEventListener("click",fecharOverlays);
+  const m = el("div","modal"); m.style.width="min(460px,94vw)"; m.setAttribute("role","dialog"); m.setAttribute("aria-label","Encerrar paciente");
+  const h = el("header"); h.append(el("h2",null,"Encerrar "+(p.nome||"paciente")));
+  const x = el("button","btn btn-ghost btn-sm","Fechar"); x.addEventListener("click",fecharOverlays); h.appendChild(x); m.appendChild(h);
+  const b2 = el("div","body");
+  const sel1 = sel("m_motivo",MOTIVOS,p.motivoPerda||"Paciente desistiu");
+  const obs = el("textarea"); obs.id="m_obs"; obs.placeholder="Detalhe, se quiser (opcional)"; obs.style.minHeight="60px";
+  b2.append(el("div","hint","O paciente sai do funil ativo e vai para a coluna Perdido. Isso pode ser desfeito depois na ficha."), campo("Motivo",sel1), campo("Observação",obs));
+  m.appendChild(b2);
+  const f = el("footer");
+  const cancel = el("button","btn","Cancelar"); cancel.addEventListener("click",fecharOverlays);
+  const ok = el("button","btn btn-primary","Marcar como perdido");
+  ok.addEventListener("click",()=>{
+    const alvo = Object.assign({}, pacientes.get(p.id) || p);
+    const motivo = $("#m_motivo").value, det = $("#m_obs").value.trim();
+    alvo.etapa = "perdido"; alvo.motivoPerda = motivo + (det?" — "+det:"");
+    alvo.proximaAcao = ""; alvo.dataProximaAcao = "";
+    registrarHistorico(alvo, "Perdido · "+alvo.motivoPerda);
+    salvar(alvo); fecharOverlays(); toast((alvo.nome||"Paciente")+" marcado como perdido.");
+    if(depois) depois();
+  });
+  f.append(cancel,ok); m.appendChild(f);
+  document.body.append(scrim,m);
+}
+
+function renderHoje(){
+  const box = $("#hojeview"); box.textContent = "";
+  const todos = [...pacientes.values()];
+  const tarefas = todos.flatMap(tarefasDe);
+  const encAbertos = [...encaminhamentos.values()].filter(e=>!ENC_FECHADOS.includes(e.status));
+  const encParados = encAbertos.filter(e=>estadoEnc(e).cls!=="ok");
+  const vouVencendo = todos.filter(p=>p.voucherEmitido && (p.voucherStatus||"Aguardando uso")==="Aguardando uso" && diasDesde(p.voucherEmitido)>=3);
+
+  // cabeçalho
+  const head = el("div","hoje-head");
+  const nGus = casosGustavo().length;
+  const hl = el("div"); hl.append(el("h2",null,"Rotina do dia"), el("div","dt",
+    (s=>s.charAt(0).toUpperCase()+s.slice(1))(new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"}))
+    + (nGus ? " · "+nGus+" caso"+(nGus===1?"":"s")+" com o Dr. Gustavo estão na aba dele" : "")));
+  const acts = el("div","acts");
+  const bDia = el("button","btn","Resumo do dia"); bDia.addEventListener("click",abrirResumoDia);
+  const bSem = el("button","btn","Resumo da semana"); bSem.addEventListener("click",abrirResumoSemana);
+  const bGus = el("button","btn","Lista de sexta · Dr. Gustavo"); bGus.addEventListener("click",copiarListaGustavo);
+  acts.append(bDia,bSem,bGus);
+  head.append(hl,acts); box.appendChild(head);
+
+  // kpis
+  const k = el("div","kpis");
+  const tiles = [
+    {l:"Tarefas de hoje", v:tarefas.filter(x=>!x.feito).length, h:"contatos a fazer"},
+    {l:"Consultas hoje/amanhã", v:tarefas.filter(x=>x.g==="conf").length, h:tarefas.filter(x=>x.g==="conf"&&!x.feito).length+" a confirmar"},
+    {l:"Atrasadas", v:tarefas.filter(x=>x.late).length, h:"passaram do dia", c:tarefas.some(x=>x.late)?"alert":""},
+    {l:"Vouchers vencendo", v:vouVencendo.length, h:"3+ dias sem uso", c:vouVencendo.length?"warnk":""},
+    {l:"Parceiros sem retorno", v:encParados.length, h:encAbertos.length+" casos em aberto", c:encParados.length?"warnk":""},
+    {l:"A classificar", v:todos.filter(p=>p.etapa==="triagem").length, h:"conversas novas do WhatsApp", c:todos.some(p=>p.etapa==="triagem")?"warnk":""}
+  ];
+  for(const t of tiles){ const d = el("div","kpi"+(t.c?" "+t.c:"")); d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",t.h)); k.appendChild(d); }
+  box.appendChild(k);
+
+  const grid = el("div","hoje-grid");
+
+  // tarefas
+  const pt = el("section","panel");
+  const ph = el("div","panel-head"); ph.append(el("h3",null,"Contatos de hoje"), el("span","n",String(tarefas.length)));
+  pt.appendChild(ph);
+  if(!tarefas.length){
+    const e = el("div","done-empty"); e.append(el("strong",null,"Tudo em dia"), document.createTextNode("Nenhum paciente precisa de contato agora. Confira o painel e o resumo do dia."));
+    pt.appendChild(e);
+  }
+  const GRUPOS = [
+    ["conf","Consultas de hoje e amanhã"],["cir","Cirurgias em andamento"],["triagem","Conversas a classificar"],["pos","Pós-consulta"],["vou","Vouchers Blume"],["acao","Próximas ações marcadas"],["lead","Leads parados"]
+  ];
+  for(const [g,l] of GRUPOS){
+    const lista = tarefas.filter(x=>x.g===g).sort((a,b)=>(b.late-a.late)||((a.p.nome||"")<(b.p.nome||"")?-1:1));
+    if(!lista.length) continue;
+    pt.appendChild(el("div","grp",l+" · "+lista.length));
+    for(const tk of lista) pt.appendChild(linhaTarefa(tk));
+  }
+  grid.appendChild(pt);
+
+  // encaminhamentos
+  const pe = el("section","panel");
+  const eh = el("div","panel-head"); eh.append(el("h3",null,"Casos com parceiros"), el("span","n",String(encAbertos.length)));
+  const bNovo = el("button","btn btn-sm sp","+ Encaminhamento"); bNovo.addEventListener("click",()=>abrirEnc(null));
+  eh.appendChild(bNovo); pe.appendChild(eh);
+  const encTodos = [...encaminhamentos.values()].sort((a,b)=>{
+    const fa = ENC_FECHADOS.includes(a.status), fb = ENC_FECHADOS.includes(b.status);
+    if(fa!==fb) return fa?1:-1;
+    return estadoEnc(b).d - estadoEnc(a).d;
+  }).filter(e=>!ENC_FECHADOS.includes(e.status) || diasDesde(e.fechadoEm||e.dataEnvio)<=7);
+  if(!encTodos.length){
+    const e = el("div","done-empty"); e.append(el("strong",null,"Nenhum caso encaminhado"), document.createTextNode("Registre aqui todo paciente indicado a um parceiro para cobrar o retorno no prazo."));
+    pe.appendChild(e);
+  }
+  for(const e of encTodos) pe.appendChild(linhaEnc(e));
+  const regra = el("div","hint"); regra.style.padding="10px 14px"; regra.style.borderTop="1px solid var(--line)";
+  regra.textContent = "Prazo: cobrar com 2 dias úteis sem retorno, 2ª cobrança com 4, avisar o Junior com 5.";
+  pe.appendChild(regra);
+  grid.appendChild(pe);
+
+  box.appendChild(grid);
+}
+
+function linhaTarefa(tk){
+  const row = el("div","task"+(tk.feito?" ok":(tk.late?" late":(tk.g==="vou"?" warn":""))));
+  row.appendChild(el("span","sev"));
+  const mid = el("div");
+  const t1 = el("div","t1");
+  const nm = el("button",null,tk.p.nome||"Sem nome"); nm.title="Abrir ficha"; nm.addEventListener("click",()=>abrirDrawer(tk.p.id));
+  t1.append(el("span","step "+tk.cls,tk.step), nm);
+  const t2 = el("div","t2"); t2.append(document.createTextNode(tk.txt+" · "+tk.sub));
+  if(tk.late){ t2.append(document.createTextNode(" · ")); t2.append(el("span","late-txt","atrasada")); }
+  mid.append(t1,t2); row.appendChild(mid);
+  const ops = el("div","ops");
+  if(tk.msg){
+    const txt = MSG[tk.msg](tk.p);
+    const w = el("button","btn btn-sm","WhatsApp"); w.title="Abrir conversa com a mensagem pronta"; w.addEventListener("click",()=>abrirWhats(tk.p,txt));
+    const c = el("button","btn btn-sm btn-ghost","Copiar"); c.addEventListener("click",()=>copiar(txt));
+    ops.append(w,c);
+  }
+  if(tk.feito){
+    // consulta já confirmada: fica na lista como agenda do dia, sem botão de concluir de novo
+    const ok = el("span","pill ok","confirmado"); ops.appendChild(ok);
+  }else if(tk.k==="vbaixa"){
+    const u = el("button","btn btn-sm","Usado"); u.addEventListener("click",()=>baixarVoucher(tk,"Usado"));
+    const v = el("button","btn btn-sm","Venceu"); v.addEventListener("click",()=>baixarVoucher(tk,"Venceu"));
+    ops.append(u,v);
+  }else{
+    if(tk.baixa){ const u = el("button","btn btn-sm btn-ghost","Já usou"); u.addEventListener("click",()=>baixarVoucher(tk,"Usado")); ops.appendChild(u); }
+    if(tk.encerra){
+      const x = el("button","btn btn-sm btn-ghost","Encerrar");
+      x.title = "Enviar a última mensagem e mover para Perdido";
+      x.addEventListener("click",()=>{ concluir(tk); marcarPerdido(tk.p); });
+      ops.appendChild(x);
+    }
+    if(!tk.encerra){
+      const perd = el("button","btn btn-sm btn-ghost","Perdemos");
+      perd.title = "Paciente desistiu ou não responde — sai do funil ativo";
+      perd.addEventListener("click",()=>marcarPerdido(tk.p));
+      ops.appendChild(perd);
+    }
+    const f = el("button","btn btn-sm btn-primary","Feito"); f.addEventListener("click",()=>{ concluir(tk); toast("Registrado: "+tk.p.nome); });
+    ops.appendChild(f);
+  }
+  row.appendChild(ops);
+  return row;
+}
+
+function linhaEnc(e){
+  const st = estadoEnc(e);
+  const d = el("div","enc");
+  const r1 = el("div","r1");
+  r1.append(el("span","nm",e.paciente||"Sem nome"), el("span","pill "+st.cls,st.l));
+  const r2 = el("div","r2");
+  r2.textContent = (e.parceiro||"Parceiro")+" · enviado "+dataBR(e.dataEnvio)+(ENC_FECHADOS.includes(e.status)?"":" · "+st.d+" dia"+(st.d===1?"":"s")+" úte"+(st.d===1?"l":"is"))+" · "+(e.status||"Enviado")+((Number(e.cobrancas)||0)?" · "+e.cobrancas+" cobrança"+(e.cobrancas>1?"s":""):"");
+  d.append(r1,r2);
+  if(e.pedido){ const r3 = el("div","r2"); r3.textContent = e.pedido; r3.style.color="var(--ink-3)"; d.appendChild(r3); }
+  if(!ENC_FECHADOS.includes(e.status)){
+    const ops = el("div","ops"); ops.style.display="flex"; ops.style.gap="6px"; ops.style.flexWrap="wrap";
+    const c = el("button","btn btn-sm","Copiar cobrança"); c.addEventListener("click",()=>copiar(MSG.enc(e)));
+    const k = el("button","btn btn-sm","Cobrei hoje"); k.addEventListener("click",()=>salvarEnc(Object.assign({},e,{cobrancas:(Number(e.cobrancas)||0)+1, ultimaCobranca:hoje()}),"Cobrança registrada."));
+    const ed = el("button","btn btn-sm btn-ghost","Atualizar"); ed.addEventListener("click",()=>abrirEnc(e.id));
+    ops.append(c,k,ed); d.appendChild(ops);
+  }
+  return d;
+}
+
+async function salvarEnc(e, msg){
+  e.atualizadoEm = new Date().toISOString();
+  if(ENC_FECHADOS.includes(e.status) && !e.fechadoEm) e.fechadoEm = hoje();
+  encaminhamentos.set(e.id, e); render();
+  if(msg) toast(msg);
+  if(!DB) return;
+  const body = Object.assign({}, e); delete body.id;
+  try{ await DB.doc("encaminhamentos/"+e.id).set(body); }catch(err){ toast("Não consegui salvar o encaminhamento."); }
+}
+
+function abrirEnc(id){
+  fecharOverlays();
+  const e = id ? Object.assign({}, encaminhamentos.get(id)) : {id:"e"+Date.now().toString(36), parceiro:"Dr. Gustavo", dataEnvio:hoje(), status:"Enviado", cobrancas:0};
+  const scrim = el("div","scrim"); scrim.addEventListener("click",fecharOverlays);
+  const m = el("div","modal"); m.setAttribute("role","dialog"); m.setAttribute("aria-label","Encaminhamento");
+  const h = el("header"); h.append(el("h2",null,id?"Atualizar encaminhamento":"Novo encaminhamento"));
+  const x = el("button","btn btn-ghost btn-sm","Fechar"); x.addEventListener("click",fecharOverlays); h.appendChild(x); m.appendChild(h);
+  const b = el("div","body");
+  const dl = el("datalist"); dl.id="dl_pac";
+  [...pacientes.values()].map(p=>p.nome).filter(Boolean).sort().forEach(n=>{ const o=el("option"); o.value=n; dl.appendChild(o); });
+  const iPac = inp("e_pac","text",e.paciente||"","Nome do paciente"); iPac.setAttribute("list","dl_pac");
+  const dlp = el("datalist"); dlp.id="dl_parc";
+  [...new Set(["Dr. Gustavo",...[...encaminhamentos.values()].map(x=>x.parceiro).filter(Boolean)])].forEach(n=>{ const o=el("option"); o.value=n; dlp.appendChild(o); });
+  const iPar = inp("e_par","text",e.parceiro||"","Dr. Gustavo"); iPar.setAttribute("list","dl_parc");
+  const g1 = el("div","grid2"); g1.append(campo("Paciente",iPac), campo("Parceiro",iPar));
+  const g2 = el("div","grid3");
+  const cob = inp("e_cob","number",e.cobrancas||0); cob.min="0";
+  g2.append(campo("Enviado em", inp("e_data","date",e.dataEnvio||hoje())), campo("Situação", sel("e_st",ENC_STATUS,e.status||"Enviado")), campo("Cobranças feitas", cob));
+  const ped = el("textarea"); ped.id="e_ped"; ped.value = e.pedido||""; ped.placeholder = "O que foi pedido ao parceiro: avaliação, orçamento, cirurgia…";
+  b.append(dl,dlp,g1,g2,campo("O que foi pedido",ped));
+  m.appendChild(b);
+  const f = el("footer");
+  if(id){ const del = el("button","btn btn-danger btn-sm","Excluir"); del.style.marginRight="auto";
+    del.addEventListener("click",async ()=>{ if(!confirm("Excluir este encaminhamento?")) return; encaminhamentos.delete(id); fecharOverlays(); render(); if(DB){ try{ await DB.doc("encaminhamentos/"+id).delete(); }catch(err){} } });
+    f.appendChild(del); }
+  const cancel = el("button","btn","Cancelar"); cancel.addEventListener("click",fecharOverlays);
+  const ok = el("button","btn btn-primary","Salvar");
+  ok.addEventListener("click",()=>{
+    const pac = $("#e_pac").value.trim(); if(!pac){ $("#e_pac").focus(); toast("Informe o paciente."); return; }
+    Object.assign(e,{paciente:pac, parceiro:$("#e_par").value.trim()||"Parceiro", dataEnvio:$("#e_data").value||hoje(), status:$("#e_st").value, cobrancas:Number($("#e_cob").value)||0, pedido:$("#e_ped").value.trim()});
+    fecharOverlays(); salvarEnc(e, id?"Encaminhamento atualizado.":"Encaminhamento registrado.");
+  });
+  f.append(cancel,ok); m.appendChild(f);
+  document.body.append(scrim,m); iPac.focus();
+}
+
+function modalTexto(titulo, blocos, texto, dica){
+  fecharOverlays();
+  const scrim = el("div","scrim"); scrim.addEventListener("click",fecharOverlays);
+  const m = el("div","modal"); m.setAttribute("role","dialog"); m.setAttribute("aria-label",titulo);
+  const h = el("header"); h.append(el("h2",null,titulo));
+  const x = el("button","btn btn-ghost btn-sm","Fechar"); x.addEventListener("click",fecharOverlays); h.appendChild(x); m.appendChild(h);
+  const b = el("div","body");
+  if(blocos){ const ms = el("div","mini-stats"); for(const [v,l] of blocos){ const d=el("div"); d.append(el("b",null,String(v)), el("span",null,l)); ms.appendChild(d);} b.appendChild(ms); }
+  b.append(el("div","hint",dica||"Texto pronto para enviar ao Junior pelo WhatsApp:"), el("div","resumo",texto));
+  m.appendChild(b);
+  const f = el("footer"); const c = el("button","btn btn-primary","Copiar texto"); c.addEventListener("click",()=>copiar(texto,"Resumo copiado.")); f.appendChild(c); m.appendChild(f);
+  document.body.append(scrim,m);
+}
+
+function abrirResumoDia(){
+  const todos = [...pacientes.values()];
+  const atendidos = todos.filter(p=>p.dataConsulta===ontem() && (POS.includes(p.etapa)||["proposta","docs_conv","autorizacao","autorizado","cir_marcada","cir_feita","posop"].includes(p.etapa)));
+  const exames = todos.filter(p=>p.etapa==="exames_sol");
+  const parados = [...encaminhamentos.values()].filter(e=>!ENC_FECHADOS.includes(e.status) && estadoEnc(e).cls!=="ok");
+  const junior = [...encaminhamentos.values()].filter(e=>!ENC_FECHADOS.includes(e.status) && estadoEnc(e).cls==="crit");
+  const encerrados = todos.filter(p=>p.etapa==="perdido" && (p.regua||{}).d30===hoje());
+  const pend = todos.flatMap(tarefasDe).length;
+  const nomes = a => a.length ? " ("+a.map(p=>p.nome||p.paciente).join(", ")+")" : "";
+  const precisa = [...junior.map(e=>e.paciente+" com "+e.parceiro+" há "+estadoEnc(e).d+" dias úteis"), ...encerrados.map(p=>p.nome+" encerrado sem retorno")];
+  const txt = `Resumo Alinha Face — ${dataBR(hoje())}
+• Atendidos ontem: ${atendidos.length}${nomes(atendidos)}
+• Exames pendentes: ${exames.length}
+• Casos parados com parceiro: ${parados.length}${nomes(parados)}
+• Precisa do Junior: ${precisa.length?precisa.join("; "):"nada hoje"}
+• Contatos que ficaram para amanhã: ${pend}`;
+  modalTexto("Resumo do dia", null, txt);
+}
+
+function abrirResumoSemana(){
+  const todos = [...pacientes.values()];
+  const ini = somaDias(hoje(),-7);
+  const naSemana = d => d && d>ini && d<=hoje();
+  const consultas = todos.filter(p=>naSemana(p.dataConsulta) && !["lead","agendou","noshow"].includes(p.etapa)).length;
+  const examesPed = todos.filter(p=>naSemana(p.dataExames)).length;
+  const examesOk = todos.filter(p=>naSemana(p.dataExamesOk)).length;
+  const retornos = todos.filter(p=>naSemana(p.dataRetorno)).length;
+  const vEmit = todos.filter(p=>naSemana(p.voucherEmitido)).length;
+  const vUsados = todos.filter(p=>p.voucherStatus==="Usado" && naSemana(p.voucherBaixa)).length;
+  const vVenc = todos.filter(p=>p.voucherStatus==="Venceu" && naSemana(p.voucherBaixa)).length;
+  const parados = [...encaminhamentos.values()].filter(e=>!ENC_FECHADOS.includes(e.status) && estadoEnc(e).cls!=="ok").length;
+  const propostas = todos.filter(p=>p.etapa==="proposta").length;
+  const blocos = [[consultas,"consultas feitas"],[examesPed,"exames pedidos"],[examesOk,"exames entregues"],[retornos,"retornos"],[vEmit,"vouchers emitidos"],[vUsados,"vouchers usados"],[vVenc,"vouchers vencidos"],[parados,"parados com parceiro"],[propostas,"cirurgias em proposta"]];
+  const txt = `Resumo semanal Alinha Face — ${dataBR(somaDias(ini,1))} a ${dataBR(hoje())}
+• Consultas feitas: ${consultas}
+• Exames pedidos: ${examesPed} · entregues: ${examesOk}
+• Retornos: ${retornos}
+• Vouchers Blume: ${vEmit} emitidos · ${vUsados} usados · ${vVenc} vencidos
+• Casos parados com parceiro: ${parados}
+• Cirurgias em proposta: ${propostas}`;
+  modalTexto("Resumo da semana", blocos, txt);
+}
+
+function copiarListaGustavo(){
+  const lista = casosGustavo();
+  // texto que VAI para ele: só nome e telefone, nada de recado interno
+  const linhas = lista.map(p=>{
+    const tel = telBR(p.telefone);
+    return (p.nome||"Sem nome") + (tel ? " — "+tel : "");
+  });
+  [...encaminhamentos.values()].filter(e=>!ENC_FECHADOS.includes(e.status) && /gustavo/i.test(e.parceiro||""))
+    .forEach(e=>linhas.push(String(e.paciente||"Sem nome")));
+  if(!linhas.length){ toast("Nenhum caso em aberto com o Dr. Gustavo."); return; }
+  const txt = "Dr. Gustavo, segue a lista dos pacientes que dependem de um retorno seu:\n"
+    + linhas.map((l,i)=>(i+1)+". "+l).join("\n")
+    + "\nConsegue me dar um retorno? Obrigado!";
+  const blocos = [[lista.length,"casos em aberto"],[lista.filter(p=>(diasDesde(esperaDesde(p))||0)>=5).length,"parados há 5+ dias"]];
+  modalTexto("Lista para o Dr. Gustavo", blocos, txt, "Texto pronto para enviar ao Dr. Gustavo pelo WhatsApp:");
+}
+
+/* ============ relatórios ============ */
+let relPer = "7", relIni = "", relFim = "";
+try{ relPer = localStorage.getItem("funil_relper") || "7"; }catch(e){}
+
+function periodoRel(){
+  const t = hoje();
+  if(relPer==="30") return {ini:somaDias(t,-29), fim:t, nome:"Últimos 30 dias"};
+  if(relPer==="mes") return {ini:t.slice(0,8)+"01", fim:t, nome:"Mês atual"};
+  if(relPer==="mesant"){
+    const d = new Date(t.slice(0,8)+"01T12:00:00"); d.setDate(0);
+    const fim = d.toISOString().slice(0,10);
+    return {ini:fim.slice(0,8)+"01", fim, nome:"Mês anterior"};
+  }
+  if(relPer==="custom" && relIni && relFim) return {ini:relIni<=relFim?relIni:relFim, fim:relIni<=relFim?relFim:relIni, nome:"Período personalizado"};
+  return {ini:somaDias(t,-6), fim:t, nome:"Últimos 7 dias"};
+}
+
+function calcRelatorio(ini, fim){
+  const todos = [...pacientes.values()];
+  const noPer = d => !!d && d.slice(0,10)>=ini && d.slice(0,10)<=fim;
+  const ANTES = ["lead","agendou","noshow"];
+  const leads = todos.filter(p=>noPer(p.criadoEm));
+  const agendados = todos.filter(p=>noPer(p.dataConsulta) && p.etapa!=="lead");
+  const compareceu = agendados.filter(p=>!ANTES.includes(p.etapa));
+  const noshow = agendados.filter(p=>p.etapa==="noshow");
+  const passadas = agendados.filter(p=>p.dataConsulta<=hoje() && p.etapa!=="agendou");
+  const funil = [
+    ["Leads novos", leads.length],
+    ["Consultas agendadas", agendados.length],
+    ["Compareceram", compareceu.length],
+    ["Exames pedidos", todos.filter(p=>noPer(p.dataExames)).length],
+    ["Exames entregues", todos.filter(p=>noPer(p.dataExamesOk)).length],
+    ["Retornos", todos.filter(p=>noPer(p.dataRetorno)).length],
+    ["Propostas enviadas", todos.filter(p=>noPer(p.dataProposta)).length]
+  ];
+  const origens = {};
+  leads.forEach(p=>{ const o = p.origem||"Não informado"; origens[o]=(origens[o]||0)+1; });
+  const vEmit = todos.filter(p=>noPer(p.voucherEmitido));
+  const vUsados = todos.filter(p=>p.voucherStatus==="Usado" && noPer(p.voucherBaixa));
+  const vVenc = todos.filter(p=>p.voucherStatus==="Venceu" && noPer(p.voucherBaixa));
+  const vAbertos = todos.filter(p=>p.voucherEmitido && (p.voucherStatus||"Aguardando uso")==="Aguardando uso");
+  const encs = [...encaminhamentos.values()];
+  const encPer = encs.filter(e=>noPer(e.dataEnvio));
+  const encFech = encs.filter(e=>noPer(e.fechadoEm));
+  const encAbertos = encs.filter(e=>!ENC_FECHADOS.includes(e.status));
+  const NOMES_REGUA = {conf:"Confirmação de consulta", d0:"Voucher emitido / pedido registrado", d1:"Pós-consulta D+1", d3:"Exames D+3", d7:"Exames D+7", d15:"Lembrete D+15", d30:"Encerramento D+30", v2:"Voucher D+2", v4:"Voucher D+4", reat:"Reativação de lead"};
+  const contatos = {};
+  todos.forEach(p=>{ const r = p.regua||{}; for(const k in r){ if(noPer(r[k]) && NOMES_REGUA[k]) contatos[NOMES_REGUA[k]] = (contatos[NOMES_REGUA[k]]||0)+1; } });
+  const totContatos = Object.values(contatos).reduce((a,b)=>a+b,0);
+  const tratamentos = {};
+  compareceu.forEach(p=>{ const t = p.tratamento||"A definir"; tratamentos[t]=(tratamentos[t]||0)+1; });
+  return {
+    ini, fim, funil, leads:leads.length, agendados:agendados.length, compareceu:compareceu.length, noshow:noshow.length,
+    taxaComp: passadas.length ? Math.round(compareceu.length/passadas.length*100) : null,
+    origens:Object.entries(origens).sort((a,b)=>b[1]-a[1]),
+    tratamentos:Object.entries(tratamentos).sort((a,b)=>b[1]-a[1]),
+    voucher:{emitidos:vEmit.length, usados:vUsados.length, vencidos:vVenc.length, abertos:vAbertos.length,
+      taxa:(vUsados.length+vVenc.length) ? Math.round(vUsados.length/(vUsados.length+vVenc.length)*100) : null},
+    enc:{enviados:encPer.length, fechados:encFech.length, fechouCirurgia:encFech.filter(e=>e.status==="Fechou").length,
+      abertos:encAbertos.map(e=>({paciente:e.paciente, parceiro:e.parceiro, envio:e.dataEnvio, status:e.status||"Enviado", st:estadoEnc(e)})).sort((a,b)=>b.st.d-a.st.d)},
+    contatos:Object.entries(contatos).sort((a,b)=>b[1]-a[1]), totContatos,
+    agora:{exames:todos.filter(p=>p.etapa==="exames_sol").length, propostas:todos.filter(p=>p.etapa==="proposta").length,
+      docs:todos.filter(p=>p.etapa==="docs_conv").length,
+      autorizacao:todos.filter(p=>p.etapa==="autorizacao").length,
+      autorizado:todos.filter(p=>p.etapa==="autorizado").length,
+      marcadas:todos.filter(p=>p.etapa==="cir_marcada").length,
+      opme:todos.filter(p=>PIPELINE.includes(p.etapa)).reduce((s,p)=>s+(Number(p.opme)||0),0)}
+  };
+}
+
+function barras(lista, vazio){
+  const w = el("div","bars");
+  if(!lista.length || lista.every(x=>!x[1])){ w.appendChild(el("div","hint",vazio||"Sem dados no período.")); return w; }
+  const max = Math.max(...lista.map(x=>x[1]),1);
+  for(const [l,v] of lista){
+    const r = el("div","bar-row"); r.title = l+": "+v;
+    const track = el("div","bar-track"); const f = el("div","bar-fill"); f.style.width = (v/max*100)+"%"; track.appendChild(f);
+    r.append(el("span","bar-lbl",l), track, el("span","bar-val",String(v)));
+    w.appendChild(r);
+  }
+  return w;
+}
+
+function renderRel(){
+  const box = $("#relview"); box.textContent = "";
+  const per = periodoRel(); const R = calcRelatorio(per.ini, per.fim);
+
+  const head = el("div","hoje-head");
+  const hl = el("div"); hl.append(el("h2",null,"Relatórios"), el("div","dt",per.nome+" · "+dataBR(per.ini)+" a "+dataBR(per.fim)));
+  const acts = el("div","acts");
+  const selP = sel("r_per",["7","30","mes","mesant","custom"],relPer);
+  [...selP.options].forEach(o=>o.textContent={"7":"Últimos 7 dias","30":"Últimos 30 dias","mes":"Mês atual","mesant":"Mês anterior","custom":"Personalizado"}[o.value]);
+  selP.style.width="auto";
+  selP.addEventListener("change",e=>{ relPer=e.target.value; try{localStorage.setItem("funil_relper",relPer);}catch(err){} if(relPer==="custom"&&!relIni){relIni=somaDias(hoje(),-13);relFim=hoje();} renderRel(); });
+  acts.appendChild(selP);
+  if(relPer==="custom"){
+    const a = inp("r_ini","date",relIni); const b = inp("r_fim","date",relFim); a.style.width=b.style.width="auto";
+    a.addEventListener("change",e=>{relIni=e.target.value; renderRel();}); b.addEventListener("change",e=>{relFim=e.target.value; renderRel();});
+    acts.append(a,b);
+  }
+  const bCop = el("button","btn","Copiar resumo"); bCop.addEventListener("click",()=>copiar(textoRelatorio(R,per),"Relatório copiado."));
+  const bPdf = el("button","btn btn-primary","Baixar PDF"); bPdf.addEventListener("click",()=>baixarPdf(R,per,bPdf));
+  acts.append(bCop,bPdf);
+  head.append(hl,acts); box.appendChild(head);
+
+  const k = el("div","kpis");
+  const tiles = [
+    {l:"Leads novos", v:R.leads, h:"entraram no período"},
+    {l:"Consultas", v:R.compareceu, h:R.agendados+" agendadas · "+R.noshow+" faltas"},
+    {l:"Comparecimento", v:R.taxaComp==null?"—":R.taxaComp+"%", h:"das consultas já passadas"},
+    {l:"Vouchers usados", v:R.voucher.taxa==null?"—":R.voucher.taxa+"%", h:R.voucher.usados+" usados · "+R.voucher.vencidos+" vencidos"},
+    {l:"Contatos da aprendiz", v:R.totContatos, h:"registrados como feitos"},
+    {l:"OPME no funil hoje", v:brl(R.agora.opme), h:R.agora.marcadas+" cirurgias marcadas", money:true}
+  ];
+  for(const t of tiles){ const d = el("div","kpi"+(t.money?" money":"")); d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",t.h)); k.appendChild(d); }
+  box.appendChild(k);
+
+  const grid = el("div","rel-grid");
+  const painel = (titulo, conteudo, nota)=>{ const s = el("section","panel"); const h = el("div","panel-head"); h.appendChild(el("h3",null,titulo)); s.appendChild(h); const c = el("div","panel-body"); c.appendChild(conteudo); if(nota) c.appendChild(el("div","hint",nota)); s.appendChild(c); return s; };
+
+  grid.appendChild(painel("Funil do período", barras(R.funil), "Cada etapa conta os eventos que aconteceram dentro do período."));
+  grid.appendChild(painel("Origem dos leads", barras(R.origens,"Nenhum lead novo no período.")));
+
+  const vs = el("div","mini-stats");
+  [[R.voucher.emitidos,"emitidos"],[R.voucher.usados,"usados"],[R.voucher.vencidos,"vencidos"],[R.voucher.abertos,"aguardando uso hoje"]].forEach(([v,l])=>{ const d=el("div"); d.append(el("b",null,String(v)), el("span",null,l)); vs.appendChild(d); });
+  grid.appendChild(painel("Vouchers Blume", vs, "Taxa de uso = usados ÷ (usados + vencidos) no período."));
+
+  grid.appendChild(painel("Contatos feitos pela aprendiz", barras(R.contatos,"Nenhum contato registrado no período.")));
+
+  const ec = el("div");
+  const es = el("div","mini-stats");
+  [[R.enc.enviados,"encaminhados"],[R.enc.fechados,"com desfecho"],[R.enc.fechouCirurgia,"fecharam"],[R.enc.abertos.length,"em aberto hoje"]].forEach(([v,l])=>{ const d=el("div"); d.append(el("b",null,String(v)), el("span",null,l)); es.appendChild(d); });
+  ec.appendChild(es);
+  if(R.enc.abertos.length){
+    const tw = el("div","tablewrap"); tw.style.marginTop="10px";
+    const tb = el("table"); tb.style.minWidth="0";
+    tb.innerHTML = "<thead><tr><th>Paciente</th><th>Parceiro</th><th>Enviado</th><th>Situação</th></tr></thead>";
+    const body = el("tbody");
+    R.enc.abertos.forEach(e=>{ const tr = el("tr"); tr.style.cursor="default"; const tdS = el("td"); tdS.appendChild(el("span","pill "+e.st.cls,e.st.l));
+      tr.append(el("td",null,e.paciente||"—"), el("td",null,e.parceiro||"—"), el("td","num",dataBR(e.envio)), tdS); body.appendChild(tr); });
+    tb.appendChild(body); tw.appendChild(tb); ec.appendChild(tw);
+  }
+  grid.appendChild(painel("Casos com parceiros", ec));
+  grid.appendChild(painel("Tratamento de quem consultou", barras(R.tratamentos,"Nenhuma consulta no período.")));
+
+  box.appendChild(grid);
+}
+
+function textoRelatorio(R, per){
+  const l = [];
+  l.push(`Relatório Alinha Face — ${per.nome} (${dataBR(R.ini)} a ${dataBR(R.fim)})`);
+  l.push("");
+  l.push("FUNIL");
+  R.funil.forEach(([n,v])=>l.push(`• ${n}: ${v}`));
+  l.push(`• Comparecimento: ${R.taxaComp==null?"—":R.taxaComp+"%"} · faltas: ${R.noshow}`);
+  l.push("");
+  l.push("ORIGEM DOS LEADS");
+  if(R.origens.length) R.origens.forEach(([n,v])=>l.push(`• ${n}: ${v}`)); else l.push("• Nenhum lead novo");
+  l.push("");
+  l.push("VOUCHERS BLUME");
+  l.push(`• ${R.voucher.emitidos} emitidos · ${R.voucher.usados} usados · ${R.voucher.vencidos} vencidos · ${R.voucher.abertos} aguardando uso`);
+  l.push("");
+  l.push("PARCEIROS");
+  l.push(`• ${R.enc.enviados} encaminhados · ${R.enc.fechados} com desfecho (${R.enc.fechouCirurgia} fecharam) · ${R.enc.abertos.length} em aberto`);
+  R.enc.abertos.filter(e=>e.st.cls!=="ok").forEach(e=>l.push(`  - ${e.paciente} com ${e.parceiro}: ${e.st.l} (${e.st.d} dias úteis)`));
+  l.push("");
+  l.push("APRENDIZ");
+  l.push(`• ${R.totContatos} contatos registrados`);
+  R.contatos.forEach(([n,v])=>l.push(`  - ${n}: ${v}`));
+  l.push("");
+  l.push("SITUAÇÃO HOJE");
+  l.push(`• Aguardando exames: ${R.agora.exames} · Propostas em aberto: ${R.agora.propostas}`);
+  l.push(`• Cirurgias em andamento: ${R.agora.docs} juntando documentos · ${R.agora.autorizacao} aguardando autorização · ${R.agora.autorizado} autorizadas a agendar · ${R.agora.marcadas} marcadas`);
+  l.push(`• OPME no funil: ${brl(R.agora.opme)}`);
+  return l.join("\n");
+}
+
+async function baixarPdf(R, per, btn){
+  const J = window.jspdf && window.jspdf.jsPDF;
+  if(!J){ toast("O gerador de PDF não carregou. Recarregue a página."); return; }
+  if(!DOWNLOADS){ toast("Download indisponível aqui — use Copiar resumo."); return; }
+  btn.disabled = true; const old = btn.textContent; btn.textContent = "Gerando…";
+  try{
+    const doc = new J({unit:"mm", format:"a4"});
+    const W = 210, M = 16; let y = 18;
+    const NAVY=[23,50,92], GOLD=[169,122,28], INK=[15,29,51], MUTED=[124,140,165], LINE=[219,227,236], SOFT=[227,235,245];
+    const novaPag = h=>{ if(y+h>282){ doc.addPage(); y=18; } };
+    doc.setFillColor(...NAVY); doc.rect(0,0,W,6,"F");
+    doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.setTextColor(...INK);
+    doc.text("Relatório Alinha Face", M, y+6);
+    doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(...MUTED);
+    doc.text(per.nome+"  |  "+dataBR(R.ini)+" a "+dataBR(R.fim)+"  |  gerado em "+new Date().toLocaleDateString("pt-BR"), M, y+12);
+    doc.setDrawColor(...GOLD); doc.setLineWidth(0.6); doc.line(M, y+16, W-M, y+16);
+    y += 24;
+    // kpis
+    const ks = [["Leads novos",String(R.leads)],["Consultas",String(R.compareceu)],["Comparecimento",R.taxaComp==null?"-":R.taxaComp+"%"],["Vouchers usados",R.voucher.taxa==null?"-":R.voucher.taxa+"%"],["Contatos",String(R.totContatos)],["OPME no funil",brl(R.agora.opme)]];
+    const kw = (W-2*M-10)/3;
+    ks.forEach((kv,i)=>{
+      const cx = M + (i%3)*(kw+5), cy = y + Math.floor(i/3)*22;
+      doc.setFillColor(...SOFT); doc.roundedRect(cx,cy,kw,18,2,2,"F");
+      doc.setFontSize(8); doc.setTextColor(...MUTED); doc.text(kv[0].toUpperCase(), cx+4, cy+6);
+      doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor(...(i===5?GOLD:INK)); doc.text(kv[1], cx+4, cy+14);
+      doc.setFont("helvetica","normal");
+    });
+    y += 50;
+    const secao = t=>{ y += 4; novaPag(14); doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(...NAVY); doc.text(t, M, y); doc.setFont("helvetica","normal"); y += 6; };
+    const barrasPdf = (lista, vazio)=>{
+      if(!lista.length || lista.every(x=>!x[1])){ doc.setFontSize(9.5); doc.setTextColor(...MUTED); doc.text(vazio||"Sem dados no período.", M, y+2); y += 9; return; }
+      const max = Math.max(...lista.map(x=>x[1]),1), lw = 58, bw = W-2*M-lw-14;
+      lista.forEach(([l,v])=>{
+        novaPag(8);
+        doc.setFontSize(9.5); doc.setTextColor(...INK); doc.text(String(l).slice(0,34), M, y+3.5);
+        doc.setFillColor(...SOFT); doc.rect(M+lw, y, bw, 5, "F");
+        doc.setFillColor(...NAVY); if(v) doc.rect(M+lw, y, Math.max(bw*v/max,0.8), 5, "F");
+        doc.setTextColor(...INK); doc.text(String(v), W-M, y+3.8, {align:"right"});
+        y += 7.5;
+      });
+      y += 3;
+    };
+    const linhas = arr=>{ doc.setFontSize(9.5); doc.setTextColor(...INK); arr.forEach(t=>{ const parts = doc.splitTextToSize(t, W-2*M); novaPag(parts.length*5); doc.text(parts, M, y+3); y += parts.length*5; }); y += 3; };
+
+    secao("Funil do período"); barrasPdf(R.funil);
+    linhas(["Comparecimento: "+(R.taxaComp==null?"-":R.taxaComp+"%")+"  |  Faltas: "+R.noshow]);
+    secao("Origem dos leads"); barrasPdf(R.origens,"Nenhum lead novo no período.");
+    secao("Vouchers Blume");
+    linhas([R.voucher.emitidos+" emitidos  |  "+R.voucher.usados+" usados  |  "+R.voucher.vencidos+" vencidos  |  "+R.voucher.abertos+" aguardando uso hoje",
+            "Taxa de uso: "+(R.voucher.taxa==null?"-":R.voucher.taxa+"%")+" (usados ÷ usados + vencidos)"]);
+    secao("Casos com parceiros");
+    linhas([R.enc.enviados+" encaminhados  |  "+R.enc.fechados+" com desfecho ("+R.enc.fechouCirurgia+" fecharam)  |  "+R.enc.abertos.length+" em aberto"]);
+    if(R.enc.abertos.length) linhas(R.enc.abertos.map(e=>"• "+e.paciente+" — "+e.parceiro+", enviado "+dataBR(e.envio)+": "+e.st.l+(e.st.d?" ("+e.st.d+" dias úteis)":"")));
+    secao("Contatos feitos pela aprendiz"); barrasPdf(R.contatos,"Nenhum contato registrado no período.");
+    secao("Tratamento de quem consultou"); barrasPdf(R.tratamentos,"Nenhuma consulta no período.");
+    secao("Situação hoje");
+    linhas(["Aguardando exames: "+R.agora.exames+"  |  Propostas em aberto: "+R.agora.propostas,
+            "Cirurgias: "+R.agora.docs+" em documentos  |  "+R.agora.autorizacao+" aguardando autorizacao  |  "+R.agora.autorizado+" autorizadas a agendar  |  "+R.agora.marcadas+" marcadas",
+            "OPME estimado no funil: "+brl(R.agora.opme)]);
+    const n = doc.getNumberOfPages();
+    for(let i=1;i<=n;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(...MUTED); doc.text("Alinha Face  |  Funil de pacientes", M, 290); doc.text(i+"/"+n, W-M, 290, {align:"right"}); }
+    await DOWNLOADS.save({filename:"relatorio-alinha-face-"+R.ini+"-a-"+R.fim+".pdf", data:doc.output("arraybuffer")});
+    toast("PDF gerado.");
+  }catch(e){
+    toast(e && e.code==="declined" ? "Download cancelado." : "Não consegui gerar o PDF.");
+  }finally{ btn.disabled=false; btn.textContent=old; }
+}
+
+/* ============ drawer ============ */
+function campo(label, node){
+  const f = el("div","field"); const l = el("label",null,label);
+  l.htmlFor = node.id; f.append(l,node); return f;
+}
+function sel(id, opts, valor, vazio){
+  const s = el("select"); s.id=id;
+  if(vazio!=null){ const o=el("option",null,vazio); o.value=""; s.appendChild(o); }
+  for(const v of opts){ const o=el("option",null,v); o.value=v; if(v===valor) o.selected=true; s.appendChild(o); }
+  return s;
+}
+function inp(id,tipo,valor,ph){ const i=el("input"); i.id=id; i.type=tipo; if(valor!=null) i.value=valor; if(ph) i.placeholder=ph; return i; }
+
+function abrirDrawer(id){
+  editandoId = id;
+  const p = id ? Object.assign({}, pacientes.get(id)) : {
+    id:novoId(), etapa:"lead", tratamento:"A definir", convenio:"Não sabe",
+    pagamento:"A definir", modalidade:"Online", local:"Online",
+    criadoEm:new Date().toISOString(), opme:0
+  };
+  fecharOverlays();
+  const scrim = el("div","scrim"); scrim.id="scrim"; scrim.addEventListener("click",fecharOverlays);
+  const d = el("aside","drawer"); d.id="drawer"; d.setAttribute("role","dialog"); d.setAttribute("aria-label","Ficha do paciente");
+
+  const h = el("header");
+  h.append(el("h2",null, id ? "Ficha do paciente" : "Novo paciente"));
+  const bx = el("button","btn btn-ghost btn-sm","Fechar"); bx.addEventListener("click",fecharOverlays); h.appendChild(bx);
+  d.appendChild(h);
+
+  const b = el("div","body");
+
+  const fs1 = el("fieldset"); fs1.append(el("div","legend","Contato"));
+  const g1 = el("div","grid2");
+  g1.append(campo("Nome", inp("f_nome","text",p.nome||"","Nome do paciente")), campo("WhatsApp", inp("f_tel","tel",p.telefone||"","(11) 90000-0000")));
+  const g1b = el("div","grid2");
+  g1b.append(campo("Cidade / UF", inp("f_cidade","text",p.cidade||"","São Paulo · SP")), campo("Origem do lead", sel("f_origem",ORIGENS,p.origem,"Selecione")));
+  fs1.append(g1,g1b); b.appendChild(fs1);
+
+  const fs2 = el("fieldset"); fs2.append(el("div","legend","Etapa do funil"));
+  const stSel = el("select"); stSel.id="f_etapa";
+  for(const s of STAGES){ const o=el("option",null,s.l); o.value=s.k; if(s.k===p.etapa) o.selected=true; stSel.appendChild(o); }
+  const g2 = el("div","grid2");
+  g2.append(campo("Etapa atual", stSel), campo("Tratamento", sel("f_trat",TRATAMENTOS,p.tratamento)));
+  const g2b = el("div","grid3");
+  g2b.append(campo("Data da consulta", inp("f_data","date",p.dataConsulta||"")),
+             campo("Horário", sel("f_hora",HORARIOS,p.horaConsulta,"—")),
+             campo("Modalidade", sel("f_mod",MODALIDADES,p.modalidade)));
+  fs2.append(g2,g2b,campo("Local", sel("f_local",LOCAIS,p.local)));
+  const g2c = el("div","grid2");
+  g2c.append(campo("Exames solicitados em", inp("f_dexames","date",p.dataExames||"")),
+             campo("Proposta enviada em", inp("f_dprop","date",p.dataProposta||"")));
+  fs2.append(g2c); b.appendChild(fs2);
+
+  const fs3 = el("fieldset"); fs3.append(el("div","legend","Convênio e valores"));
+  const g3 = el("div","grid2");
+  g3.append(campo("Tem convênio?", sel("f_conv",CONVENIOS,p.convenio)), campo("Qual convênio", inp("f_nconv","text",p.nomeConvenio||"","Unimed, Amil…")));
+  const g3b = el("div","grid3");
+  const opmeI = inp("f_opme","number",p.opme||0); opmeI.step="100";
+  g3b.append(campo("Forma de pagamento", sel("f_pag",PAGAMENTOS,p.pagamento)),
+             campo("Valor da proposta (R$)", inp("f_valor","number",p.valorProposta||"")),
+             campo("OPME estimado (R$)", opmeI));
+  fs3.append(g3,g3b); b.appendChild(fs3);
+
+  const fs4 = el("fieldset"); fs4.append(el("div","legend","Acompanhamento"));
+  const g4 = el("div","grid2");
+  const acaoAtual = p.proximaAcao || "";
+  const acaoNaLista = !acaoAtual || ACOES.includes(acaoAtual);
+  const selAcao = sel("f_pacao", ACOES, acaoNaLista ? acaoAtual : "Outro (escrever)", "— sem próxima ação —");
+  const inpAcao = inp("f_pacao_txt","text", acaoNaLista ? "" : acaoAtual, "Descreva a ação");
+  const campoOutro = campo("Qual ação", inpAcao);
+  campoOutro.hidden = acaoNaLista;
+  selAcao.addEventListener("change", e=>{
+    campoOutro.hidden = e.target.value !== "Outro (escrever)";
+    if(!campoOutro.hidden) inpAcao.focus();
+  });
+  g4.append(campo("Próxima ação", selAcao), campo("Quando", inp("f_dpacao","date",p.dataProximaAcao||"")));
+  const obs = el("textarea"); obs.id="f_obs"; obs.value = p.observacoes||""; obs.placeholder="Queixa principal, o que o Dr. Gustavo pediu, objeções…";
+  fs4.append(g4, campoOutro, campo("Observações", obs)); b.appendChild(fs4);
+
+  const fs5 = el("fieldset"); fs5.append(el("div","legend","Voucher de ressonância · Blume"));
+  const g5 = el("div","grid3");
+  const vHint = el("div","hint");
+  g5.append(campo("Emitido em", inp("f_vemit","date",p.voucherEmitido||"")),
+            campo("Situação", sel("f_vstat",VOUCHER_STATUS,p.voucherStatus||"Aguardando uso")),
+            campo("Vence em", (()=>{ const i=inp("f_vvenc","text",p.voucherEmitido?dataBR(somaDias(p.voucherEmitido,VOUCHER_DIAS)):"—"); i.readOnly=true; return i; })()));
+  vHint.textContent = "Voucher nominal, uso único, válido por 5 dias a partir da emissão.";
+  fs5.append(g5, vHint); b.appendChild(fs5);
+
+  if(id && !["perdido","noshow","cir_feita","posop"].includes(p.etapa)){
+    const fsP = el("fieldset");
+    const bP = el("button","btn btn-danger btn-sm","Marcar como perdido / desistiu");
+    bP.addEventListener("click",()=>marcarPerdido(p));
+    fsP.append(bP); b.appendChild(fsP);
+  }
+  if(p.motivoPerda){
+    const mv = el("div","hint"); mv.textContent = "Motivo do encerramento: "+p.motivoPerda; b.appendChild(mv);
+  }
+
+  if(p.ultimaMensagem){
+    const box = el("div","hint");
+    box.textContent = "\u00daltima mensagem no WhatsApp"+(p.ultimaMensagemEm?" ("+dataBR(String(p.ultimaMensagemEm).slice(0,10))+")":"")+": \u201C"+p.ultimaMensagem+"\u201D";
+    b.appendChild(box);
+  }
+
+  const fs6 = el("fieldset"); fs6.append(el("div","legend","Hist\u00f3rico de contatos"));
+  const hist = (p.historico||[]).slice().reverse();
+  if(hist.length){
+    const ul = el("div","hist");
+    hist.forEach(h=>{ const li = el("div","hist-item"); li.append(el("span","hist-d",dataBR(h.data)), el("span",null,h.texto)); ul.appendChild(li); });
+    fs6.appendChild(ul);
+  }else{
+    fs6.appendChild(el("div","hint","Nenhum contato registrado ainda. Cada \"Feito\" da aba Rotina do dia entra aqui com a data."));
+  }
+  b.appendChild(fs6);
+
+  const al = alertasDe(p);
+  if(al.length){
+    const box = el("div","alertbar"); box.append(el("span","dotw"), el("span",null,al.join(" · ")));
+    b.appendChild(box);
+  }
+  d.appendChild(b);
+
+  const f = el("footer");
+  const save = el("button","btn btn-primary","Salvar");
+  save.addEventListener("click",()=>{
+    const nome = $("#f_nome").value.trim();
+    if(!nome){ $("#f_nome").focus(); toast("O nome do paciente é obrigatório."); return; }
+    const antes = p.etapa;
+    Object.assign(p,{
+      nome, telefone:$("#f_tel").value.trim(), cidade:$("#f_cidade").value.trim(), origem:$("#f_origem").value,
+      tratamento:$("#f_trat").value, dataConsulta:$("#f_data").value, horaConsulta:$("#f_hora").value,
+      modalidade:$("#f_mod").value, local:$("#f_local").value, dataExames:$("#f_dexames").value,
+      dataProposta:$("#f_dprop").value, convenio:$("#f_conv").value, nomeConvenio:$("#f_nconv").value.trim(),
+      pagamento:$("#f_pag").value, valorProposta:Number($("#f_valor").value)||0, opme:Number($("#f_opme").value)||0,
+      proximaAcao:(function(){ const v=$("#f_pacao").value; return v==="Outro (escrever)" ? $("#f_pacao_txt").value.trim() : v; })(), dataProximaAcao:$("#f_dpacao").value, observacoes:$("#f_obs").value.trim(),
+      voucherEmitido:$("#f_vemit").value, voucherStatus:$("#f_vemit").value ? $("#f_vstat").value : ""
+    });
+    if(["Usado","Venceu"].includes(p.voucherStatus) && !p.voucherBaixa) p.voucherBaixa = hoje();
+    if(p.voucherStatus==="Aguardando uso") p.voucherBaixa = "";
+    const nova = $("#f_etapa").value;
+    if(nova!==antes) aplicarEtapa(p,nova); else p.etapa = nova;
+    salvar(p); fecharOverlays(); toast(id ? "Ficha atualizada." : "Paciente cadastrado.");
+  });
+  f.appendChild(save);
+  if(id){
+    const del = el("button","btn btn-danger btn-sm","Excluir");
+    del.addEventListener("click",()=>{ if(confirm("Excluir "+(p.nome||"este paciente")+" da base?")){ remover(id); fecharOverlays(); toast("Paciente excluído."); } });
+    f.appendChild(del);
+  }
+  d.appendChild(f);
+
+  document.body.append(scrim,d);
+  // OPME sugerido pelo tratamento, enquanto o campo não foi ajustado à mão
+  $("#f_trat").addEventListener("change",e=>{
+    const atual = Number($("#f_opme").value)||0;
+    if(atual===0 || Object.values(OPME_PADRAO).includes(atual)) $("#f_opme").value = OPME_PADRAO[e.target.value]||0;
+  });
+  $("#f_nome").focus();
+}
+function fecharOverlays(){ document.querySelectorAll(".scrim,.drawer,.modal").forEach(n=>n.remove()); }
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") fecharOverlays(); });
+
+/* ============ importação ============ */
+function abrirImport(){
+  fecharOverlays();
+  const scrim = el("div","scrim"); scrim.addEventListener("click",fecharOverlays);
+  const m = el("div","modal"); m.setAttribute("role","dialog"); m.setAttribute("aria-label","Importar pacientes");
+  const h = el("header"); h.append(el("h2",null,"Importar pacientes"));
+  const x = el("button","btn btn-ghost btn-sm","Fechar"); x.addEventListener("click",fecharOverlays); h.appendChild(x); m.appendChild(h);
+
+  const b = el("div","body");
+  const hint = el("div","hint");
+  hint.innerHTML = "Cole aqui as linhas exportadas do GPT Maker, de uma planilha ou de um fluxo do n8n. A primeira linha deve ser o cabeçalho. Colunas reconhecidas: <code>nome</code>, <code>telefone</code>, <code>cidade</code>, <code>origem</code>, <code>tratamento</code>, <code>etapa</code>, <code>data</code>, <code>hora</code>, <code>modalidade</code>, <code>convenio</code>, <code>obs</code>. Separador vírgula, ponto e vírgula ou tabulação. Só <code>nome</code> é obrigatório — o resto entra como “Lead novo”.";
+  const ta = el("textarea"); ta.style.minHeight="200px"; ta.style.fontFamily="var(--font-mono)"; ta.style.fontSize="12.5px";
+  ta.placeholder = "nome;telefone;origem;tratamento;etapa;data\nMaria Souza;11987654321;Quiz do site;DTM / ATM;agendou;2026-09-08";
+  const prev = el("div","hint");
+  b.append(hint,ta,prev); m.appendChild(b);
+
+  const f = el("footer");
+  const cancel = el("button","btn","Cancelar"); cancel.addEventListener("click",fecharOverlays);
+  const ok = el("button","btn btn-primary","Importar");
+  ok.addEventListener("click",async ()=>{
+    const linhas = parseTabela(ta.value);
+    if(!linhas.length){ prev.textContent = "Não encontrei nenhuma linha válida — confira o cabeçalho."; return; }
+    ok.disabled = true; ok.textContent = "Importando…";
+    for(const p of linhas) await salvar(p);
+    fecharOverlays(); toast(linhas.length+" paciente"+(linhas.length>1?"s importados":" importado")+".");
+  });
+  f.append(cancel,ok); m.appendChild(f);
+  document.body.append(scrim,m); ta.focus();
+}
+
+function parseTabela(txt){
+  const linhas = txt.trim().split(/\r?\n/).filter(l=>l.trim());
+  if(linhas.length<2) return [];
+  const sep = (linhas[0].match(/\t/)?"\t":(linhas[0].match(/;/)?";":","));
+  const norm = s=>s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  const head = linhas[0].split(sep).map(norm);
+  const idx = n=>head.indexOf(n);
+  const out = [];
+  for(const l of linhas.slice(1)){
+    const c = l.split(sep).map(s=>s.trim());
+    const get = n=>{ const i=idx(n); return i>=0 ? (c[i]||"") : ""; };
+    const nome = get("nome")||get("paciente")||get("name");
+    if(!nome) continue;
+    const etapaTxt = norm(get("etapa"));
+    const etapa = STAGES.find(s=>s.k===etapaTxt || norm(s.l)===etapaTxt)?.k || "lead";
+    const trat = TRATAMENTOS.find(t=>norm(t)===norm(get("tratamento"))) ||
+                 (/orto/.test(norm(get("tratamento"))) ? "Ortognática" : (/atm|dtm/.test(norm(get("tratamento"))) ? "DTM / ATM" : "A definir"));
+    const origem = ORIGENS.find(o=>norm(o)===norm(get("origem"))) || (get("origem") ? "Outro" : "");
+    let data = get("data");
+    const m = data.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if(m) data = m[3]+"-"+m[2]+"-"+m[1];
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(data)) data = "";
+    const conv = CONVENIOS.find(v=>norm(v)===norm(get("convenio"))) || (get("convenio") ? "Sim" : "Não sabe");
+    out.push({
+      id:novoId(), nome, telefone:get("telefone")||get("whatsapp"), cidade:get("cidade"),
+      origem, tratamento:trat, etapa, dataConsulta:data, horaConsulta:get("hora"),
+      modalidade: MODALIDADES.find(v=>norm(v)===norm(get("modalidade")))||"Online",
+      local:"Online", convenio:conv, nomeConvenio: conv==="Sim"&&!CONVENIOS.includes(get("convenio")) ? get("convenio") : "",
+      pagamento:"A definir", opme:OPME_PADRAO[trat]||0, valorProposta:0,
+      observacoes:get("obs")||get("observacoes"), criadoEm:new Date().toISOString()
+    });
+  }
+  return out;
+}
+
+/* ============ exportação ============ */
+async function exportar(){
+  const cols = ["nome","telefone","cidade","origem","tratamento","etapa","dataConsulta","horaConsulta","modalidade","local","convenio","nomeConvenio","pagamento","valorProposta","opme","dataExames","dataProposta","proximaAcao","dataProximaAcao","observacoes","criadoEm"];
+  const esc = v=>{ const s=(v==null?"":String(v)); return /[";\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const linhas = [cols.join(";")];
+  for(const p of visiveis()) linhas.push(cols.map(c=>esc(c==="etapa" ? (STAGE_BY_KEY[p.etapa]?.l||p.etapa) : p[c])).join(";"));
+  const csv = "﻿"+linhas.join("\n");
+  const nome = "funil-alinha-face-"+hoje()+".csv";
+  if(DOWNLOADS){
+    try{ await DOWNLOADS.save({filename:nome, data:csv}); toast("CSV gerado."); return; }catch(e){ /* segue para o fallback */ }
+  }
+  try{ await navigator.clipboard.writeText(csv); toast("CSV copiado — cole numa planilha."); }
+  catch(e){ toast("Não consegui gerar o arquivo aqui."); }
+}
+
+/* ============ ligações ============ */
+function preencherFiltros(){
+  $("#fEtapa").appendChild(el("option",null,"Todas as etapas")).value="";
+  STAGES.forEach(s=>{const x=el("option",null,s.l);x.value=s.k;$("#fEtapa").appendChild(x);});
+  $("#fOrigem").appendChild(el("option",null,"Todas")).value="";
+  ORIGENS.forEach(o=>{const x=el("option",null,o);x.value=o;$("#fOrigem").appendChild(x);});
+  $("#fTrat").appendChild(el("option",null,"Todos")).value="";
+  TRATAMENTOS.forEach(o=>{const x=el("option",null,o);x.value=o;$("#fTrat").appendChild(x);});
+  $("#fConv").appendChild(el("option",null,"Todos")).value="";
+  CONVENIOS.forEach(o=>{const x=el("option",null,o);x.value=o;$("#fConv").appendChild(x);});
+}
+preencherFiltros();
+
+$("#fBusca").addEventListener("input",e=>{filtros.busca=e.target.value;render();});
+$("#fEtapa").addEventListener("change",e=>{filtros.etapa=e.target.value;render();});
+$("#fOrigem").addEventListener("change",e=>{filtros.origem=e.target.value;render();});
+$("#fTrat").addEventListener("change",e=>{filtros.trat=e.target.value;render();});
+$("#fConv").addEventListener("change",e=>{filtros.conv=e.target.value;render();});
+$("#fPer").addEventListener("change",e=>{filtros.periodo=e.target.value;render();});
+$("#btnAlerts").addEventListener("click",()=>{filtros.somenteAlerta=true;render();});
+$("#btnAlertsClear").addEventListener("click",()=>{filtros.somenteAlerta=false;render();});
+$("#btnLimpar").addEventListener("click",()=>{
+  filtros = {busca:"",etapa:"",origem:"",trat:"",conv:"",periodo:"",somenteAlerta:false};
+  $("#fBusca").value=""; $("#fEtapa").value=""; $("#fOrigem").value=""; $("#fTrat").value=""; $("#fConv").value=""; $("#fPer").value="";
+  render();
+});
+$("#btnNew").addEventListener("click",()=>abrirDrawer(null));
+$("#btnImport").addEventListener("click",abrirImport);
+$("#btnExport").addEventListener("click",exportar);
+$("#viewBoard").addEventListener("click",()=>trocarModo("board"));
+$("#viewTable").addEventListener("click",()=>trocarModo("table"));
+document.querySelectorAll("th.sortable").forEach(th=>{
+  th.addEventListener("click",()=>{
+    const c = th.dataset.sort;
+    sortBy = {campo:c, dir: sortBy.campo===c && sortBy.dir==="asc" ? "desc":"asc"};
+    renderTable();
+  });
+});
+function trocarModo(m){
+  modo = m;
+  try{ localStorage.setItem("funil_modo", m); }catch(e){}
+  $("#viewNovos").setAttribute("aria-pressed", String(m==="novos"));
+  $("#viewGus").setAttribute("aria-pressed", String(m==="gus"));
+  $("#viewHoje").setAttribute("aria-pressed", String(m==="hoje"));
+  $("#viewBoard").setAttribute("aria-pressed", String(m==="board"));
+  $("#viewTable").setAttribute("aria-pressed", String(m==="table"));
+  $("#viewRel").setAttribute("aria-pressed", String(m==="rel"));
+  $("#relview").hidden = m!=="rel";
+  $("#board").hidden = m!=="board";
+  $("#tableview").hidden = m!=="table";
+  $("#hojeview").hidden = m!=="hoje";
+  $("#novosview").hidden = m!=="novos";
+  $("#gusview").hidden = m!=="gus";
+  $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus";
+  render();
+}
+$("#viewNovos").addEventListener("click",()=>trocarModo("novos"));
+$("#viewGus").addEventListener("click",()=>trocarModo("gus"));
+$("#viewHoje").addEventListener("click",()=>trocarModo("hoje"));
+$("#viewRel").addEventListener("click",()=>trocarModo("rel"));
+
+trocarModo(modo);
+conectar();
+</script>
+
