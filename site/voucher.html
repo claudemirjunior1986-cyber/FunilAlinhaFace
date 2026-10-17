@@ -134,8 +134,14 @@ function codigo(p, emissao){
 }
 
 function ajustarNome(){
-  const el = $("#vNome"); let tam = 38; el.style.fontSize = tam+"px";
-  while(el.scrollWidth > 410 && tam > 22){ tam -= 1; el.style.fontSize = tam+"px"; }
+  // uma linha até 30px; se não couber, quebra em duas linhas (até 24px)
+  const el = $("#vNome"); let tam = 38;
+  el.style.whiteSpace = "nowrap"; el.style.width = "auto"; el.style.lineHeight = "1.15";
+  el.style.fontSize = tam+"px";
+  while(el.scrollWidth > 410 && tam > 30){ tam -= 1; el.style.fontSize = tam+"px"; }
+  if(el.scrollWidth <= 410) return;
+  el.style.whiteSpace = "normal"; el.style.width = "410px"; tam = 32; el.style.fontSize = tam+"px";
+  while((el.scrollHeight > tam*1.15*2 + 4 || el.scrollWidth > 412) && tam > 24){ tam -= 1; el.style.fontSize = tam+"px"; }
 }
 
 function desenhar(){
