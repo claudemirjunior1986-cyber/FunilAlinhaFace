@@ -1,0 +1,17 @@
+{
+  "name": "Funil Alinha Face",
+  "short_name": "Alinha Face",
+  "description": "Pacientes, agenda dos cirurgiões, exames e cirurgias da Alinha Face.",
+  "lang": "pt-BR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F7F4EF",
+  "theme_color": "#17325C",
+  "icons": [
+    { "src": "icones/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icones/icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icones/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
