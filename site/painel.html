@@ -81,6 +81,11 @@
   .seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:3px}
   .seg button{border:0;background:transparent;padding:6px 14px;border-radius:6px;cursor:pointer;color:var(--ink-2);font-weight:500}
   .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .seg button.alerta{color:var(--crit);font-weight:700}
+  .seg button.alerta::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--crit);margin-right:6px;vertical-align:1px}
+  .tag-v{display:inline-block;font-size:11.5px;font-weight:600;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:1px}
+  .tag-v.ok{background:var(--ok-bg);color:var(--ok)} .tag-v.warn{background:var(--warn-bg);color:var(--warn)} .tag-v.neu{background:var(--surface-3);color:var(--ink-2)}
+  .resumo-cir{font-size:12.5px;color:var(--ink-2);margin-top:3px;white-space:pre-wrap;overflow-wrap:anywhere}
 
   /* ---------- kpis ---------- */
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px;margin-bottom:14px}
@@ -297,6 +302,7 @@
     </div>
     <div class="seg" role="group" aria-label="Modo de visualização">
       <button id="viewNovos" aria-pressed="false">Novos</button>
+      <button id="viewExames" aria-pressed="false">Exames pedidos</button>
       <button id="viewGus" aria-pressed="false">Dr. Gustavo</button>
       <button id="viewHoje" aria-pressed="false">Rotina do dia</button>
       <button id="viewBoard" aria-pressed="true">Funil</button>
@@ -338,6 +344,7 @@
   <div id="board" class="board"></div>
 
   <div id="novosview" hidden></div>
+  <div id="examesview" hidden></div>
   <div id="gusview" hidden></div>
   <div id="hojeview" hidden></div>
   <div id="relview" hidden></div>
@@ -432,7 +439,7 @@ let filtros = {busca:"",etapa:"",origem:"",trat:"",conv:"",periodo:"",somenteAle
 let sortBy = {campo:"dataConsulta",dir:"asc"};
 let editandoId = null;
 let modo = "board";
-try{ const m = localStorage.getItem("funil_modo"); if(["board","table","hoje","rel","novos","gus"].includes(m)) modo = m; }catch(e){}
+try{ const m = localStorage.getItem("funil_modo"); if(["board","table","hoje","rel","novos","gus","exames"].includes(m)) modo = m; }catch(e){}
 let encaminhamentos = new Map();
 
 const $ = s=>document.querySelector(s);
@@ -592,9 +599,110 @@ function render(){
   if(bn){ const n = novos().length; bn.textContent = n ? "Novos · "+n : "Novos"; }
   const bg = document.getElementById("viewGus");
   if(bg){ const n = casosGustavo().length; bg.textContent = n ? "Dr. Gustavo · "+n : "Dr. Gustavo"; }
+  const bx = document.getElementById("viewExames");
+  if(bx){ const n = examesPendentes().length; bx.textContent = n ? "Exames pedidos · "+n : "Exames pedidos"; bx.classList.toggle("alerta", n>0); }
+  if(modo==="exames"){ renderExames(); return; }
   if(modo==="novos"){ renderNovos(); return; }
   if(modo==="gus"){ renderGus(); return; }
   if(modo==="hoje"){ renderHoje(); return; } if(modo==="rel"){ renderRel(); return; } renderKpis(); renderAlertas(); modo==="board" ? renderBoard() : renderTable(); }
+
+/* ============ exames pedidos pelo cirurgião ============ */
+const nomeCirurgiao = email => (CIRURGIOES.find(c=>c.email===email)||{}).nome || email || "Cirurgião";
+const temRessonancia = p => (p.examesTipos||[]).includes("Ressonância magnética") || /resson/i.test(p.examesPedidos||"");
+function examesPendentes(){
+  return [...pacientes.values()].filter(p=>p.consultaPediuExames && !p.examesVistoEm)
+    .sort((a,b)=>String(a.examesPedidosEm||"").localeCompare(String(b.examesPedidosEm||"")));
+}
+function examesVistos(){
+  return [...pacientes.values()].filter(p=>p.consultaPediuExames && p.examesVistoEm && diasDesde(p.examesVistoEm)<=30)
+    .sort((a,b)=>String(b.examesVistoEm).localeCompare(String(a.examesVistoEm)));
+}
+function situacaoVoucher(p){
+  if(p.voucherEmitido){
+    const st = p.voucherStatus || "Aguardando uso";
+    if(st!=="Aguardando uso") return ["Voucher "+st.toLowerCase(), "neu"];
+    return [(p.voucherAuto?"Voucher emitido sozinho":"Voucher emitido")+" · vence "+dataBR(vencVoucher(p)), "ok"];
+  }
+  if(temRessonancia(p)) return ["Ressonância sem voucher", "warn"];
+  return null;
+}
+function linhaExame(p, pendente){
+  const row = el("div","task"+(pendente && diasDesde(p.examesPedidosEm)>=1 ? " late" : ""));
+  const sev = el("span","sev"); if(pendente) sev.style.background = "var(--crit)"; row.appendChild(sev);
+  const mid = el("div");
+  const t1 = el("div","t1");
+  const nm = el("button",null,p.nome||"Sem nome"); nm.title="Abrir ficha"; nm.addEventListener("click",()=>abrirDrawer(p.id));
+  t1.append(el("span","step","Exames"), nm);
+  const sv = situacaoVoucher(p); if(sv){ t1.appendChild(el("span","tag-v "+sv[1], sv[0])); }
+  const t2 = el("div","t2");
+  t2.textContent = [nomeCirurgiao(p.consultaRegistradaPor||p.cirurgiao),
+    p.examesPedidosEm ? "pedido em "+dataBR(p.examesPedidosEm) : "",
+    [...(p.examesTipos||[]), p.examesPedidos].filter(Boolean).join(" · ") || "exames não especificados",
+    p.cidade || "", p.telefone || ""].filter(Boolean).join(" · ");
+  mid.append(t1,t2);
+  if(p.resumoConsulta){ const r = el("div","resumo-cir"); r.textContent = "Resumo: "+String(p.resumoConsulta).slice(0,240)+(String(p.resumoConsulta).length>240?"…":""); mid.appendChild(r); }
+  row.appendChild(mid);
+  const ops = el("div","ops");
+  const reg = p.regua||{};
+  if(p.voucherEmitido && (p.voucherStatus||"Aguardando uso")==="Aguardando uso" && !reg.d0){
+    const w = el("button","btn btn-sm btn-primary","Enviar voucher no WhatsApp");
+    w.addEventListener("click",()=>{
+      abrirWhats(p, MSG.d0(p));
+      const q = Object.assign({}, pacientes.get(p.id)); q.regua = Object.assign({}, q.regua, {d0:hoje()});
+      registrarHistorico(q, "Voucher Blume enviado ao paciente pelo WhatsApp"); salvar(q);
+    });
+    ops.appendChild(w);
+  }else if(!p.voucherEmitido && temRessonancia(p)){
+    const v = el("button","btn btn-sm","Emitir voucher");
+    v.title = "Paciente fora de SP ou cidade não informada: o voucher não saiu sozinho";
+    v.addEventListener("click",()=>{
+      const q = Object.assign({}, pacientes.get(p.id));
+      q.voucherEmitido = hoje(); q.voucherStatus = "Aguardando uso"; q.voucherBaixa = "";
+      registrarHistorico(q, "Voucher Blume emitido pelo painel"); salvar(q); toast("Voucher emitido. Agora envie ao paciente.");
+    });
+    ops.appendChild(v);
+  }
+  if(pendente){
+    const ok = el("button","btn btn-sm","Visto");
+    ok.title = "Tira da lista de pendentes";
+    ok.addEventListener("click",()=>{
+      const q = Object.assign({}, pacientes.get(p.id)); q.examesVistoEm = hoje();
+      registrarHistorico(q, "Pedido de exames visto pela equipe"); salvar(q); toast("Marcado como visto.");
+    });
+    ops.appendChild(ok);
+  }
+  row.appendChild(ops);
+  return row;
+}
+function renderExames(){
+  const box = $("#examesview"); box.textContent = "";
+  const pend = examesPendentes(), vistos = examesVistos();
+  const head = el("div","hoje-head"); const hl = el("div");
+  hl.append(el("h2",null,"Exames pedidos"), el("div","dt","O que os cirurgiões pediram nas consultas. Fica aqui até alguém marcar como visto."));
+  head.append(hl); box.appendChild(head);
+
+  const semEnvio = pend.concat(vistos).filter(p=>p.voucherEmitido && (p.voucherStatus||"Aguardando uso")==="Aguardando uso" && !(p.regua||{}).d0);
+  const semVoucher = pend.filter(p=>!p.voucherEmitido && temRessonancia(p));
+  const k = el("div","kpis");
+  [{l:"Pedidos novos", v:pend.length, h:"ainda não vistos", c:pend.length?"alert":""},
+   {l:"Voucher a enviar", v:semEnvio.length, h:"emitido, falta mandar ao paciente", c:semEnvio.length?"alert":""},
+   {l:"Ressonância sem voucher", v:semVoucher.length, h:"fora de SP ou cidade em branco"}
+  ].forEach(t=>{ const d = el("div","kpi"+(t.c?" "+t.c:"")); d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",t.h)); k.appendChild(d); });
+  box.appendChild(k);
+
+  const p1 = el("section","panel");
+  const h1 = el("div","panel-head"); h1.append(el("h3",null,"Pedidos novos"), el("span","n",String(pend.length))); p1.appendChild(h1);
+  if(!pend.length){ const e = el("div","done-empty"); e.append(el("strong",null,"Nada novo"), document.createTextNode("Quando um cirurgião registrar que pediu exames, o paciente aparece aqui.")); p1.appendChild(e); }
+  pend.forEach(p=>p1.appendChild(linhaExame(p,true)));
+  box.appendChild(p1);
+
+  if(vistos.length){
+    const p2 = el("section","panel"); p2.style.marginTop = "16px";
+    const h2 = el("div","panel-head"); h2.append(el("h3",null,"Vistos nos últimos 30 dias"), el("span","n",String(vistos.length))); p2.appendChild(h2);
+    vistos.forEach(p=>p2.appendChild(linhaExame(p,false)));
+    box.appendChild(p2);
+  }
+}
 
 /* ============ novos: falaram com a gente e ninguém decidiu o próximo passo ============ */
 function semProximaAcao(p){
@@ -1745,7 +1853,7 @@ function abrirDrawer(id){
   if(p.consultaRegistradaEm){
     const fsC = el("fieldset"); fsC.append(el("div","legend","Registro do cirurgião"));
     const nomeCir = (CIRURGIOES.find(c=>c.email===p.consultaRegistradaPor)||{}).nome || p.consultaRegistradaPor || "Cirurgião";
-    const linha1 = (p.consultaCompareceu===false ? "Não compareceu" : "Compareceu"+(p.consultaPediuExames ? " · pediu exames"+(p.examesPedidos?": "+p.examesPedidos:"") : " · sem exames"))
+    const linha1 = (p.consultaCompareceu===false ? "Não compareceu" : "Compareceu"+(p.consultaPediuExames ? " · pediu exames: "+([...(p.examesTipos||[]), p.examesPedidos].filter(Boolean).join(", ")||"não especificados") : " · sem exames"))
       + " — " + nomeCir + ", " + dataBR(String(p.consultaRegistradaEm).slice(0,10));
     const bx1 = el("div",null,linha1); bx1.style.fontWeight = "600";
     fsC.appendChild(bx1);
@@ -1938,6 +2046,8 @@ function trocarModo(m){
   modo = m;
   try{ localStorage.setItem("funil_modo", m); }catch(e){}
   $("#viewNovos").setAttribute("aria-pressed", String(m==="novos"));
+  $("#viewExames").setAttribute("aria-pressed", String(m==="exames"));
+  $("#examesview").hidden = m!=="exames";
   $("#viewGus").setAttribute("aria-pressed", String(m==="gus"));
   $("#viewHoje").setAttribute("aria-pressed", String(m==="hoje"));
   $("#viewBoard").setAttribute("aria-pressed", String(m==="board"));
@@ -1949,10 +2059,11 @@ function trocarModo(m){
   $("#hojeview").hidden = m!=="hoje";
   $("#novosview").hidden = m!=="novos";
   $("#gusview").hidden = m!=="gus";
-  $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus";
+  $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus" || m==="exames";
   render();
 }
 $("#viewNovos").addEventListener("click",()=>trocarModo("novos"));
+$("#viewExames").addEventListener("click",()=>trocarModo("exames"));
 $("#viewGus").addEventListener("click",()=>trocarModo("gus"));
 $("#viewHoje").addEventListener("click",()=>trocarModo("hoje"));
 $("#viewRel").addEventListener("click",()=>trocarModo("rel"));

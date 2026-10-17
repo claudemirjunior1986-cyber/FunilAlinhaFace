@@ -112,6 +112,7 @@ const ETAPAS = {triagem:"A classificar",lead:"Lead novo",agendou:"Consulta agend
   posop:"Pós-operatório",noshow:"Faltou",perdido:"Encerrado"};
 
 const sb = FUNIL.sb;
+const TIPOS_EXAME = ["Ressonância magnética","Tomografia","Radiografia / panorâmica","Exames de sangue","Outro"];
 let eu = null, pacientes = [], aba = "agenda", busca = "";
 
 function precisaRegistro(p){
@@ -231,7 +232,8 @@ function abrir(id){
   if(p.consultaRegistradaEm){
     bloco.appendChild(el("h3",null,"Seu registro da consulta"));
     const r = el("div","registrado");
-    r.textContent = (p.consultaCompareceu===false ? "Não compareceu." : "Compareceu."+(p.consultaPediuExames ? " Pediu exames"+(p.examesPedidos?": "+p.examesPedidos:"")+"." : " Sem pedido de exames."))
+    r.textContent = (p.consultaCompareceu===false ? "Não compareceu." : "Compareceu."+(p.consultaPediuExames ? " Pediu exames: "+[...(p.examesTipos||[]), p.examesPedidos].filter(Boolean).join(" · ")+"." : " Sem pedido de exames."))
+      + (p.voucherAuto && p.voucherEmitido ? "\nVoucher de ressonância Blume emitido em "+dataBR(p.voucherEmitido)+"." : "")
       + (p.resumoConsulta ? "\n\n"+p.resumoConsulta : "")
       + "\n\nRegistrado em "+dataBR(String(p.consultaRegistradaEm).slice(0,10))+".";
     bloco.appendChild(r);
@@ -272,8 +274,17 @@ function formRegistro(p){
 
   const q1 = el("div","perg"); q1.append(el("span",null,"O paciente compareceu?"), radios("comp",[["sim","Sim, atendi"],["nao","Não compareceu"]], atualC));
   const q2 = el("div","perg"); q2.append(el("span",null,"Pediu exames?"), radios("exam",[["sim","Sim"],["nao","Não"]], atualE));
-  const qx = el("label","f perg"); qx.append(document.createTextNode("Quais exames"));
-  const ix = el("input"); ix.type = "text"; ix.placeholder = "Ex.: ressonância de ATM, tomografia"; ix.value = p.examesPedidos||""; qx.appendChild(ix);
+  const qx = el("div","perg"); qx.appendChild(el("span",null,"Quais exames"));
+  const tiposAtuais = p.examesTipos || [];
+  const cks = el("div","opcoes");
+  TIPOS_EXAME.forEach(t => {
+    const lab = el("label"); const i = el("input"); i.type = "checkbox"; i.name = "tipo"; i.value = t;
+    if(tiposAtuais.includes(t)) i.checked = true;
+    lab.append(i, document.createTextNode(t)); cks.appendChild(lab);
+  });
+  const ix = el("input"); ix.type = "text"; ix.placeholder = "Detalhes ou outro exame (opcional). Ex.: ressonância de ATM bilateral"; ix.value = p.examesPedidos||"";
+  ix.style.marginTop = "8px";
+  qx.append(cks, ix);
   const qr = el("label","f perg"); qr.append(document.createTextNode("Resumo da consulta"));
   const tr = el("textarea"); tr.placeholder = "Queixa, achados, conduta e próximo passo. Só a equipe Alinha Face vê."; tr.value = p.resumoConsulta||""; qr.appendChild(tr);
   f.append(q1, q2, qx, qr);
@@ -294,14 +305,17 @@ function formRegistro(p){
     if(!comp){ toast("Marque se o paciente compareceu."); return; }
     const exam = comp === "sim" ? f.querySelector("input[name=exam]:checked")?.value : "nao";
     if(comp === "sim" && !exam){ toast("Marque se pediu exames."); return; }
+    const tipos = [...f.querySelectorAll("input[name=tipo]:checked")].map(i=>i.value);
+    if(exam === "sim" && !tipos.length && !ix.value.trim()){ toast("Marque quais exames pediu."); return; }
     salvar.disabled = true; salvar.textContent = "Salvando…";
-    const { error } = await sb.rpc("registrar_consulta", {
+    const { data: res, error } = await sb.rpc("registrar_consulta", {
       p_id: p.id, p_compareceu: comp === "sim", p_pediu_exames: exam === "sim",
-      p_resumo: tr.value.trim(), p_exames: exam === "sim" ? ix.value.trim() : ""
+      p_resumo: tr.value.trim(), p_exames: exam === "sim" ? ix.value.trim() : "",
+      p_exames_tipos: exam === "sim" ? tipos : []
     });
     salvar.disabled = false; salvar.textContent = "Salvar registro";
     if(error){ toast("Não consegui salvar. Tente de novo."); return; }
-    toast("Registro salvo. A equipe já está vendo.");
+    toast(res && res.voucherEmitido ? "Registro salvo. O voucher de ressonância da Blume já foi emitido para o paciente." : "Registro salvo. A equipe já está vendo.");
     await carregar(); abrir(p.id);
   });
   return f;
