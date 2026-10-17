@@ -12,6 +12,7 @@ create table if not exists public.perfis (
 insert into public.perfis (email, nome, papel) values
   ('alinhaface@gmail.com',          'Claudemir',  'admin'),
   ('acytgiroldo@gmail.com',         'Ana Clara',  'admin'),
+  ('camilaguana@gmail.com',         'Camila',     'admin'),
   ('gu.martins00@gmail.com',        'Dr. Gustavo','cirurgiao'),
   ('dr.aptrindadefilho@gmail.com',  'Dr. Afonso', 'cirurgiao')
 on conflict (email) do update set nome = excluded.nome, papel = excluded.papel;
