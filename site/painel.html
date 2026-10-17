@@ -756,6 +756,12 @@ function linhaExame(p, pendente){
   row.appendChild(mid);
   const ops = el("div","ops");
   const reg = p.regua||{};
+  if(p.voucherEmitido && (p.voucherStatus||"Aguardando uso")==="Aguardando uso"){
+    const vb = el("button","btn btn-sm","Baixar voucher");
+    vb.title = "Gera a imagem do voucher com o nome completo e a validade";
+    vb.addEventListener("click",()=>window.open("voucher.html?id="+encodeURIComponent(p.id),"_blank"));
+    ops.appendChild(vb);
+  }
   if(p.voucherEmitido && (p.voucherStatus||"Aguardando uso")==="Aguardando uso" && !reg.d0){
     const w = el("button","btn btn-sm btn-primary","Enviar voucher no WhatsApp");
     w.addEventListener("click",()=>{
@@ -770,7 +776,8 @@ function linhaExame(p, pendente){
     v.addEventListener("click",()=>{
       const q = Object.assign({}, pacientes.get(p.id));
       q.voucherEmitido = hoje(); q.voucherStatus = "Aguardando uso"; q.voucherBaixa = "";
-      registrarHistorico(q, "Voucher Blume emitido pelo painel"); salvar(q); toast("Voucher emitido. Agora envie ao paciente.");
+      registrarHistorico(q, "Voucher Blume emitido pelo painel"); salvar(q); toast("Voucher emitido. Complete o nome e baixe a imagem.");
+      window.open("voucher.html?id="+encodeURIComponent(p.id),"_blank");
     });
     ops.appendChild(v);
   }
@@ -1951,8 +1958,19 @@ function abrirDrawer(id){
   g5.append(campo("Emitido em", inp("f_vemit","date",p.voucherEmitido||"")),
             campo("Situação", sel("f_vstat",VOUCHER_STATUS,p.voucherStatus||"Aguardando uso")),
             campo("Vence em", (()=>{ const i=inp("f_vvenc","text",p.voucherEmitido?dataBR(somaDias(p.voucherEmitido,VOUCHER_DIAS)):"—"); i.readOnly=true; return i; })()));
-  vHint.textContent = "Voucher nominal, uso único, válido por 5 dias a partir da emissão.";
-  fs5.append(g5, vHint); b.appendChild(fs5);
+  vHint.textContent = "Voucher nominal, uso único, válido por 5 dias a partir da emissão."+(p.voucherCodigo?" Código: "+p.voucherCodigo+".":"");
+  fs5.append(g5, vHint);
+  if(id){
+    const bV = el("button","btn btn-sm", p.voucherEmitido ? "Baixar imagem do voucher" : "Emitir e baixar voucher");
+    bV.type = "button"; bV.style.marginTop = "8px";
+    bV.addEventListener("click",()=>{
+      const atual = pacientes.get(id) || {};
+      if(!atual.voucherEmitido){ const q = Object.assign({}, atual); q.voucherEmitido = hoje(); q.voucherStatus = "Aguardando uso"; q.voucherBaixa = ""; registrarHistorico(q,"Voucher Blume emitido pelo painel"); salvar(q); }
+      window.open("voucher.html?id="+encodeURIComponent(id),"_blank");
+    });
+    fs5.appendChild(bV);
+  }
+  b.appendChild(fs5);
 
   if(id && !["perdido","noshow","cir_feita","posop"].includes(p.etapa)){
     const fsP = el("fieldset");

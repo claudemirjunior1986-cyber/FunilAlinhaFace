@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Voucher Blume · Alinha Face</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Bricolage+Grotesque:opsz,wght@12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="base.css">
+<style>
+  .shell{max-width:1240px;margin:0 auto;padding:18px 16px 60px}
+  .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .top h1{font-size:20px;margin-right:auto}
+  .form{display:grid;grid-template-columns:minmax(0,1fr) 180px auto;gap:12px;align-items:end;padding:16px;margin-bottom:16px}
+  @media (max-width:700px){.form{grid-template-columns:1fr}}
+  .stage{width:100%;overflow:hidden;border-radius:10px;box-shadow:var(--shadow);background:#F7F4EF}
+  .stage-inner{width:1600px;height:1000px;transform-origin:top left}
+  .aviso{font-size:13px;color:var(--ink-3);margin-top:10px}
+
+  /* ===== o voucher (1600 × 1000) ===== */
+  #voucher{position:relative;width:1600px;height:1000px;background:#F7F4EF;font-family:"Poppins",sans-serif;color:#234F64;overflow:hidden}
+  #voucher .marca{position:absolute;left:90px;top:74px}
+  #voucher .marca .wm{font-size:50px;line-height:1;letter-spacing:-.01em}
+  #voucher .marca .wm b{font-weight:700;color:#234F64}
+  #voucher .marca .wm span{font-weight:400;color:#4F8BA6}
+  #voucher .marca .sub{font-size:16px;letter-spacing:.24em;color:#6B7B86;margin-top:10px}
+  #voucher .divisor{position:absolute;left:838px;top:70px;width:2px;height:86px;background:#DCD3CA}
+  #voucher .blume{position:absolute;right:92px;top:80px;text-align:right}
+  #voucher .blume .wm{font-size:40px;font-weight:700;letter-spacing:.01em;line-height:1}
+  #voucher .blume .sub{font-size:16px;letter-spacing:.2em;color:#6B7B86;margin-top:12px}
+  #voucher .selo{position:absolute;left:90px;top:200px;height:51px;padding:0 28px;background:#234F64;color:#fff;border-radius:3px;
+    display:flex;align-items:center;font-weight:700;font-size:19px;letter-spacing:.28em}
+  #voucher .titulo{position:absolute;left:88px;top:268px;font-size:84px;line-height:1.1;white-space:nowrap;letter-spacing:-.015em}
+  #voucher .titulo b{font-weight:800;color:#234F64}
+  #voucher .titulo span{font-weight:300;color:#4A7F99}
+  #voucher .texto{position:absolute;left:90px;top:376px;width:1120px;font-size:26px;line-height:1.48;color:#3D5666}
+  #voucher .linha{position:absolute;left:90px;right:90px;top:493px;height:2px;background:#E4D9D2}
+  #voucher .col{position:absolute;top:526px}
+  #voucher .col .lbl{font-size:15px;font-weight:600;letter-spacing:.22em;color:#7E8C95}
+  #voucher .col .val{margin-top:18px;font-weight:700;font-size:33px;line-height:1.15;color:#234F64;white-space:nowrap}
+  #voucher .col .val.nome{font-size:38px}
+  #voucher .col .val.venc{color:#B4521E}
+  #voucher .col .val.cod{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:31px;letter-spacing:.02em}
+  #voucher .sep{position:absolute;top:526px;width:2px;height:90px;background:#E4D9D2}
+  #voucher .real{position:absolute;left:90px;top:650px}
+  #voucher .real .lbl{font-size:15px;font-weight:600;letter-spacing:.22em;color:#7E8C95}
+  #voucher .real .nm{margin-top:14px;font-size:30px;font-weight:700;color:#234F64}
+  #voucher .real .end{margin-top:10px;font-size:23px;line-height:1.42;color:#3D5666}
+  #voucher .rodape{position:absolute;left:0;right:0;bottom:0;height:186px;background:#234F64;overflow:hidden}
+  #voucher .rodape::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:linear-gradient(90deg,#CDA45A,#E9CF96 60%,#F3E3BE)}
+  #voucher .rodape .curva{position:absolute;right:-330px;top:0;width:900px;height:900px;border-radius:50%;background:#3F6C85}
+  #voucher .rodape .cond{position:absolute;left:90px;top:56px;width:1170px;font-size:17px;line-height:1.5;color:#EAF0F3}
+  #voucher .rodape .cond b{font-weight:700;color:#fff}
+  #voucher .rodape .links{position:absolute;right:92px;top:64px;text-align:left;font-weight:700;font-size:20px;line-height:1.45;color:#fff}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top">
+    <h1>Voucher de ressonância · Blume</h1>
+    <a class="btn btn-sm btn-ghost" href="painel.html">Voltar ao painel</a>
+  </div>
+
+  <div class="card form" id="form" hidden>
+    <label class="f">Nome completo do paciente
+      <input type="text" id="fNome" placeholder="Nome e sobrenome, como no documento">
+    </label>
+    <label class="f">Emissão
+      <input type="date" id="fEmissao">
+    </label>
+    <button class="btn btn-primary" id="bBaixar" type="button">Baixar voucher (imagem)</button>
+  </div>
+  <div id="msg" class="msg info" hidden></div>
+
+  <div class="stage" id="stage" hidden>
+    <div class="stage-inner" id="stageInner">
+      <div id="voucher">
+        <div class="marca"><div class="wm"><b>Alinha</b><span>Face</span></div><div class="sub">CIRURGIA ORTOGNÁTICA &amp; ATM</div></div>
+        <div class="divisor"></div>
+        <div class="blume"><div class="wm">BLUME</div><div class="sub">MEDICINA DIAGNÓSTICA</div></div>
+        <div class="selo">VOUCHER CORTESIA</div>
+        <div class="titulo"><b>Ressonância</b> <span>magnética</span></div>
+        <div class="texto">Cortesia exclusiva para o paciente avaliado pela Alinha Face. Sem nenhum custo, mediante apresentação deste voucher e do pedido médico.</div>
+        <div class="linha"></div>
+
+        <div class="col" style="left:90px;width:400px"><div class="lbl">PACIENTE</div><div class="val nome" id="vNome">Nome do Paciente</div></div>
+        <div class="sep" style="left:520px"></div>
+        <div class="col" style="left:576px"><div class="lbl">EMISSÃO</div><div class="val" id="vEmissao">—</div></div>
+        <div class="sep" style="left:820px"></div>
+        <div class="col" style="left:878px"><div class="lbl">VÁLIDO ATÉ</div><div class="val venc" id="vVenc">—</div></div>
+        <div class="sep" style="left:1130px"></div>
+        <div class="col" style="left:1187px"><div class="lbl">CÓDIGO</div><div class="val cod" id="vCod">—</div></div>
+
+        <div class="real">
+          <div class="lbl">REALIZAÇÃO</div>
+          <div class="nm">Blume Medicina Diagnóstica</div>
+          <div class="end">Av. dos Bandeirantes, 679 — Subsolo 1 — Vila Olímpia, São Paulo/SP — CEP 04553-010<br>Agendamento: (11) 5198-0900 — seg. a sex. 7h às 19h, sáb. 7h às 12h</div>
+        </div>
+
+        <div class="rodape">
+          <div class="curva"></div>
+          <div class="cond"><b>Condições:</b> voucher nominal, intransferível e de uso único, válido por 5 dias a partir da emissão. Necessário pedido médico e documento com foto. Agendamento prévio sujeito à disponibilidade de agenda da clínica. Não cumulativo com outras promoções e sem valor de troca em dinheiro.</div>
+          <div class="links">alinhaface.com.br<br>@alinhafaceoficial</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="aviso" id="aviso" hidden>A imagem baixada tem 1600 × 1000 pixels, pronta para mandar no WhatsApp junto com a mensagem.</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const sb = FUNIL.sb;
+const VALIDADE = 5;
+const hojeSP = () => new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo"}).format(new Date());
+const somaDias = (d,n) => { const x = new Date(d+"T12:00:00"); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
+const br = d => d ? d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4) : "—";
+let paciente = null, id = new URLSearchParams(location.search).get("id");
+
+function msg(t, tipo){ const m = $("#msg"); m.hidden = !t; m.className = "msg "+(tipo||"info"); m.textContent = t||""; }
+
+function codigo(p, emissao){
+  if(p.voucherCodigo && p.voucherEmitido === emissao) return p.voucherCodigo;
+  const d = emissao.slice(8,10)+emissao.slice(5,7)+emissao.slice(2,4);
+  const tel = String(p.telefone||"").replace(/\D/g,"");
+  const fim = tel.length >= 4 ? tel.slice(-4) : String(Math.floor(1000+Math.random()*9000));
+  return "AF-RM-"+d+"-"+fim;
+}
+
+function ajustarNome(){
+  const el = $("#vNome"); let tam = 38; el.style.fontSize = tam+"px";
+  while(el.scrollWidth > 410 && tam > 22){ tam -= 1; el.style.fontSize = tam+"px"; }
+}
+
+function desenhar(){
+  const nome = $("#fNome").value.trim() || "Nome do Paciente";
+  const em = $("#fEmissao").value || hojeSP();
+  $("#vNome").textContent = nome;
+  $("#vEmissao").textContent = br(em);
+  $("#vVenc").textContent = br(somaDias(em, VALIDADE));
+  $("#vCod").textContent = codigo(paciente, em);
+  ajustarNome();
+}
+
+function escalar(){
+  const w = $("#stage").clientWidth, k = Math.min(1, w/1600);
+  $("#stageInner").style.transform = "scale("+k+")";
+  $("#stage").style.height = (1000*k)+"px";
+}
+
+async function baixar(){
+  const nome = $("#fNome").value.trim();
+  if(nome.split(/\s+/).length < 2){ msg("Coloque o nome completo do paciente (nome e sobrenome), como está no documento.", "err"); $("#fNome").focus(); return; }
+  const em = $("#fEmissao").value || hojeSP();
+  const cod = codigo(paciente, em);
+  const b = $("#bBaixar"); b.disabled = true; b.textContent = "Gerando…"; msg("");
+  try{
+    await document.fonts.ready;
+    const inner = $("#stageInner"), t = inner.style.transform;
+    inner.style.transform = "none";
+    const canvas = await html2canvas($("#voucher"), {scale:1, backgroundColor:"#F7F4EF", useCORS:true});
+    inner.style.transform = t;
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = "voucher-blume-"+nome.toLowerCase().normalize("NFD").replace(/[^a-z0-9 ]/g,"").trim().replace(/\s+/g,"-")+".png";
+    document.body.appendChild(a); a.click(); a.remove();
+
+    // grava na ficha: nome completo, emissão e código do voucher
+    const dados = Object.assign({}, paciente, {
+      nomeCompleto: nome, voucherEmitido: em, voucherCodigo: cod,
+      voucherStatus: paciente.voucherStatus && paciente.voucherEmitido === em ? paciente.voucherStatus : "Aguardando uso",
+      atualizadoEm: new Date().toISOString()
+    });
+    if(paciente.voucherEmitido !== em || !paciente.voucherCodigo){
+      dados.historico = (paciente.historico||[]).concat([{data: hojeSP(), texto: "Voucher Blume gerado ("+cod+"), válido até "+br(somaDias(em,VALIDADE))}]).slice(-40);
+    }
+    delete dados.id;
+    const { error } = await sb.from("funil_pacientes").update({ dados }).eq("id", id);
+    if(error) throw error;
+    paciente = Object.assign({id}, dados);
+    msg("Voucher baixado e registrado na ficha. Agora é só mandar a imagem para o paciente no WhatsApp.", "ok");
+  }catch(e){
+    msg("Não consegui gerar o voucher. Recarregue a página e tente de novo.", "err");
+  }finally{
+    b.disabled = false; b.textContent = "Baixar voucher (imagem)";
+  }
+}
+
+(async ()=>{
+  await FUNIL.exigir(["admin"]);
+  if(!id){ msg("Abra o voucher pela ficha do paciente ou pela aba Exames pedidos.", "err"); return; }
+  const { data, error } = await sb.from("funil_pacientes").select("id,dados").eq("id", id).maybeSingle();
+  if(error || !data){ msg("Paciente não encontrado.", "err"); return; }
+  paciente = Object.assign({id:data.id}, data.dados);
+  $("#fNome").value = paciente.nomeCompleto || paciente.nome || "";
+  $("#fEmissao").value = paciente.voucherEmitido || hojeSP();
+  $("#form").hidden = false; $("#stage").hidden = false; $("#aviso").hidden = false;
+  if(!paciente.nomeCompleto && (paciente.nome||"").trim().split(/\s+/).length < 2)
+    msg("A ficha só tem o primeiro nome. Complete com o nome inteiro antes de baixar.", "info");
+  escalar(); desenhar();
+  await document.fonts.ready; desenhar();
+  ["input","change"].forEach(ev=>{ $("#fNome").addEventListener(ev, desenhar); $("#fEmissao").addEventListener(ev, desenhar); });
+  $("#bBaixar").addEventListener("click", baixar);
+  addEventListener("resize", escalar);
+})();
+</script>
+</body>
+</html>
