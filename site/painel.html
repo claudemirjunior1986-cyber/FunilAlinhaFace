@@ -85,6 +85,16 @@
   .seg button.alerta::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--crit);margin-right:6px;vertical-align:1px}
   .tag-v{display:inline-block;font-size:11.5px;font-weight:600;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:1px}
   .tag-v.ok{background:var(--ok-bg);color:var(--ok)} .tag-v.warn{background:var(--warn-bg);color:var(--warn)} .tag-v.neu{background:var(--surface-3);color:var(--ink-2)}
+  .cir-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+  @media (max-width:1100px){.cir-cols{grid-template-columns:1fr}}
+  .cir-card{padding:11px 14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+  .cir-card .nm{all:unset;cursor:pointer;font-weight:600;font-size:14px;border-bottom:1px dotted var(--ink-3);align-self:flex-start}
+  .cir-card .meta{font-size:12.5px;color:var(--ink-2)}
+  .cir-card .dias{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3)}
+  .cir-card .dias.late{color:var(--crit);font-weight:600}
+  .cir-card .acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .cir-card input[type=date],.cir-card input[type=text]{font-size:12.5px;padding:5px 8px;border:1px solid var(--line-strong);border-radius:6px;background:var(--surface);min-height:32px}
+  .cir-tot{font-size:12.5px;color:var(--ink-2);padding:9px 14px;border-top:1px solid var(--line);background:var(--surface-2)}
   .resumo-cir{font-size:12.5px;color:var(--ink-2);margin-top:3px;white-space:pre-wrap;overflow-wrap:anywhere}
 
   /* ---------- kpis ---------- */
@@ -303,6 +313,7 @@
     <div class="seg" role="group" aria-label="Modo de visualização">
       <button id="viewNovos" aria-pressed="false">Novos</button>
       <button id="viewExames" aria-pressed="false">Exames pedidos</button>
+      <button id="viewCir" aria-pressed="false">Cirurgias</button>
       <button id="viewGus" aria-pressed="false">Dr. Gustavo</button>
       <button id="viewHoje" aria-pressed="false">Rotina do dia</button>
       <button id="viewBoard" aria-pressed="true">Funil</button>
@@ -345,6 +356,7 @@
 
   <div id="novosview" hidden></div>
   <div id="examesview" hidden></div>
+  <div id="cirview" hidden></div>
   <div id="gusview" hidden></div>
   <div id="hojeview" hidden></div>
   <div id="relview" hidden></div>
@@ -439,7 +451,7 @@ let filtros = {busca:"",etapa:"",origem:"",trat:"",conv:"",periodo:"",somenteAle
 let sortBy = {campo:"dataConsulta",dir:"asc"};
 let editandoId = null;
 let modo = "board";
-try{ const m = localStorage.getItem("funil_modo"); if(["board","table","hoje","rel","novos","gus","exames"].includes(m)) modo = m; }catch(e){}
+try{ const m = localStorage.getItem("funil_modo"); if(["board","table","hoje","rel","novos","gus","exames","cir"].includes(m)) modo = m; }catch(e){}
 let encaminhamentos = new Map();
 
 const $ = s=>document.querySelector(s);
@@ -601,10 +613,110 @@ function render(){
   if(bg){ const n = casosGustavo().length; bg.textContent = n ? "Dr. Gustavo · "+n : "Dr. Gustavo"; }
   const bx = document.getElementById("viewExames");
   if(bx){ const n = examesPendentes().length; bx.textContent = n ? "Exames pedidos · "+n : "Exames pedidos"; bx.classList.toggle("alerta", n>0); }
+  const bc = document.getElementById("viewCir");
+  if(bc){ const n = cirGrupo("aut").length; bc.textContent = n ? "Cirurgias · "+n+" aguardando" : "Cirurgias"; }
   if(modo==="exames"){ renderExames(); return; }
+  if(modo==="cir"){ renderCir(); return; }
   if(modo==="novos"){ renderNovos(); return; }
   if(modo==="gus"){ renderGus(); return; }
   if(modo==="hoje"){ renderHoje(); return; } if(modo==="rel"){ renderRel(); return; } renderKpis(); renderAlertas(); modo==="board" ? renderBoard() : renderTable(); }
+
+/* ============ cirurgias: autorização, agendamento e realização ============ */
+const CIR_GRUPOS = {
+  aut: ["docs_conv","autorizacao"],      // Camila deu entrada no convênio (ou está montando os documentos)
+  ag:  ["autorizado","cir_marcada"],     // autorizado, aguardando realizar
+  ok:  ["cir_feita","posop"]             // realizado
+};
+function cirGrupo(g){ return [...pacientes.values()].filter(p=>CIR_GRUPOS[g].includes(p.etapa)); }
+const somaOpme = l => l.reduce((s,p)=>s+(Number(p.opme)||0),0);
+function nomeCir(p){ return p.cirurgiao ? nomeCirurgiao(p.cirurgiao) : ""; }
+function salvarCir(id, muda, msg){
+  const q = Object.assign({}, pacientes.get(id)); muda(q); salvar(q); if(msg) toast(msg);
+}
+function cartaoCir(p, g){
+  const c = el("div","cir-card");
+  const nm = el("button","nm",p.nome||"Sem nome"); nm.title = "Abrir ficha"; nm.addEventListener("click",()=>abrirDrawer(p.id));
+  c.appendChild(nm);
+  const conv = p.convenio==="Sim" ? (p.nomeConvenio||"Convênio") : (p.convenio==="Não" ? "Particular" : "");
+  c.appendChild(el("div","meta",[p.tratamento && p.tratamento!=="A definir" ? p.tratamento : "", conv, nomeCir(p), p.opme ? "OPME "+brl(p.opme) : ""].filter(Boolean).join(" · ")));
+  const ac = el("div","acts");
+  if(g==="aut"){
+    if(p.etapa==="docs_conv"){
+      const d = diasDesde(p.dataEtapaCir); c.appendChild(el("div","dias","Montando documentos"+(d!=null?" há "+d+" dia"+(d===1?"":"s"):"")));
+      const b1 = el("button","btn btn-sm","Entrada feita");
+      b1.title = "A Camila deu entrada no convênio";
+      b1.addEventListener("click",()=>salvarCir(p.id, q=>aplicarEtapa(q,"autorizacao"), "Entrada registrada."));
+      ac.appendChild(b1);
+    }else{
+      const d = diasDesde(p.dataGuiaEnviada||p.dataEtapaCir);
+      c.appendChild(el("div","dias"+(d>=10?" late":""), "Entrada em "+dataBR(p.dataGuiaEnviada||p.dataEtapaCir)+(d!=null?" · aguardando há "+d+" dia"+(d===1?"":"s"):"")));
+    }
+    const b2 = el("button","btn btn-sm btn-primary","Autorizou");
+    b2.addEventListener("click",()=>salvarCir(p.id, q=>{ if(q.etapa==="docs_conv") aplicarEtapa(q,"autorizacao"); aplicarEtapa(q,"autorizado"); }, "Marcado como autorizado."));
+    const b3 = el("button","btn btn-sm btn-ghost","Negou");
+    b3.addEventListener("click",()=>{ const m = prompt("Motivo da negativa (opcional):",""); if(m===null) return;
+      salvarCir(p.id, q=>{ registrarHistorico(q, "Convênio negou a autorização"+(m?": "+m:"")); q.negativaConvenio = hoje(); q.proximaAcao = "Recorrer da negativa do convênio"; q.dataProximaAcao = hoje(); }, "Negativa registrada. Ficou como próxima ação recorrer."); });
+    ac.append(b2,b3);
+  }
+  if(g==="ag"){
+    const d = diasDesde(p.dataAutorizado);
+    c.appendChild(el("div","dias"+(!p.dataCirurgia && d>=7?" late":""),
+      (p.dataAutorizado ? "Autorizado em "+dataBR(p.dataAutorizado) : "Autorizado")
+      + (p.dataCirurgia ? " · cirurgia em "+dataBR(p.dataCirurgia)+(p.hospital?" · "+p.hospital:"") : (d!=null?" · sem data há "+d+" dia"+(d===1?"":"s"):""))));
+    const iD = el("input"); iD.type = "date"; iD.value = p.dataCirurgia||""; iD.title = "Data da cirurgia";
+    const iH = el("input"); iH.type = "text"; iH.placeholder = "Hospital"; iH.value = p.hospital||""; iH.style.width = "130px";
+    const bS = el("button","btn btn-sm","Salvar data");
+    bS.addEventListener("click",()=>{ if(!iD.value){ toast("Escolha a data da cirurgia."); return; }
+      salvarCir(p.id, q=>{ q.dataCirurgia = iD.value; q.hospital = iH.value.trim(); if(q.etapa==="autorizado") aplicarEtapa(q,"cir_marcada"); registrarHistorico(q,"Cirurgia marcada para "+dataBR(iD.value)+(q.hospital?" · "+q.hospital:"")); }, "Data da cirurgia salva."); });
+    const bR = el("button","btn btn-sm btn-primary","Realizada");
+    bR.addEventListener("click",()=>salvarCir(p.id, q=>{ aplicarEtapa(q,"cir_feita"); q.dataCirurgiaRealizada = (q.dataCirurgia && q.dataCirurgia<=hoje()) ? q.dataCirurgia : hoje(); }, "Cirurgia marcada como realizada."));
+    ac.append(iD, iH, bS, bR);
+  }
+  if(g==="ok"){
+    const dt = p.dataCirurgiaRealizada || p.dataCirurgia;
+    c.appendChild(el("div","dias", (dt ? "Realizada em "+dataBR(dt) : "Realizada")+(p.hospital?" · "+p.hospital:"")+(p.etapa==="posop"?" · pós-operatório":"")));
+    if(p.etapa==="cir_feita"){
+      const bP = el("button","btn btn-sm","Pós-operatório");
+      bP.addEventListener("click",()=>salvarCir(p.id, q=>aplicarEtapa(q,"posop"), "Em pós-operatório."));
+      ac.appendChild(bP);
+    }
+  }
+  if(ac.children.length) c.appendChild(ac);
+  return c;
+}
+function renderCir(){
+  const box = $("#cirview"); box.textContent = "";
+  const aut = cirGrupo("aut").sort((a,b)=>String(a.dataGuiaEnviada||a.dataEtapaCir||"").localeCompare(String(b.dataGuiaEnviada||b.dataEtapaCir||"")));
+  const ag = cirGrupo("ag").sort((a,b)=>String(a.dataCirurgia||"9999").localeCompare(String(b.dataCirurgia||"9999")));
+  const ok = cirGrupo("ok").sort((a,b)=>String(b.dataCirurgiaRealizada||b.dataCirurgia||"").localeCompare(String(a.dataCirurgiaRealizada||a.dataCirurgia||"")));
+  const mes = hoje().slice(0,7);
+  const okMes = ok.filter(p=>String(p.dataCirurgiaRealizada||p.dataCirurgia||"").slice(0,7)===mes);
+
+  const head = el("div","hoje-head"); const hl = el("div");
+  hl.append(el("h2",null,"Cirurgias"), el("div","dt","Do pedido ao convênio até a cirurgia realizada. Use os botões para avançar cada caso."));
+  head.append(hl); box.appendChild(head);
+
+  const k = el("div","kpis");
+  [{l:"Aguardando autorização", v:aut.length, h:brl(somaOpme(aut))+" em OPME", c:aut.some(p=>diasDesde(p.dataGuiaEnviada||p.dataEtapaCir)>=10)?"alert":""},
+   {l:"Autorizados a realizar", v:ag.length, h:brl(somaOpme(ag))+" em OPME"},
+   {l:"Realizadas no mês", v:okMes.length, h:brl(somaOpme(okMes))+" em OPME"},
+   {l:"Realizadas no total", v:ok.length, h:brl(somaOpme(ok))+" em OPME"}
+  ].forEach(t=>{ const d = el("div","kpi"+(t.c?" "+t.c:"")); d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",t.h)); k.appendChild(d); });
+  box.appendChild(k);
+
+  const cols = el("div","cir-cols");
+  [["Aguardando autorização", aut, "aut", "Quando a Camila der entrada no convênio, mude a etapa da ficha para \u201cAguardando autorização\u201d."],
+   ["Autorizados · aguardando realização", ag, "ag", "Nenhum caso autorizado esperando cirurgia."],
+   ["Realizados", ok, "ok", "Nenhuma cirurgia realizada registrada ainda."]].forEach(([t,lista,g,vazio])=>{
+    const sec = el("section","panel");
+    const h = el("div","panel-head"); h.append(el("h3",null,t), el("span","n",String(lista.length))); sec.appendChild(h);
+    if(!lista.length){ const e = el("div","done-empty"); e.appendChild(document.createTextNode(vazio)); sec.appendChild(e); }
+    lista.forEach(p=>sec.appendChild(cartaoCir(p,g)));
+    if(lista.length) sec.appendChild(el("div","cir-tot","OPME estimado: "+brl(somaOpme(lista))));
+    cols.appendChild(sec);
+  });
+  box.appendChild(cols);
+}
 
 /* ============ exames pedidos pelo cirurgião ============ */
 const nomeCirurgiao = email => (CIRURGIOES.find(c=>c.email===email)||{}).nome || email || "Cirurgião";
@@ -1813,7 +1925,9 @@ function abrirDrawer(id){
   g3b.append(campo("Forma de pagamento", sel("f_pag",PAGAMENTOS,p.pagamento)),
              campo("Valor da proposta (R$)", inp("f_valor","number",p.valorProposta||"")),
              campo("OPME estimado (R$)", opmeI));
-  fs3.append(g3,g3b); b.appendChild(fs3);
+  const g3c = el("div","grid2");
+  g3c.append(campo("Data da cirurgia", inp("f_dcir","date",p.dataCirurgia||"")), campo("Hospital", inp("f_hosp","text",p.hospital||"","Onde será a cirurgia")));
+  fs3.append(g3,g3b,g3c); b.appendChild(fs3);
 
   const fs4 = el("fieldset"); fs4.append(el("div","legend","Acompanhamento"));
   const g4 = el("div","grid2");
@@ -1898,7 +2012,8 @@ function abrirDrawer(id){
       pagamento:$("#f_pag").value, valorProposta:Number($("#f_valor").value)||0, opme:Number($("#f_opme").value)||0,
       proximaAcao:(function(){ const v=$("#f_pacao").value; return v==="Outro (escrever)" ? $("#f_pacao_txt").value.trim() : v; })(), dataProximaAcao:$("#f_dpacao").value, observacoes:$("#f_obs").value.trim(),
       voucherEmitido:$("#f_vemit").value, voucherStatus:$("#f_vemit").value ? $("#f_vstat").value : "",
-      cirurgiao:$("#f_cir").value
+      cirurgiao:$("#f_cir").value,
+      dataCirurgia:$("#f_dcir").value, hospital:$("#f_hosp").value.trim()
     });
     if(["Usado","Venceu"].includes(p.voucherStatus) && !p.voucherBaixa) p.voucherBaixa = hoje();
     if(p.voucherStatus==="Aguardando uso") p.voucherBaixa = "";
@@ -2048,6 +2163,8 @@ function trocarModo(m){
   $("#viewNovos").setAttribute("aria-pressed", String(m==="novos"));
   $("#viewExames").setAttribute("aria-pressed", String(m==="exames"));
   $("#examesview").hidden = m!=="exames";
+  $("#viewCir").setAttribute("aria-pressed", String(m==="cir"));
+  $("#cirview").hidden = m!=="cir";
   $("#viewGus").setAttribute("aria-pressed", String(m==="gus"));
   $("#viewHoje").setAttribute("aria-pressed", String(m==="hoje"));
   $("#viewBoard").setAttribute("aria-pressed", String(m==="board"));
@@ -2059,11 +2176,12 @@ function trocarModo(m){
   $("#hojeview").hidden = m!=="hoje";
   $("#novosview").hidden = m!=="novos";
   $("#gusview").hidden = m!=="gus";
-  $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus" || m==="exames";
+  $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus" || m==="exames" || m==="cir";
   render();
 }
 $("#viewNovos").addEventListener("click",()=>trocarModo("novos"));
 $("#viewExames").addEventListener("click",()=>trocarModo("exames"));
+$("#viewCir").addEventListener("click",()=>trocarModo("cir"));
 $("#viewGus").addEventListener("click",()=>trocarModo("gus"));
 $("#viewHoje").addEventListener("click",()=>trocarModo("hoje"));
 $("#viewRel").addEventListener("click",()=>trocarModo("rel"));
