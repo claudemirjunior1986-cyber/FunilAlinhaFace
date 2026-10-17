@@ -1,47 +1,39 @@
 # Funil Alinha Face
 
-Painel de acompanhamento de pacientes da Alinha Face (DTM/ATM e cirurgia ortognática).
-Página única, sem build: todo o HTML, CSS e JavaScript ficam em `index.html`.
+Site com login para acompanhar os pacientes da Alinha Face (DTM/ATM e cirurgia ortognática).
+Páginas estáticas, sem build, que leem e gravam no Supabase.
 
-## Abas
+## Páginas (`site/`)
 
-- **Novos** — pacientes que falaram com a gente e ainda não têm próxima ação definida.
-- **Dr. Gustavo** — casos que dependem de um retorno dele. Entram sozinhos quando a ficha
-  tem a palavra "gustavo" nas observações ou na próxima ação.
-- **Rotina do dia** — o que a aprendiz precisa fazer hoje: consultas de hoje e amanhã,
-  régua pós-consulta, vouchers Blume, cirurgias em andamento, ações marcadas e leads parados.
-- **Funil** — quadro por etapa, com arrastar e soltar entre colunas.
-- **Tabela** — a mesma base em lista, ordenável.
-- **Relatórios** — indicadores por período, com exportação em PDF.
+- `index.html` — entrada com e-mail e senha. Manda cada pessoa para a página do seu perfil.
+- `painel.html` — painel completo (Novos, Dr. Gustavo, Rotina do dia, Funil, Tabela, Relatórios).
+  Só para perfil **admin** (Claudemir e Ana Clara).
+- `medico.html` — área do cirurgião: agenda, pacientes dele e registro da consulta
+  (compareceu, pediu exames, quais exames, resumo). Só para perfil **cirurgiao**.
+- `auth.js` — login, perfil e troca de senha, usados por todas as páginas.
+- `config.js` — endereço do projeto Supabase e chave pública (publishable).
+- `base.css` — cores e componentes das páginas de login e do cirurgião.
 
-## Etapas do funil
+## Banco (`supabase/schema.sql`)
 
-`triagem` · `lead` · `agendou` · `compareceu` · `exames_sol` · `exames_ok` · `retorno` ·
-`proposta` · `docs_conv` · `autorizacao` · `autorizado` · `cir_marcada` · `cir_feita` ·
-`posop` · `noshow` · `perdido`
+Rode o arquivo inteiro no SQL Editor do Supabase. Ele cria:
 
-## Dados
+- `perfis` — quem acessa e com que papel (`admin` ou `cirurgiao`).
+- `funil_pacientes` — uma linha por paciente; a ficha inteira fica em `dados` (jsonb).
+  `cirurgiao_email` é preenchido sozinho a partir de `dados.cirurgiao`.
+- `funil_encaminhamentos` — encaminhamentos do painel.
+- Regras de acesso (RLS): admin vê e edita tudo; cirurgião só **lê** os pacientes dele.
+- `registrar_consulta(...)` — única forma de o cirurgião gravar algo: avança a etapa
+  (nunca volta), guarda o resumo e escreve no histórico, sempre conferindo se o paciente é dele.
 
-A página roda publicada como artifact no claude.ai e usa a capability `db` para guardar
-as coleções `pacientes`, `encaminhamentos` e `ignorados`. Aberta fora desse ambiente, ela
-entra em modo local: funciona para ver a interface, mas nada é salvo.
+Dados de paciente nunca vão para o Git; ficam só no Supabase.
 
-Uma tarefa agendada diária lê as conversas do WhatsApp no GPT Maker e atualiza as fichas,
-casando os registros pelos 8 últimos dígitos do telefone. Ela nunca rebaixa a etapa de um
-paciente nem mexe em histórico, voucher ou próxima ação — esses campos são da equipe.
+## Acessos
 
-## Como rodar localmente
-
-Qualquer servidor estático serve:
-
-```
-python3 -m http.server 8000
-```
-
-E abrir `http://localhost:8000`. Sem a capability `db`, a página avisa que está em modo local.
+Os logins são criados no painel do Supabase (Authentication → Users → Add user → Create new user,
+com "Auto Confirm User"). Para dar acesso a alguém novo, crie o login lá e acrescente o e-mail
+em `perfis` com o papel certo.
 
 ## Publicação
 
-O arquivo é publicado como artifact no claude.ai. O conteúdo de `index.html` é a página
-inteira — não há etapa de build, bundler ou dependência externa além da fonte do Google
-Fonts e do jsPDF (usado só para o PDF dos relatórios).
+Cloudflare Pages, enviando a pasta `site/` (sem etapa de build).

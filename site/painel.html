@@ -1,3 +1,9 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
 <title>Funil Alinha Face</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -273,6 +279,8 @@
   .bar-val{font-family:var(--font-mono);font-variant-numeric:tabular-nums;text-align:right;color:var(--ink)}
   .bar-row:hover .bar-lbl{color:var(--ink)}
 </style>
+</head>
+<body>
 
 <div class="shell">
   <div class="topbar">
@@ -354,10 +362,13 @@
     </div>
   </div>
 
-  <div class="statusline"><span class="dot" id="statusDot"></span><span id="statusText">Conectando à base…</span></div>
+  <div class="statusline"><span class="dot" id="statusDot"></span><span id="statusText">Conectando à base…</span><span id="quem" style="margin-left:auto"></span><button class="btn btn-sm btn-ghost" id="btnSenha" type="button">Trocar senha</button><button class="btn btn-sm btn-ghost" id="btnSair" type="button">Sair</button></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
 <script>
 /* ============ modelo ============ */
 const STAGES = [
@@ -383,7 +394,7 @@ const ORIGENS = ["Quiz do site","Anúncio (clique no WhatsApp)","Clique na foto 
 const TRATAMENTOS = ["DTM / ATM","Ortognática","DTM + Ortognática","A definir"];
 const OPME_PADRAO = {"DTM / ATM":11400,"Ortognática":25000,"DTM + Ortognática":36400,"A definir":0};
 const MODALIDADES = ["Online","Presencial"];
-const LOCAIS = ["Online","SP · Moema (Av. Jandira, 257)","SP · Vila Mariana (R. Francisco Cruz, 131)","Porto Alegre (R. Dr. Florêncio Ygartua, 422)"];
+const LOCAIS = ["Online","SP · Moema (Av. Jandira, 257)","SP · Vila Mariana (R. Francisco Cruz, 131)","SP · Mooca (Av. Paes de Barros, 3399)","Porto Alegre (R. Dr. Florêncio Ygartua, 422)"];
 const CONVENIOS = ["Sim","Não","Não sabe"];
 const PAGAMENTOS = ["Pelo convênio","Particular à vista","Particular parcelado","A definir"];
 const ACOES = [
@@ -448,28 +459,81 @@ function toast(msg){
 function novoId(){ return "p"+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
 /* ============ persistência ============ */
-async function conectar(){
-  try{ DB = await window.claude?.use?.("db") ?? null; }catch(e){ DB = null; }
-  try{ DOWNLOADS = await window.claude?.use?.("downloads") ?? null; }catch(e){ DOWNLOADS = null; }
-  if(DB){
-    $("#statusText").textContent = "Base conectada — tudo que você editar fica salvo para a equipe.";
-    $("#statusDot").classList.remove("off");
-    DB.collection("encaminhamentos").onSnapshot(snap=>{
-      encaminhamentos = new Map(snap.docs.map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
-      render();
-    }, ()=>{});
-    DB.collection("pacientes").onSnapshot(snap=>{
-      pacientes = new Map(snap.docs.map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
-      render();
-    }, err=>{
-      $("#statusText").textContent = "A base parou de sincronizar ("+err.code+"). Recarregue a página.";
-      $("#statusDot").classList.add("off");
-    });
-  }else{
-    $("#statusText").textContent = "Modo local: as alterações valem só nesta aba e não são salvas.";
-    $("#statusDot").classList.add("off");
-    render();
+// Camada de dados no Supabase com a mesma "cara" da capability db de antes:
+// collection(x).onSnapshot(cb) e doc("x/id").set(body)/.delete().
+const TABELAS = {pacientes:"funil_pacientes", encaminhamentos:"funil_encaminhamentos"};
+function criarDB(sb){
+  async function lerTudo(t){
+    const linhas = [];
+    for(let de=0;;de+=1000){
+      const { data, error } = await sb.from(t).select("id,dados").range(de, de+999);
+      if(error) throw error;
+      linhas.push(...data);
+      if(data.length < 1000) break;
+    }
+    return linhas;
   }
+  return {
+    collection(nome){
+      const t = TABELAS[nome];
+      return { onSnapshot(cb, onErr){
+        let timer = null;
+        const ler = async ()=>{
+          try{
+            const linhas = await lerTudo(t);
+            cb({ docs: linhas.map(r=>({ id:r.id, data:()=>r.dados||{} })) });
+          }catch(e){ onErr && onErr({ code: e.code || e.message || "erro" }); }
+        };
+        ler();
+        sb.channel("rt-"+t)
+          .on("postgres_changes",{event:"*",schema:"public",table:t},()=>{ clearTimeout(timer); timer = setTimeout(ler, 500); })
+          .subscribe();
+        setInterval(ler, 5*60*1000);
+      }};
+    },
+    doc(caminho){
+      const [nome, id] = caminho.split("/");
+      const t = TABELAS[nome];
+      return {
+        async set(body){ const { error } = await sb.from(t).upsert({ id, dados: body }); if(error) throw error; },
+        async delete(){ const { error } = await sb.from(t).delete().eq("id", id); if(error) throw error; }
+      };
+    }
+  };
+}
+// Download direto pelo navegador (antes era a capability downloads do claude.ai)
+const DOWNLOADS_NAVEGADOR = {
+  async save({filename, data}){
+    const blob = data instanceof Blob ? data : new Blob([data], {type: /\.pdf$/i.test(filename) ? "application/pdf" : "text/csv;charset=utf-8"});
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  }
+};
+let CIRURGIOES = [];   // [{email, nome}] — vem da tabela perfis
+async function conectar(){
+  const eu = await FUNIL.exigir(["admin"]);
+  $("#quem").textContent = eu.nome;
+  $("#btnSair").addEventListener("click", FUNIL.sair);
+  $("#btnSenha").addEventListener("click", FUNIL.trocarSenha);
+  try{
+    const { data } = await FUNIL.sb.from("perfis").select("email,nome").eq("papel","cirurgiao").order("nome");
+    CIRURGIOES = data || [];
+  }catch(e){ CIRURGIOES = []; }
+  DB = criarDB(FUNIL.sb);
+  DOWNLOADS = DOWNLOADS_NAVEGADOR;
+  $("#statusText").textContent = "Base conectada — tudo que você editar fica salvo para a equipe.";
+  $("#statusDot").classList.remove("off");
+  DB.collection("encaminhamentos").onSnapshot(snap=>{
+    encaminhamentos = new Map(snap.docs.map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
+    render();
+  }, ()=>{});
+  DB.collection("pacientes").onSnapshot(snap=>{
+    pacientes = new Map(snap.docs.map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
+    render();
+  }, err=>{
+    $("#statusText").textContent = "A base parou de sincronizar ("+err.code+"). Recarregue a página.";
+    $("#statusDot").classList.add("off");
+  });
 }
 async function salvar(p){
   p.atualizadoEm = new Date().toISOString();
@@ -1620,7 +1684,14 @@ function abrirDrawer(id){
   g2b.append(campo("Data da consulta", inp("f_data","date",p.dataConsulta||"")),
              campo("Horário", sel("f_hora",HORARIOS,p.horaConsulta,"—")),
              campo("Modalidade", sel("f_mod",MODALIDADES,p.modalidade)));
-  fs2.append(g2,g2b,campo("Local", sel("f_local",LOCAIS,p.local)));
+  const selCir = el("select"); selCir.id = "f_cir";
+  { const o0 = el("option",null,"— nenhum ainda —"); o0.value = ""; selCir.appendChild(o0); }
+  for(const c of CIRURGIOES){ const o = el("option",null,c.nome); o.value = c.email; if((p.cirurgiao||"")===c.email) o.selected = true; selCir.appendChild(o); }
+  const g2d = el("div","grid2");
+  g2d.append(campo("Local", sel("f_local",LOCAIS,p.local)), campo("Cirurgião responsável", selCir));
+  fs2.append(g2,g2b,g2d);
+  const hCir = el("div","hint"); hCir.textContent = "O cirurgião escolhido vê este paciente na agenda dele no site, e só ele.";
+  fs2.append(hCir);
   const g2c = el("div","grid2");
   g2c.append(campo("Exames solicitados em", inp("f_dexames","date",p.dataExames||"")),
              campo("Proposta enviada em", inp("f_dprop","date",p.dataProposta||"")));
@@ -1671,6 +1742,16 @@ function abrirDrawer(id){
     const mv = el("div","hint"); mv.textContent = "Motivo do encerramento: "+p.motivoPerda; b.appendChild(mv);
   }
 
+  if(p.consultaRegistradaEm){
+    const fsC = el("fieldset"); fsC.append(el("div","legend","Registro do cirurgião"));
+    const nomeCir = (CIRURGIOES.find(c=>c.email===p.consultaRegistradaPor)||{}).nome || p.consultaRegistradaPor || "Cirurgião";
+    const linha1 = (p.consultaCompareceu===false ? "Não compareceu" : "Compareceu"+(p.consultaPediuExames ? " · pediu exames"+(p.examesPedidos?": "+p.examesPedidos:"") : " · sem exames"))
+      + " — " + nomeCir + ", " + dataBR(String(p.consultaRegistradaEm).slice(0,10));
+    const bx1 = el("div",null,linha1); bx1.style.fontWeight = "600";
+    fsC.appendChild(bx1);
+    if(p.resumoConsulta){ const bx2 = el("div","hint"); bx2.style.whiteSpace = "pre-wrap"; bx2.textContent = p.resumoConsulta; fsC.appendChild(bx2); }
+    b.appendChild(fsC);
+  }
   if(p.ultimaMensagem){
     const box = el("div","hint");
     box.textContent = "\u00daltima mensagem no WhatsApp"+(p.ultimaMensagemEm?" ("+dataBR(String(p.ultimaMensagemEm).slice(0,10))+")":"")+": \u201C"+p.ultimaMensagem+"\u201D";
@@ -1708,7 +1789,8 @@ function abrirDrawer(id){
       dataProposta:$("#f_dprop").value, convenio:$("#f_conv").value, nomeConvenio:$("#f_nconv").value.trim(),
       pagamento:$("#f_pag").value, valorProposta:Number($("#f_valor").value)||0, opme:Number($("#f_opme").value)||0,
       proximaAcao:(function(){ const v=$("#f_pacao").value; return v==="Outro (escrever)" ? $("#f_pacao_txt").value.trim() : v; })(), dataProximaAcao:$("#f_dpacao").value, observacoes:$("#f_obs").value.trim(),
-      voucherEmitido:$("#f_vemit").value, voucherStatus:$("#f_vemit").value ? $("#f_vstat").value : ""
+      voucherEmitido:$("#f_vemit").value, voucherStatus:$("#f_vemit").value ? $("#f_vstat").value : "",
+      cirurgiao:$("#f_cir").value
     });
     if(["Usado","Venceu"].includes(p.voucherStatus) && !p.voucherBaixa) p.voucherBaixa = hoje();
     if(p.voucherStatus==="Aguardando uso") p.voucherBaixa = "";
@@ -1878,4 +1960,5 @@ $("#viewRel").addEventListener("click",()=>trocarModo("rel"));
 trocarModo(modo);
 conectar();
 </script>
-
+</body>
+</html>

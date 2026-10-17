@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Minha agenda · Alinha Face</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="base.css">
+<style>
+  .shell{max-width:980px;margin:0 auto;padding:18px 16px 60px}
+  .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+  .top .brand{margin-right:auto}
+  .who{font-size:13.5px;color:var(--ink-2)}
+  .tabs{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:10px;margin-bottom:18px;width:max-content;max-width:100%;overflow-x:auto}
+  .tabs button{border:0;background:transparent;padding:8px 14px;border-radius:7px;cursor:pointer;font-weight:500;color:var(--ink-2);white-space:nowrap}
+  .tabs button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+  .kpi{padding:12px 14px}
+  .kpi .v{font-family:var(--font-display);font-size:26px;font-weight:700;display:block;line-height:1.1}
+  .kpi .l{font-size:12.5px;color:var(--ink-3)}
+  .kpi.alert .v{color:var(--crit)}
+  section.grupo{margin-bottom:22px}
+  section.grupo h2{font-size:16px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  section.grupo h2 .n{font-family:var(--font-body);font-size:12px;font-weight:600;background:var(--surface-3);color:var(--ink-2);border-radius:999px;padding:1px 8px}
+  .lista{display:flex;flex-direction:column;gap:8px}
+  .item{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:center;padding:12px 14px;cursor:pointer;text-align:left;width:100%;border:1px solid var(--line)}
+  .item:hover{border-color:var(--line-strong)}
+  .item .quando{font-family:var(--font-display);font-weight:700;font-size:15px;line-height:1.15}
+  .item .quando small{display:block;font-family:var(--font-body);font-weight:400;font-size:12px;color:var(--ink-3)}
+  .item .nome{font-weight:600}
+  .item .det{font-size:13px;color:var(--ink-3)}
+  .pill{font-size:12px;font-weight:600;border-radius:999px;padding:3px 9px;white-space:nowrap}
+  .pill.ok{background:var(--ok-bg);color:var(--ok)}
+  .pill.warn{background:var(--warn-bg);color:var(--warn)}
+  .pill.crit{background:var(--crit-bg);color:var(--crit)}
+  .pill.neu{background:var(--surface-3);color:var(--ink-2)}
+  .vazio{padding:18px;text-align:center;color:var(--ink-3);border:1px dashed var(--line-strong);border-radius:var(--radius)}
+  .busca{margin-bottom:12px}
+
+  .scrim{position:fixed;inset:0;background:rgba(10,18,32,.45);z-index:40}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--surface);z-index:41;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+  .drawer header{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .drawer header h2{font-size:19px;margin-right:auto}
+  .drawer .body{padding:18px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:18px}
+  .drawer footer{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+  .ficha{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;font-size:14px}
+  .ficha div span{display:block;font-size:12px;color:var(--ink-3)}
+  .ficha .full{grid-column:1/-1}
+  .bloco h3{font-size:15px;margin-bottom:10px}
+  .opcoes{display:flex;gap:8px;flex-wrap:wrap}
+  .opcoes label{display:flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:8px;padding:9px 12px;cursor:pointer;min-height:42px}
+  .opcoes input{accent-color:var(--accent)}
+  .opcoes label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+  .perg{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+  .perg > span{font-size:13px;font-weight:500;color:var(--ink-2)}
+  .registrado{background:var(--surface-2);border-radius:8px;padding:12px 14px;font-size:14px;white-space:pre-wrap}
+  .hist{display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+  .hist div{display:grid;grid-template-columns:52px 1fr;gap:8px}
+  .hist .d{color:var(--ink-3);font-variant-numeric:tabular-nums}
+  @media (max-width:560px){
+    .kpis{grid-template-columns:1fr 1fr 1fr;gap:6px}
+    .kpi{padding:10px}
+    .kpi .v{font-size:21px}
+    .item{grid-template-columns:58px 1fr;}
+    .item .pill{grid-column:2;justify-self:start}
+    .ficha{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+        <circle cx="17" cy="17" r="16" fill="var(--accent-soft)"></circle>
+        <path d="M17 1a16 16 0 0 0 0 32Z" fill="var(--accent)"></path>
+        <path d="M5 26 L27 7" stroke="var(--gold)" stroke-width="1.6" fill="none"></path>
+      </svg>
+      <div><h1>Alinha Face</h1><div class="sub" id="ola">Carregando…</div></div>
+    </div>
+    <button class="btn btn-sm btn-ghost" id="bSenha">Trocar senha</button>
+    <button class="btn btn-sm" id="bSair">Sair</button>
+  </div>
+
+  <div class="tabs" role="group" aria-label="Visualização">
+    <button id="tAgenda" aria-pressed="true">Agenda</button>
+    <button id="tPac" aria-pressed="false">Meus pacientes</button>
+  </div>
+
+  <div id="conteudo"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+function el(tag, cls, txt){ const e = document.createElement(tag); if(cls) e.className = cls; if(txt!=null) e.textContent = txt; return e; }
+function toast(m){ document.querySelectorAll(".toast").forEach(t=>t.remove()); const t = el("div","toast",m); document.body.appendChild(t); setTimeout(()=>t.remove(),2800); }
+const hoje = () => new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo"}).format(new Date());
+const dataBR = d => d ? d.slice(8,10)+"/"+d.slice(5,7) : "";
+const DIAS = ["dom","seg","ter","qua","qui","sex","sáb"];
+const diaSemana = d => DIAS[new Date(d+"T12:00:00").getDay()];
+const somaDias = (d,n) => { const x = new Date(d+"T12:00:00"); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
+
+const ETAPAS = {triagem:"A classificar",lead:"Lead novo",agendou:"Consulta agendada",compareceu:"Atendido",exames_sol:"Exames pedidos",
+  exames_ok:"Exames entregues",retorno:"Retorno feito",proposta:"Proposta enviada",docs_conv:"Documentos do convênio",
+  autorizacao:"Aguardando autorização",autorizado:"Autorizado",cir_marcada:"Cirurgia marcada",cir_feita:"Cirurgia realizada",
+  posop:"Pós-operatório",noshow:"Faltou",perdido:"Encerrado"};
+
+const sb = FUNIL.sb;
+let eu = null, pacientes = [], aba = "agenda", busca = "";
+
+function precisaRegistro(p){
+  return p.dataConsulta && p.dataConsulta <= hoje() && !p.consultaRegistradaEm && ["agendou","lead","triagem"].includes(p.etapa);
+}
+function situacao(p){
+  if(p.consultaRegistradaEm){
+    if(p.consultaCompareceu === false) return ["Não compareceu","crit"];
+    if(p.consultaPediuExames) return ["Atendido · exames","ok"];
+    return ["Atendido","ok"];
+  }
+  if(precisaRegistro(p)) return ["Falta registrar","warn"];
+  return [ETAPAS[p.etapa]||"—","neu"];
+}
+
+async function carregar(){
+  const { data, error } = await sb.from("funil_pacientes").select("id,dados").order("atualizado_em",{ascending:false});
+  if(error){ toast("Não consegui carregar seus pacientes. Recarregue a página."); return; }
+  pacientes = data.map(r => Object.assign({id:r.id}, r.dados));
+  render();
+}
+
+function render(){
+  $("#tAgenda").setAttribute("aria-pressed", aba==="agenda");
+  $("#tPac").setAttribute("aria-pressed", aba==="pac");
+  aba === "agenda" ? renderAgenda() : renderPacientes();
+}
+
+function itemPaciente(p, mostrarData){
+  const b = el("button","card item");
+  const q = el("div","quando");
+  if(p.dataConsulta){
+    q.textContent = mostrarData ? dataBR(p.dataConsulta) : (p.horaConsulta || "—");
+    q.appendChild(el("small",null, mostrarData ? diaSemana(p.dataConsulta)+(p.horaConsulta?" · "+p.horaConsulta:"") : (p.modalidade||"")));
+  }else{ q.textContent = "—"; q.appendChild(el("small",null,"sem data")); }
+  const m = el("div");
+  m.append(el("div","nome",p.nome||"Sem nome"),
+           el("div","det",[p.tratamento && p.tratamento!=="A definir" ? p.tratamento : null, p.modalidade==="Presencial" ? (p.local||"Presencial") : p.modalidade, p.convenio==="Sim" ? (p.nomeConvenio||"Convênio") : (p.convenio==="Não" ? "Particular" : null)].filter(Boolean).join(" · ")));
+  const [txt,cls] = situacao(p);
+  b.append(q, m, el("span","pill "+cls, txt));
+  b.addEventListener("click",()=>abrir(p.id));
+  return b;
+}
+
+function grupo(titulo, lista, mostrarData, vazio){
+  const s = el("section","grupo");
+  const h = el("h2",null,titulo); h.appendChild(el("span","n",String(lista.length)));
+  s.appendChild(h);
+  const l = el("div","lista");
+  if(!lista.length) l.appendChild(el("div","vazio",vazio));
+  lista.forEach(p => l.appendChild(itemPaciente(p, mostrarData)));
+  s.appendChild(l);
+  return s;
+}
+
+const porHorario = (a,b) => ((a.dataConsulta||"")+(a.horaConsulta||"")).localeCompare((b.dataConsulta||"")+(b.horaConsulta||""));
+
+function renderAgenda(){
+  const c = $("#conteudo"); c.textContent = "";
+  const h = hoje(), limite = somaDias(h, 14);
+  const deHoje = pacientes.filter(p => p.dataConsulta === h).sort(porHorario);
+  const pendentes = pacientes.filter(p => precisaRegistro(p) && p.dataConsulta < h).sort(porHorario);
+  const proximas = pacientes.filter(p => p.dataConsulta > h && p.dataConsulta <= limite && !["perdido","noshow"].includes(p.etapa)).sort(porHorario);
+
+  const k = el("div","kpis");
+  [["Hoje", deHoje.length, ""], ["Faltam registrar", pendentes.length + deHoje.filter(precisaRegistro).length, pendentes.length?"alert":""], ["Próximos 14 dias", proximas.length, ""]]
+    .forEach(([l,v,cl]) => { const d = el("div","card kpi"+(cl?" "+cl:"")); d.append(el("span","v",String(v)), el("span","l",l)); k.appendChild(d); });
+  c.appendChild(k);
+
+  if(pendentes.length) c.appendChild(grupo("Consultas passadas sem registro", pendentes, true, ""));
+  c.appendChild(grupo("Hoje · "+dataBR(h), deHoje, false, "Nenhuma consulta marcada para hoje."));
+  c.appendChild(grupo("Próximos dias", proximas, true, "Nada marcado nas próximas duas semanas."));
+}
+
+function renderPacientes(){
+  const c = $("#conteudo"); c.textContent = "";
+  const i = el("input"); i.type = "text"; i.className = "busca"; i.placeholder = "Buscar por nome"; i.value = busca;
+  i.addEventListener("input", e => { busca = e.target.value; desenhar(); });
+  c.appendChild(i);
+  const box = el("div"); c.appendChild(box);
+  function desenhar(){
+    box.textContent = "";
+    const q = busca.trim().toLowerCase();
+    const lista = pacientes.filter(p => !q || (p.nome||"").toLowerCase().includes(q))
+      .sort((a,b) => String(b.dataConsulta||"").localeCompare(String(a.dataConsulta||"")));
+    box.appendChild(grupo("Todos os meus pacientes", lista, true, q ? "Ninguém com esse nome." : "Ainda não há pacientes encaminhados para você."));
+  }
+  desenhar();
+  i.focus();
+}
+
+function fechar(){ document.querySelectorAll(".scrim,.drawer").forEach(x=>x.remove()); }
+
+function abrir(id){
+  const p = pacientes.find(x => x.id === id); if(!p) return;
+  fechar();
+  const scrim = el("div","scrim"); scrim.addEventListener("click", fechar);
+  const d = el("aside","drawer"); d.setAttribute("role","dialog"); d.setAttribute("aria-label","Ficha do paciente");
+  const h = el("header"); h.appendChild(el("h2",null,p.nome||"Paciente"));
+  const bx = el("button","btn btn-ghost btn-sm","Fechar"); bx.addEventListener("click", fechar); h.appendChild(bx);
+  d.appendChild(h);
+
+  const b = el("div","body");
+  const f = el("div","ficha");
+  const campo = (rot, val, full) => { if(!val) return; const x = el("div", full?"full":null); x.appendChild(el("span",null,rot)); x.appendChild(document.createTextNode(val)); f.appendChild(x); };
+  campo("Consulta", p.dataConsulta ? dataBR(p.dataConsulta)+" ("+diaSemana(p.dataConsulta)+")"+(p.horaConsulta?" às "+p.horaConsulta:"") : "Sem data marcada");
+  campo("Modalidade", p.modalidade==="Presencial" ? (p.local||"Presencial") : (p.modalidade||""));
+  campo("Tratamento", p.tratamento);
+  campo("Convênio", p.convenio==="Sim" ? (p.nomeConvenio||"Sim") : (p.convenio==="Não" ? "Não · particular" : p.convenio));
+  campo("Cidade", p.cidade);
+  campo("WhatsApp", p.telefone);
+  campo("Etapa", ETAPAS[p.etapa]);
+  campo("Observações da equipe", p.observacoes, true);
+  b.appendChild(f);
+
+  const bloco = el("div","bloco");
+  if(p.consultaRegistradaEm){
+    bloco.appendChild(el("h3",null,"Seu registro da consulta"));
+    const r = el("div","registrado");
+    r.textContent = (p.consultaCompareceu===false ? "Não compareceu." : "Compareceu."+(p.consultaPediuExames ? " Pediu exames"+(p.examesPedidos?": "+p.examesPedidos:"")+"." : " Sem pedido de exames."))
+      + (p.resumoConsulta ? "\n\n"+p.resumoConsulta : "")
+      + "\n\nRegistrado em "+dataBR(String(p.consultaRegistradaEm).slice(0,10))+".";
+    bloco.appendChild(r);
+    const ed = el("button","btn btn-sm","Corrigir registro"); ed.style.marginTop = "10px";
+    ed.addEventListener("click", ()=>{ bloco.textContent = ""; bloco.appendChild(formRegistro(p)); });
+    bloco.appendChild(ed);
+  }else{
+    bloco.appendChild(formRegistro(p));
+  }
+  b.appendChild(bloco);
+
+  const hist = (p.historico||[]).slice(-8).reverse();
+  if(hist.length){
+    const hb = el("div","bloco"); hb.appendChild(el("h3",null,"Últimos registros"));
+    const ul = el("div","hist");
+    hist.forEach(x => { const li = el("div"); li.append(el("span","d",dataBR(x.data)), el("span",null,x.texto)); ul.appendChild(li); });
+    hb.appendChild(ul); b.appendChild(hb);
+  }
+  d.appendChild(b);
+  document.body.append(scrim, d);
+}
+
+function radios(nome, opcoes, atual){
+  const w = el("div","opcoes");
+  opcoes.forEach(([v,l]) => {
+    const lab = el("label"); const i = el("input"); i.type = "radio"; i.name = nome; i.value = v;
+    if(atual === v) i.checked = true;
+    lab.append(i, document.createTextNode(l)); w.appendChild(lab);
+  });
+  return w;
+}
+
+function formRegistro(p){
+  const f = el("form");
+  f.appendChild(el("h3",null,"Registrar a consulta"));
+  const atualC = p.consultaRegistradaEm ? (p.consultaCompareceu===false?"nao":"sim") : null;
+  const atualE = p.consultaRegistradaEm ? (p.consultaPediuExames?"sim":"nao") : null;
+
+  const q1 = el("div","perg"); q1.append(el("span",null,"O paciente compareceu?"), radios("comp",[["sim","Sim, atendi"],["nao","Não compareceu"]], atualC));
+  const q2 = el("div","perg"); q2.append(el("span",null,"Pediu exames?"), radios("exam",[["sim","Sim"],["nao","Não"]], atualE));
+  const qx = el("label","f perg"); qx.append(document.createTextNode("Quais exames"));
+  const ix = el("input"); ix.type = "text"; ix.placeholder = "Ex.: ressonância de ATM, tomografia"; ix.value = p.examesPedidos||""; qx.appendChild(ix);
+  const qr = el("label","f perg"); qr.append(document.createTextNode("Resumo da consulta"));
+  const tr = el("textarea"); tr.placeholder = "Queixa, achados, conduta e próximo passo. Só a equipe Alinha Face vê."; tr.value = p.resumoConsulta||""; qr.appendChild(tr);
+  f.append(q1, q2, qx, qr);
+
+  function ajustar(){
+    const comp = f.querySelector("input[name=comp]:checked")?.value;
+    q2.hidden = comp === "nao";
+    const ex = f.querySelector("input[name=exam]:checked")?.value;
+    qx.hidden = comp === "nao" || ex !== "sim";
+  }
+  f.addEventListener("change", ajustar); ajustar();
+
+  const salvar = el("button","btn btn-primary","Salvar registro"); salvar.type = "submit";
+  f.appendChild(salvar);
+  f.addEventListener("submit", async e => {
+    e.preventDefault();
+    const comp = f.querySelector("input[name=comp]:checked")?.value;
+    if(!comp){ toast("Marque se o paciente compareceu."); return; }
+    const exam = comp === "sim" ? f.querySelector("input[name=exam]:checked")?.value : "nao";
+    if(comp === "sim" && !exam){ toast("Marque se pediu exames."); return; }
+    salvar.disabled = true; salvar.textContent = "Salvando…";
+    const { error } = await sb.rpc("registrar_consulta", {
+      p_id: p.id, p_compareceu: comp === "sim", p_pediu_exames: exam === "sim",
+      p_resumo: tr.value.trim(), p_exames: exam === "sim" ? ix.value.trim() : ""
+    });
+    salvar.disabled = false; salvar.textContent = "Salvar registro";
+    if(error){ toast("Não consegui salvar. Tente de novo."); return; }
+    toast("Registro salvo. A equipe já está vendo.");
+    await carregar(); abrir(p.id);
+  });
+  return f;
+}
+
+$("#tAgenda").addEventListener("click", ()=>{ aba = "agenda"; render(); });
+$("#tPac").addEventListener("click", ()=>{ aba = "pac"; render(); });
+$("#bSair").addEventListener("click", FUNIL.sair);
+$("#bSenha").addEventListener("click", FUNIL.trocarSenha);
+document.addEventListener("keydown", e => { if(e.key === "Escape") fechar(); });
+
+(async ()=>{
+  eu = await FUNIL.exigir(["cirurgiao"]);
+  $("#ola").textContent = "Olá, " + eu.nome;
+  await carregar();
+  sb.channel("meus-pacientes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "funil_pacientes" }, () => carregar())
+    .subscribe();
+  setInterval(carregar, 5*60*1000);
+})();
+</script>
+</body>
+</html>

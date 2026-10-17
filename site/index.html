@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Entrar · Funil Alinha Face</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="base.css">
+<style>
+  .wrap{min-height:100vh;display:grid;place-items:center;padding:24px 16px}
+  .box{width:100%;max-width:400px;padding:28px 24px;display:flex;flex-direction:column;gap:18px}
+  .box h2{font-size:24px}
+  .box p{margin:0;color:var(--ink-2)}
+  form{display:flex;flex-direction:column;gap:14px}
+  .linkbtn{background:none;border:0;color:var(--accent);text-decoration:underline;cursor:pointer;padding:0;font-size:14px;align-self:flex-start}
+  .foot{font-size:12.5px;color:var(--ink-3);text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card box">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+        <circle cx="17" cy="17" r="16" fill="var(--accent-soft)"></circle>
+        <path d="M17 1a16 16 0 0 0 0 32Z" fill="var(--accent)"></path>
+        <path d="M5 26 L27 7" stroke="var(--gold)" stroke-width="1.6" fill="none"></path>
+      </svg>
+      <div><h1>Funil Alinha Face</h1><div class="sub">Área restrita da equipe</div></div>
+    </div>
+
+    <div id="passo1">
+      <h2>Entrar</h2>
+      <p style="margin:6px 0 16px">Use o e-mail e a senha que o Claudemir passou para você.</p>
+      <form id="fLogin">
+        <label class="f">E-mail
+          <input type="email" id="email" autocomplete="email" required placeholder="seu@email.com">
+        </label>
+        <label class="f">Senha
+          <input type="password" id="senha" autocomplete="current-password" required>
+        </label>
+        <button class="btn btn-primary" id="bEntrar" type="submit">Entrar</button>
+      </form>
+      <p class="muted" style="margin-top:12px;font-size:13px">Esqueceu a senha? Fale com o Claudemir, que gera uma nova.</p>
+    </div>
+
+    <div id="aviso" class="msg" hidden></div>
+    <div class="foot">Dados de pacientes · acesso individual e registrado</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const sb = FUNIL.sb;
+
+function aviso(texto, tipo){
+  const a = $("#aviso");
+  a.hidden = !texto; a.className = "msg " + (tipo||"info"); a.textContent = texto || "";
+}
+
+async function seguir(){
+  const p = await FUNIL.perfil();
+  if(!p) return false;
+  if(!p.papel){
+    aviso("Este e-mail entrou, mas ainda não tem acesso liberado. Fale com o Claudemir.", "err");
+    await sb.auth.signOut();
+    return true;
+  }
+  location.replace(p.papel === "admin" ? "painel.html" : "medico.html");
+  return true;
+}
+
+$("#fLogin").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const email = $("#email").value.trim().toLowerCase();
+  const b = $("#bEntrar"); b.disabled = true; b.textContent = "Entrando…"; aviso("");
+  const { error } = await sb.auth.signInWithPassword({ email, password: $("#senha").value });
+  b.disabled = false; b.textContent = "Entrar";
+  if(error){
+    aviso(/rate|too many/i.test(error.message) ? "Muitas tentativas seguidas. Espere um minuto." : "E-mail ou senha não conferem.", "err");
+    return;
+  }
+  await seguir();
+});
+
+(async ()=>{
+  if(new URLSearchParams(location.search).has("semacesso")){
+    aviso("Seu e-mail ainda não tem acesso liberado. Fale com o Claudemir.", "err");
+    await sb.auth.signOut();
+    return;
+  }
+  await seguir();   // sessão já aberta neste aparelho: entra direto
+})();
+</script>
+</body>
+</html>
