@@ -37,3 +37,5 @@ em `perfis` com o papel certo.
 ## Publicação
 
 Cloudflare Pages, enviando a pasta `site/` (sem etapa de build).
+
+Endereço publicado: https://funil-alinhaface.pages.dev (projeto `funil-alinhaface` no Cloudflare Pages, envio direto).
