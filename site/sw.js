@@ -1,7 +1,7 @@
 // Service worker do app Funil Alinha Face.
 // Sempre busca a versão mais nova na internet; o cache só serve se a conexão cair.
 // Nunca guarda dados de pacientes: chamadas ao Supabase passam direto.
-const CACHE = "funil-v8";
+const CACHE = "funil-v9";
 const BASE = ["./", "index.html", "painel.html", "medico.html", "voucher.html", "auth.js", "whats.js", "config.js", "base.css", "manifest.webmanifest", "icones/icone-192.png"];
 
 self.addEventListener("install", e => {

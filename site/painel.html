@@ -258,6 +258,12 @@
   .statusline .dot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
   .statusline .dot.off{background:var(--warn)}
   [hidden]{display:none!important}
+  /* celular/tablet: a barra de abas rola para o lado em vez de sumir da tela */
+  @media (max-width:1000px){
+    .seg{display:flex;width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+    .seg::-webkit-scrollbar{display:none}
+    .seg button{flex:0 0 auto;white-space:nowrap}
+  }
   @media (max-width:640px){
     .shell{padding:14px 12px 50px}
     .grid2,.grid3{grid-template-columns:1fr}
@@ -377,7 +383,8 @@
   .wa-anexo{white-space:nowrap;padding:0 12px;min-height:44px}
   #viewWhats.alerta{color:#1F7A55;font-weight:600}
   @media (max-width:820px){
-    .wa{grid-template-columns:1fr;height:calc(100vh - 120px)}
+    .wa{grid-template-columns:1fr;height:calc(100dvh - 210px);min-height:420px}
+    .wa-comp{flex-wrap:wrap} .wa-comp textarea{flex:1 1 100%;order:-1} .wa-comp .btn-primary{margin-left:auto}
     .wa .wa-conversa{display:none} .wa.com-conversa .wa-lista{display:none} .wa.com-conversa .wa-conversa{display:flex}
     .wa-volta{display:inline-flex}
     .wa-b{max-width:88%}
@@ -2420,6 +2427,7 @@ function trocarModo(m){
   $("#gusview").hidden = m!=="gus";
   $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus" || m==="exames" || m==="cir" || m==="cal" || m==="whats";
   if(typeof waAgendarLista==="function" && DB) waAgendarLista();
+  document.querySelector('.seg button[aria-pressed="true"]')?.scrollIntoView({block:"nearest",inline:"center"});
   render();
 }
 $("#viewWhats").addEventListener("click",()=>trocarModo("whats"));
