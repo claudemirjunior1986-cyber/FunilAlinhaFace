@@ -46,6 +46,17 @@ function rest(auth: string, path: string, init: RequestInit = {}) {
   });
 }
 
+async function registrarEnvio(auth: string, chatId: string, texto: string, email: string) {
+  try {
+    const pr = await rest(auth, "perfis?select=nome&email=eq." + encodeURIComponent(String(email || "").toLowerCase()));
+    const nome = pr.ok ? ((await pr.json())[0]?.nome || email) : email;
+    await rest(auth, "funil_whats_envios", {
+      method: "POST", headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ chat_id: chatId, texto: texto.slice(0, 2000), por: email, por_nome: nome }),
+    });
+  } catch { /* só para mostrar o nome; não impede o envio */ }
+}
+
 const iso = (ms: unknown) => (typeof ms === "number" && ms > 0 ? new Date(ms).toISOString() : null);
 const so8 = (t: unknown) => String(t || "").replace(/\D/g, "").slice(-8);
 
@@ -123,7 +134,20 @@ Deno.serve(async (req) => {
         if (!p.chatId) return json({ erro: "falta chatId" }, 400);
         const pg = Math.max(Number(p.pagina) || 1, 1);
         const lista = await gm(`/chat/${encodeURIComponent(p.chatId)}/messages?page=${pg}&pageSize=50`);
-        const arr = (Array.isArray(lista) ? lista : []).map(mensagem).filter(Boolean);
+        const arr: any[] = (Array.isArray(lista) ? lista : []).map(mensagem).filter(Boolean);
+        // troca o nome do dono da chave pelo nome de quem enviou pelo site
+        try {
+          const ev = await rest(auth, "funil_whats_envios?select=texto,por_nome,em&order=em.desc&limit=300&chat_id=eq." + encodeURIComponent(p.chatId));
+          const envios: any[] = ev.ok ? await ev.json() : [];
+          const usados = new Set<number>();
+          for (const m of arr) {
+            if (m.de !== "equipe" || !m.em) continue;
+            const t = new Date(m.em).getTime();
+            const i = envios.findIndex((e, k) => !usados.has(k) && Math.abs(new Date(e.em).getTime() - t) < 180000 &&
+              (String(e.texto || "").trim() === String(m.texto || "").trim() || m.imagem || m.documento));
+            if (i >= 0) { usados.add(i); m.quem = envios[i].por_nome; }
+          }
+        } catch { /* segue com o nome do GPT Maker */ }
         return json({ ok: true, mensagens: arr, temMais: Array.isArray(lista) && lista.length >= 45 });
       }
       case "enviar": {
@@ -133,6 +157,7 @@ Deno.serve(async (req) => {
         const id = encodeURIComponent(p.chatId);
         try { await gm(`/chat/${id}/start-human`, { method: "PUT" }); } catch { /* já estava com a equipe */ }
         await gm(`/chat/${id}/send-message`, { method: "POST", body: JSON.stringify({ message: texto }) });
+        await registrarEnvio(auth, p.chatId, texto, eu.email);
         await rest(auth, "funil_whats?chat_id=eq." + id, {
           method: "PATCH",
           body: JSON.stringify({
@@ -156,6 +181,7 @@ Deno.serve(async (req) => {
         } else {
           await gm(`/chat/${id}/send-message`, { method: "POST", body: JSON.stringify({ image: url, message: legenda }) });
         }
+        await registrarEnvio(auth, p.chatId, legenda || String(p.nome || "arquivo"), eu.email);
         await rest(auth, "funil_whats?chat_id=eq." + id, {
           method: "PATCH",
           body: JSON.stringify({

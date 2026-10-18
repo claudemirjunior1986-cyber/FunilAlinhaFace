@@ -276,7 +276,7 @@ function waRenderConversa(carregando){
   ta.addEventListener("keydown",e=>{ if(e.key==="Enter" && !e.shiftKey && !e.isComposing){ e.preventDefault(); comp.requestSubmit(); } });
   const be = el("button","btn btn-primary","Enviar"); be.type = "submit";
   const fi = el("input"); fi.type = "file"; fi.accept = "image/*,application/pdf"; fi.hidden = true;
-  const ba = el("button","btn wa-anexo","📎"); ba.type = "button"; ba.title = "Enviar foto ou PDF (o texto escrito vai junto)";
+  const ba = el("button","btn wa-anexo","📎 Foto / PDF"); ba.type = "button"; ba.title = "Enviar foto ou PDF (o texto escrito vai junto)";
   ba.addEventListener("click",()=>fi.click());
   fi.addEventListener("change", async ()=>{
     const f = fi.files && fi.files[0]; fi.value = ""; if(!f) return;
@@ -293,7 +293,7 @@ function waRenderConversa(carregando){
       toast("Arquivo enviado.");
       setTimeout(()=>waCarregarMensagens(true), 3000);
     }catch(e){ toast("Não enviou: " + e.message); }
-    finally{ ba.disabled = false; be.disabled = false; ba.textContent = "📎"; }
+    finally{ ba.disabled = false; be.disabled = false; ba.textContent = "📎 Foto / PDF"; }
   });
   comp.append(fi, ba, ta, be);
   comp.addEventListener("submit", e=>{ e.preventDefault(); waEnviar(ta, be); });
