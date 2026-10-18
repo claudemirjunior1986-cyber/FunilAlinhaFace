@@ -37,7 +37,9 @@ function waChatDoPaciente(p){
   for(const c of WA.chats.values()){ if(c.tel8 === t && (!melhor || (c.ultima_em||"") > (melhor.ultima_em||""))) melhor = c; }
   return melhor;
 }
-const waAguardando = c => c.ultima_de === "user" && (!c.visto_em || (c.ultima_em||"") > c.visto_em);
+// paciente falou por último, nos últimos 30 dias, e ninguém abriu a conversa no site depois disso
+const waAguardando = c => c.ultima_de === "user" && (c.ultima_em||"") > new Date(Date.now()-30*864e5).toISOString()
+  && (!c.visto_em || (c.ultima_em||"") > c.visto_em);
 function waNome(c){ const p = waPacienteDoChat(c); return (p && p.nome) || c.nome || telBR(c.telefone) || "Sem nome"; }
 function waQuando(isoStr){
   if(!isoStr) return "";
@@ -59,7 +61,12 @@ async function waLerTabela(){
     linhas.push(...data);
     if(data.length < 1000) break;
   }
-  WA.chats = new Map(linhas.map(c=>[c.chat_id, c]));
+  // contatos marcados como "não é paciente" (tabela funil_ignorados) ficam fora da lista
+  try{
+    const { data:ig } = await FUNIL.sb.from("funil_ignorados").select("id");
+    WA.ignorados = new Set((ig||[]).map(r=>String(r.id).replace(/^k/,"")));
+  }catch(e){ WA.ignorados = WA.ignorados || new Set(); }
+  WA.chats = new Map(linhas.filter(c=>!WA.ignorados.has(c.tel8)).map(c=>[c.chat_id, c]));
   WA.carregou = true;
   waBadge();
   if(modo === "whats") waRenderLista();
