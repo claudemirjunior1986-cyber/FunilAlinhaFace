@@ -329,6 +329,58 @@
   .bar-fill{height:100%;background:var(--accent);border-radius:0 4px 4px 0;min-width:2px}
   .bar-val{font-family:var(--font-mono);font-variant-numeric:tabular-nums;text-align:right;color:var(--ink)}
   .bar-row:hover .bar-lbl{color:var(--ink)}
+
+  /* ===== WhatsApp ===== */
+  .wa{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:14px;height:calc(100vh - 150px);min-height:480px}
+  .wa-lista,.wa-conversa{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .wa-busca{padding:10px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+  .wa-busca input{width:100%;border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px;background:var(--surface);color:var(--ink)}
+  .wa-filtros{display:flex;gap:4px}
+  .wa-filtros button{flex:1;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:7px;padding:5px 6px;font-size:12.5px;cursor:pointer}
+  .wa-filtros button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  .wa-itens{overflow-y:auto;flex:1}
+  .wa-item{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);padding:10px 12px;cursor:pointer;font:inherit}
+  .wa-item:hover{background:var(--surface-2)} .wa-item.on{background:var(--accent-soft)}
+  .wa-item-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+  .wa-item-top strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wa-hora{font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+  .wa-item-txt{font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0 5px}
+  .wa-tags{display:flex;gap:4px;flex-wrap:wrap}
+  .wa-tag{font-size:11px;padding:1px 7px;border-radius:99px;background:var(--surface-3);color:var(--ink-2)}
+  .wa-tag-esp{background:#1F7A55;color:#fff} .wa-tag-sem{background:var(--warn-bg);color:var(--warn)}
+  .wa-vazio{padding:24px 16px;color:var(--ink-3);text-align:center}
+  .wa-escolha{margin:auto}
+  .wa-cab{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .wa-cab-id{display:flex;flex-direction:column;flex:1;min-width:150px} .wa-cab-id span{font-size:12.5px;color:var(--ink-3)}
+  .wa-cab-acoes{display:flex;gap:6px;flex-wrap:wrap}
+  .wa-volta{display:none}
+  .wa-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--ground)}
+  .wa-mais{align-self:center}
+  .wa-dia{align-self:center;font-size:11.5px;color:var(--ink-3);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:2px 10px;margin:8px 0 2px;text-transform:capitalize}
+  .wa-sis{align-self:center;font-size:12px;color:var(--ink-3);font-style:italic;max-width:80%;text-align:center}
+  .wa-b{max-width:min(78%,560px);padding:7px 10px 5px;border-radius:10px;box-shadow:0 1px 1px rgba(0,0,0,.06);word-wrap:break-word}
+  .wa-paciente{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-top-left-radius:3px}
+  .wa-bia{align-self:flex-end;background:var(--surface-2);border:1px solid var(--line);border-top-right-radius:3px}
+  .wa-equipe{align-self:flex-end;background:#DCF2E4;color:#0F1D33;border:1px solid #BFE3CD;border-top-right-radius:3px}
+  .wa-quem{font-size:11px;font-weight:600;color:var(--ink-3);margin-bottom:2px}
+  .wa-equipe .wa-quem{color:#1F7A55}
+  .wa-txt{white-space:pre-wrap;font-size:14px;line-height:1.4}
+  .wa-h{font-size:10.5px;color:var(--ink-3);text-align:right;margin-top:2px}
+  .wa-equipe .wa-h{color:#4A6A58}
+  .wa-b img{max-width:100%;max-height:280px;border-radius:6px;display:block;margin-bottom:4px}
+  .wa-b audio{width:240px;max-width:100%;height:36px}
+  .wa-transc{font-size:12.5px;color:var(--ink-2);font-style:italic;margin-top:3px}
+  .wa-doc{display:inline-block;margin-bottom:3px}
+  .wa-comp{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);align-items:flex-end}
+  .wa-comp textarea{flex:1;min-height:44px;max-height:180px;resize:vertical;border:1px solid var(--line-strong);border-radius:8px;padding:9px 10px;background:var(--surface);color:var(--ink);font:inherit}
+  .wa-nota{font-size:11.5px;color:var(--ink-3);padding:0 12px 9px}
+  #viewWhats.alerta{color:#1F7A55;font-weight:600}
+  @media (max-width:820px){
+    .wa{grid-template-columns:1fr;height:calc(100vh - 120px)}
+    .wa .wa-conversa{display:none} .wa.com-conversa .wa-lista{display:none} .wa.com-conversa .wa-conversa{display:flex}
+    .wa-volta{display:inline-flex}
+    .wa-b{max-width:88%}
+  }
 </style>
 </head>
 <body>
@@ -348,6 +400,7 @@
     </div>
     <div class="seg" role="group" aria-label="Modo de visualização">
       <button id="viewNovos" aria-pressed="false">Novos</button>
+      <button id="viewWhats" aria-pressed="false">WhatsApp</button>
       <button id="viewExames" aria-pressed="false">Exames pedidos</button>
       <button id="viewCir" aria-pressed="false">Cirurgias</button>
       <button id="viewCal" aria-pressed="false">Calendário</button>
@@ -395,6 +448,7 @@
   <div id="examesview" hidden></div>
   <div id="cirview" hidden></div>
   <div id="calview" hidden></div>
+  <div id="whatsview" hidden></div>
   <div id="gusview" hidden></div>
   <div id="hojeview" hidden></div>
   <div id="relview" hidden></div>
@@ -426,6 +480,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script src="auth.js"></script>
+<script src="whats.js"></script>
 <script>
 /* ============ modelo ============ */
 const STAGES = [
@@ -570,6 +625,7 @@ let CIRURGIOES = [];   // [{email, nome}] — vem da tabela perfis
 async function conectar(){
   const eu = await FUNIL.exigir(["admin"]);
   $("#quem").textContent = eu.nome;
+  FUNIL._nome = eu.nome; FUNIL._email = eu.email;
   $("#btnSair").addEventListener("click", FUNIL.sair);
   $("#btnSenha").addEventListener("click", FUNIL.trocarSenha);
   try{
@@ -580,6 +636,7 @@ async function conectar(){
   DOWNLOADS = DOWNLOADS_NAVEGADOR;
   $("#statusText").textContent = "Base conectada — tudo que você editar fica salvo para a equipe.";
   $("#statusDot").classList.remove("off");
+  waIniciar();
   DB.collection("encaminhamentos").onSnapshot(snap=>{
     encaminhamentos = new Map(snap.docs.map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
     render();
@@ -653,6 +710,8 @@ function render(){
   if(bx){ const n = examesPendentes().length; bx.textContent = n ? "Exames pedidos · "+n : "Exames pedidos"; bx.classList.toggle("alerta", n>0); }
   const bc = document.getElementById("viewCir");
   if(bc){ const n = cirGrupo("aut").length; bc.textContent = n ? "Cirurgias · "+n+" aguardando" : "Cirurgias"; }
+  waBadge();
+  if(modo==="whats"){ if(!$("#whatsview").dataset.montado) renderWhats(); else waRenderLista(); return; }
   if(modo==="exames"){ renderExames(); return; }
   if(modo==="cir"){ renderCir(); return; }
   if(modo==="cal"){ renderCal(); return; }
@@ -1465,6 +1524,7 @@ function copiar(txt, ok){
   navigator.clipboard?.writeText(txt).then(()=>toast(ok||"Mensagem copiada."), ()=>toast("Não consegui copiar — selecione o texto à mão."));
 }
 function abrirWhats(p, txt){
+  if(typeof waAbrirComTexto==="function" && waAbrirComTexto(p, txt)) return;
   const tel = (p.telefone||"").replace(/\D/g,"");
   if(!tel){ copiar(txt,"Sem telefone na ficha — mensagem copiada."); return; }
   const n = tel.length<=11 ? "55"+tel : tel;
@@ -2345,6 +2405,8 @@ function trocarModo(m){
   $("#cirview").hidden = m!=="cir";
   $("#viewCal").setAttribute("aria-pressed", String(m==="cal"));
   $("#calview").hidden = m!=="cal";
+  $("#viewWhats").setAttribute("aria-pressed", String(m==="whats"));
+  $("#whatsview").hidden = m!=="whats";
   $("#viewGus").setAttribute("aria-pressed", String(m==="gus"));
   $("#viewHoje").setAttribute("aria-pressed", String(m==="hoje"));
   $("#viewBoard").setAttribute("aria-pressed", String(m==="board"));
@@ -2356,9 +2418,11 @@ function trocarModo(m){
   $("#hojeview").hidden = m!=="hoje";
   $("#novosview").hidden = m!=="novos";
   $("#gusview").hidden = m!=="gus";
-  $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus" || m==="exames" || m==="cir" || m==="cal";
+  $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus" || m==="exames" || m==="cir" || m==="cal" || m==="whats";
+  if(typeof waAgendarLista==="function" && DB) waAgendarLista();
   render();
 }
+$("#viewWhats").addEventListener("click",()=>trocarModo("whats"));
 $("#viewNovos").addEventListener("click",()=>trocarModo("novos"));
 $("#viewExames").addEventListener("click",()=>trocarModo("exames"));
 $("#viewCir").addEventListener("click",()=>trocarModo("cir"));
