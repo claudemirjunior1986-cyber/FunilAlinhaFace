@@ -259,7 +259,7 @@ async function enviar(){
     avulso = true;
     paciente = { telefone: "" };
     document.querySelector("label.f:nth-of-type(2)").firstChild.textContent = "Data de início ";
-    $("#bEnviar").hidden = true;
+    $("#bEnviar").style.display = "none";
     $("#bBaixar").textContent = "Gerar e baixar voucher"; $("#bBaixar").classList.add("btn-primary");
     $("#fNome").value = ""; $("#fEmissao").value = hojeSP();
     $("#form").hidden = false; $("#stage").hidden = false; $("#aviso").hidden = false;
