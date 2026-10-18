@@ -104,7 +104,7 @@
   .cir-card input[type=date],.cir-card input[type=text]{font-size:12.5px;padding:5px 8px;border:1px solid var(--line-strong);border-radius:6px;background:var(--surface);min-height:32px}
   .cir-tot{font-size:12.5px;color:var(--ink-2);padding:9px 14px;border-top:1px solid var(--line);background:var(--surface-2)}
   .cal-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-  .cal-top h2{font-family:var(--font-display);font-size:19px;margin:0;letter-spacing:-.02em;min-width:180px;text-transform:capitalize}
+  .cal-top h2{font-family:var(--font-display);font-size:19px;margin:0;letter-spacing:-.02em;min-width:180px}
   .cal-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin:0 0 10px}
   .cal-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:0}
   .cal-wrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
@@ -695,7 +695,8 @@ function renderCal(){
   const ant = el("button","btn btn-sm","‹"); ant.title = "Mês anterior";
   const prox = el("button","btn btn-sm","›"); prox.title = "Próximo mês";
   const hj = el("button","btn btn-sm btn-ghost","Hoje");
-  const nomeMes = new Date(ano, mes, 15).toLocaleDateString("pt-BR",{month:"long", year:"numeric"});
+  let nomeMes = new Date(ano, mes, 15).toLocaleDateString("pt-BR",{month:"long", year:"numeric"});
+  nomeMes = nomeMes.charAt(0).toUpperCase()+nomeMes.slice(1);
   const mover = n => { const d = new Date(ano, mes+n, 1); calMes = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); calSel = null; renderCal(); };
   ant.addEventListener("click",()=>mover(-1)); prox.addEventListener("click",()=>mover(1));
   hj.addEventListener("click",()=>{ calMes = h.slice(0,7); calSel = h; renderCal(); });
@@ -733,12 +734,12 @@ function renderCal(){
     b.appendChild(el("span","num",String(d.getDate())));
     const x = dados[iso];
     if(doMes && x){
-      const linha = (cls, n, t) => { if(!n) return; const l = el("div","lin"); l.append(el("i",cls), el("b",null,String(n)), el("span","t",t)); b.appendChild(l); };
-      linha("c-cont", x.contatos.length, "contatos");
-      linha("c-lead", x.contatos.filter(ehLead).length, "leads");
-      linha("c-ag", x.consultas.length, "consultas");
-      linha("c-ok", x.consultas.filter(p=>situacaoConsulta(p)==="consultado").length, "consultados");
-      linha("c-falta", x.consultas.filter(p=>situacaoConsulta(p)==="faltou").length, "faltas");
+      const linha = (cls, n, um, varios) => { if(!n) return; const l = el("div","lin"); l.append(el("i",cls), el("b",null,String(n)), el("span","t",n===1?um:varios)); b.appendChild(l); };
+      linha("c-cont", x.contatos.length, "contato", "contatos");
+      linha("c-lead", x.contatos.filter(ehLead).length, "lead", "leads");
+      linha("c-ag", x.consultas.length, "consulta", "consultas");
+      linha("c-ok", x.consultas.filter(p=>situacaoConsulta(p)==="consultado").length, "consultado", "consultados");
+      linha("c-falta", x.consultas.filter(p=>situacaoConsulta(p)==="faltou").length, "falta", "faltas");
     }
     b.title = "Ver o dia "+dataBR(iso);
     b.addEventListener("click",()=>{ if(!doMes){ calMes = iso.slice(0,7); } calSel = iso; renderCal(); });
