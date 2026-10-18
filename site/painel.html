@@ -103,6 +103,34 @@
   .cir-card .acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
   .cir-card input[type=date],.cir-card input[type=text]{font-size:12.5px;padding:5px 8px;border:1px solid var(--line-strong);border-radius:6px;background:var(--surface);min-height:32px}
   .cir-tot{font-size:12.5px;color:var(--ink-2);padding:9px 14px;border-top:1px solid var(--line);background:var(--surface-2)}
+  .cal-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .cal-top h2{font-family:var(--font-display);font-size:19px;margin:0;letter-spacing:-.02em;min-width:180px;text-transform:capitalize}
+  .cal-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin:0 0 10px}
+  .cal-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:0}
+  .cal-wrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
+  @media (max-width:1100px){.cal-wrap{grid-template-columns:1fr}}
+  .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+  .cal .dow{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);text-align:center;padding:2px 0}
+  .cal .dia{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:8px;min-height:96px;padding:7px 8px;display:flex;flex-direction:column;gap:3px}
+  .cal .dia:hover{border-color:var(--ink-3)}
+  .cal .dia:focus-visible{outline:2px solid var(--accent)}
+  .cal .dia.fora{opacity:.38}
+  .cal .dia.hoje{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+  .cal .dia.sel{background:var(--accent-soft);border-color:var(--accent)}
+  .cal .num{font-family:var(--font-mono);font-size:12px;color:var(--ink-2);font-weight:500}
+  .cal .lin{display:flex;align-items:center;gap:5px;font-size:11.5px;line-height:1.25;color:var(--ink-2);white-space:nowrap;overflow:hidden}
+  .cal .lin b{font-family:var(--font-mono);font-size:12px;color:var(--ink);font-weight:600}
+  .cal .lin i{width:7px;height:7px;border-radius:2px;flex:none}
+  .c-cont{background:#7C8CA5} .c-lead{background:#2C5A93} .c-ag{background:#B4913F} .c-ok{background:#1F7A55} .c-falta{background:#A83228}
+  @media (max-width:640px){.cal .dia{min-height:64px;padding:5px} .cal .lin span.t{display:none} .cal{gap:3px}}
+  .cal-det .grp2{padding:10px 14px 4px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600;border-top:1px solid var(--line)}
+  .cal-det .grp2:first-of-type{border-top:0}
+  .cal-det .it{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;padding:7px 14px;font-size:13px}
+  .cal-det .it:hover{background:var(--surface-2)}
+  .cal-det .it .h{font-family:var(--font-mono);font-size:12px;color:var(--ink-3)}
+  .cal-det .it .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cal-det .it .sub{display:block;font-weight:400;font-size:11.5px;color:var(--ink-3)}
+  .cal-det .vazio{padding:8px 14px 12px;font-size:12.5px;color:var(--ink-3)}
   .resumo-cir{font-size:12.5px;color:var(--ink-2);margin-top:3px;white-space:pre-wrap;overflow-wrap:anywhere}
 
   /* ---------- kpis ---------- */
@@ -322,6 +350,7 @@
       <button id="viewNovos" aria-pressed="false">Novos</button>
       <button id="viewExames" aria-pressed="false">Exames pedidos</button>
       <button id="viewCir" aria-pressed="false">Cirurgias</button>
+      <button id="viewCal" aria-pressed="false">Calendário</button>
       <button id="viewGus" aria-pressed="false">Dr. Gustavo</button>
       <button id="viewHoje" aria-pressed="false">Rotina do dia</button>
       <button id="viewBoard" aria-pressed="true">Funil</button>
@@ -365,6 +394,7 @@
   <div id="novosview" hidden></div>
   <div id="examesview" hidden></div>
   <div id="cirview" hidden></div>
+  <div id="calview" hidden></div>
   <div id="gusview" hidden></div>
   <div id="hojeview" hidden></div>
   <div id="relview" hidden></div>
@@ -459,12 +489,12 @@ let filtros = {busca:"",etapa:"",origem:"",trat:"",conv:"",periodo:"",somenteAle
 let sortBy = {campo:"dataConsulta",dir:"asc"};
 let editandoId = null;
 let modo = "board";
-try{ const m = localStorage.getItem("funil_modo"); if(["board","table","hoje","rel","novos","gus","exames","cir"].includes(m)) modo = m; }catch(e){}
+try{ const m = localStorage.getItem("funil_modo"); if(["board","table","hoje","rel","novos","gus","exames","cir","cal"].includes(m)) modo = m; }catch(e){}
 let encaminhamentos = new Map();
 
 const $ = s=>document.querySelector(s);
 const el = (t,c,txt)=>{const e=document.createElement(t); if(c) e.className=c; if(txt!=null) e.textContent=txt; return e;};
-const hoje = ()=> new Date().toISOString().slice(0,10);
+const hoje = ()=> new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo"}).format(new Date());   // dia no fuso de Brasília
 const diasDesde = d => d ? Math.floor((Date.parse(hoje()) - Date.parse(d))/86400000) : null;
 const brl = n => (n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
 const dataBR = d => d ? d.slice(8,10)+"/"+d.slice(5,7) : "";
@@ -625,9 +655,130 @@ function render(){
   if(bc){ const n = cirGrupo("aut").length; bc.textContent = n ? "Cirurgias · "+n+" aguardando" : "Cirurgias"; }
   if(modo==="exames"){ renderExames(); return; }
   if(modo==="cir"){ renderCir(); return; }
+  if(modo==="cal"){ renderCal(); return; }
   if(modo==="novos"){ renderNovos(); return; }
   if(modo==="gus"){ renderGus(); return; }
   if(modo==="hoje"){ renderHoje(); return; } if(modo==="rel"){ renderRel(); return; } renderKpis(); renderAlertas(); modo==="board" ? renderBoard() : renderTable(); }
+
+/* ============ calendário: entradas e consultas por dia ============ */
+let calMes = null, calSel = null;
+const DEPOIS_CONSULTA = ["compareceu","exames_sol","exames_ok","retorno","proposta","docs_conv","autorizacao","autorizado","cir_marcada","cir_feita","posop"];
+function situacaoConsulta(p){
+  if(p.consultaRegistradaEm) return p.consultaCompareceu===false ? "faltou" : "consultado";
+  if(DEPOIS_CONSULTA.includes(p.etapa)) return "consultado";
+  if(p.etapa==="noshow") return "faltou";
+  if(p.dataConsulta && p.dataConsulta < hoje() && p.etapa==="agendou") return "sem registro";
+  return "marcada";
+}
+function diaDe(iso){ return String(iso||"").slice(0,10); }
+function dadosDoMes(ano, mes){
+  const pref = ano+"-"+String(mes+1).padStart(2,"0");
+  const porDia = {};
+  const dia = d => (porDia[d] = porDia[d] || {contatos:[], consultas:[]});
+  for(const p of pacientes.values()){
+    const c = diaDe(p.criadoEm); if(c.startsWith(pref)) dia(c).contatos.push(p);
+    const q = diaDe(p.dataConsulta); if(q.startsWith(pref)) dia(q).consultas.push(p);
+  }
+  return porDia;
+}
+const ehLead = p => p.etapa !== "triagem";
+function renderCal(){
+  const box = $("#calview"); box.textContent = "";
+  const h = hoje();
+  if(!calMes) calMes = h.slice(0,7);
+  const ano = Number(calMes.slice(0,4)), mes = Number(calMes.slice(5,7))-1;
+  const dados = dadosDoMes(ano, mes);
+  if(!calSel || !calSel.startsWith(calMes)) calSel = h.startsWith(calMes) ? h : calMes+"-01";
+
+  // topo: navegação + totais do mês
+  const top = el("div","cal-top");
+  const ant = el("button","btn btn-sm","‹"); ant.title = "Mês anterior";
+  const prox = el("button","btn btn-sm","›"); prox.title = "Próximo mês";
+  const hj = el("button","btn btn-sm btn-ghost","Hoje");
+  const nomeMes = new Date(ano, mes, 15).toLocaleDateString("pt-BR",{month:"long", year:"numeric"});
+  const mover = n => { const d = new Date(ano, mes+n, 1); calMes = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); calSel = null; renderCal(); };
+  ant.addEventListener("click",()=>mover(-1)); prox.addEventListener("click",()=>mover(1));
+  hj.addEventListener("click",()=>{ calMes = h.slice(0,7); calSel = h; renderCal(); });
+  top.append(ant, el("h2",null,nomeMes), prox, hj);
+  box.appendChild(top);
+
+  const tudo = Object.values(dados);
+  const contatos = tudo.flatMap(d=>d.contatos), consultas = tudo.flatMap(d=>d.consultas);
+  const consultados = consultas.filter(p=>situacaoConsulta(p)==="consultado").length;
+  const faltas = consultas.filter(p=>situacaoConsulta(p)==="faltou").length;
+  const semReg = consultas.filter(p=>situacaoConsulta(p)==="sem registro").length;
+  const k = el("div","kpis");
+  [{l:"Contatos no mês", v:contatos.length, h:"conversas novas que entraram"},
+   {l:"Leads no mês", v:contatos.filter(ehLead).length, h:"contatos que viraram lead"},
+   {l:"Consultas marcadas", v:consultas.length, h:"com data neste mês"},
+   {l:"Consultados", v:consultados, h:(consultas.length ? Math.round(consultados/Math.max(1,consultados+faltas)*100)+"% de comparecimento" : "—")},
+   {l:"Faltas", v:faltas, h:semReg ? semReg+" ainda sem registro" : "pacientes que não vieram", c:faltas?"warnk":""}
+  ].forEach(t=>{ const d = el("div","kpi"+(t.c?" "+t.c:"")); d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",t.h)); k.appendChild(d); });
+  box.appendChild(k);
+
+  const leg = el("div","cal-leg");
+  [["c-cont","Contatos"],["c-lead","Leads"],["c-ag","Consultas marcadas"],["c-ok","Consultados"],["c-falta","Faltas"]].forEach(([c,t])=>{ const s = el("span"); const i = el("i",c); s.append(i, document.createTextNode(t)); leg.appendChild(s); });
+  box.appendChild(leg);
+
+  const wrap = el("div","cal-wrap");
+  const grid = el("div","cal");
+  ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].forEach(d=>grid.appendChild(el("div","dow",d)));
+  const primeiro = new Date(ano, mes, 1), inicio = new Date(ano, mes, 1 - primeiro.getDay());
+  for(let i=0;i<42;i++){
+    const d = new Date(inicio); d.setDate(inicio.getDate()+i);
+    if(i>=35 && d.getMonth()!==mes) break;
+    const iso = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    const doMes = d.getMonth()===mes;
+    const b = el("button","dia"+(doMes?"":" fora")+(iso===h?" hoje":"")+(iso===calSel?" sel":""));
+    b.appendChild(el("span","num",String(d.getDate())));
+    const x = dados[iso];
+    if(doMes && x){
+      const linha = (cls, n, t) => { if(!n) return; const l = el("div","lin"); l.append(el("i",cls), el("b",null,String(n)), el("span","t",t)); b.appendChild(l); };
+      linha("c-cont", x.contatos.length, "contatos");
+      linha("c-lead", x.contatos.filter(ehLead).length, "leads");
+      linha("c-ag", x.consultas.length, "consultas");
+      linha("c-ok", x.consultas.filter(p=>situacaoConsulta(p)==="consultado").length, "consultados");
+      linha("c-falta", x.consultas.filter(p=>situacaoConsulta(p)==="faltou").length, "faltas");
+    }
+    b.title = "Ver o dia "+dataBR(iso);
+    b.addEventListener("click",()=>{ if(!doMes){ calMes = iso.slice(0,7); } calSel = iso; renderCal(); });
+    grid.appendChild(b);
+  }
+  wrap.appendChild(grid);
+
+  // detalhe do dia escolhido
+  const det = el("section","panel cal-det");
+  const x = dados[calSel] || {contatos:[], consultas:[]};
+  const dd = new Date(calSel+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"long", day:"2-digit", month:"long"});
+  const hd = el("div","panel-head"); hd.append(el("h3",null,dd.charAt(0).toUpperCase()+dd.slice(1))); det.appendChild(hd);
+
+  det.appendChild(el("div","grp2","Consultas · "+x.consultas.length));
+  if(!x.consultas.length) det.appendChild(el("div","vazio","Nenhuma consulta marcada."));
+  x.consultas.slice().sort((a,b)=>String(a.horaConsulta||"99").localeCompare(String(b.horaConsulta||"99"))).forEach(p=>{
+    const it = el("button","it");
+    const s = situacaoConsulta(p);
+    const cls = s==="consultado"?"ok":(s==="faltou"?"crit":(s==="sem registro"?"warn":"neu"));
+    const nm = el("span","nm",p.nome||"Sem nome");
+    nm.appendChild(el("span","sub",[p.modalidade, p.cirurgiao?nomeCirurgiao(p.cirurgiao):"", p.tratamento&&p.tratamento!=="A definir"?p.tratamento:""].filter(Boolean).join(" · ")));
+    it.append(el("span","h",p.horaConsulta||"—"), nm, el("span","pill "+cls, s.charAt(0).toUpperCase()+s.slice(1)));
+    it.addEventListener("click",()=>abrirDrawer(p.id));
+    det.appendChild(it);
+  });
+
+  det.appendChild(el("div","grp2","Contatos que entraram · "+x.contatos.length+" ("+x.contatos.filter(ehLead).length+" leads)"));
+  if(!x.contatos.length) det.appendChild(el("div","vazio","Nenhum contato novo neste dia."));
+  x.contatos.slice().sort((a,b)=>String(a.criadoEm).localeCompare(String(b.criadoEm))).forEach(p=>{
+    const it = el("button","it");
+    const hora = String(p.criadoEm||"").length>11 ? new Date(p.criadoEm).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",timeZone:"America/Sao_Paulo"}) : "—";
+    const nm = el("span","nm",p.nome||"Sem nome");
+    nm.appendChild(el("span","sub",[p.origem, p.cidade].filter(Boolean).join(" · ")));
+    it.append(el("span","h",hora), nm, el("span","pill "+(ehLead(p)?"ok":"neu"), ehLead(p)?"Lead":"A classificar"));
+    it.addEventListener("click",()=>abrirDrawer(p.id));
+    det.appendChild(it);
+  });
+  wrap.appendChild(det);
+  box.appendChild(wrap);
+}
 
 /* ============ cirurgias: autorização, agendamento e realização ============ */
 const CIR_GRUPOS = {
@@ -2191,6 +2342,8 @@ function trocarModo(m){
   $("#examesview").hidden = m!=="exames";
   $("#viewCir").setAttribute("aria-pressed", String(m==="cir"));
   $("#cirview").hidden = m!=="cir";
+  $("#viewCal").setAttribute("aria-pressed", String(m==="cal"));
+  $("#calview").hidden = m!=="cal";
   $("#viewGus").setAttribute("aria-pressed", String(m==="gus"));
   $("#viewHoje").setAttribute("aria-pressed", String(m==="hoje"));
   $("#viewBoard").setAttribute("aria-pressed", String(m==="board"));
@@ -2202,12 +2355,13 @@ function trocarModo(m){
   $("#hojeview").hidden = m!=="hoje";
   $("#novosview").hidden = m!=="novos";
   $("#gusview").hidden = m!=="gus";
-  $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus" || m==="exames" || m==="cir";
+  $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus" || m==="exames" || m==="cir" || m==="cal";
   render();
 }
 $("#viewNovos").addEventListener("click",()=>trocarModo("novos"));
 $("#viewExames").addEventListener("click",()=>trocarModo("exames"));
 $("#viewCir").addEventListener("click",()=>trocarModo("cir"));
+$("#viewCal").addEventListener("click",()=>trocarModo("cal"));
 $("#viewGus").addEventListener("click",()=>trocarModo("gus"));
 $("#viewHoje").addEventListener("click",()=>trocarModo("hoje"));
 $("#viewRel").addEventListener("click",()=>trocarModo("rel"));
