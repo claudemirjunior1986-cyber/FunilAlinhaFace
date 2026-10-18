@@ -374,6 +374,7 @@
   .wa-comp{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);align-items:flex-end}
   .wa-comp textarea{flex:1;min-height:44px;max-height:180px;resize:vertical;border:1px solid var(--line-strong);border-radius:8px;padding:9px 10px;background:var(--surface);color:var(--ink);font:inherit}
   .wa-nota{font-size:11.5px;color:var(--ink-3);padding:0 12px 9px}
+  .wa-anexo{min-width:46px;font-size:18px;padding:0 10px}
   #viewWhats.alerta{color:#1F7A55;font-weight:600}
   @media (max-width:820px){
     .wa{grid-template-columns:1fr;height:calc(100vh - 120px)}
@@ -983,11 +984,8 @@ function linhaExame(p, pendente){
   }
   if(p.voucherEmitido && (p.voucherStatus||"Aguardando uso")==="Aguardando uso" && !reg.d0){
     const w = el("button","btn btn-sm btn-primary","Enviar voucher no WhatsApp");
-    w.addEventListener("click",()=>{
-      abrirWhats(p, MSG.d0(p));
-      const q = Object.assign({}, pacientes.get(p.id)); q.regua = Object.assign({}, q.regua, {d0:hoje()});
-      registrarHistorico(q, "Voucher Blume enviado ao paciente pelo WhatsApp"); salvar(q);
-    });
+    w.title = "Abre o voucher: confira o nome completo e envie direto pelo WhatsApp da Bia";
+    w.addEventListener("click",()=>window.open("voucher.html?id="+encodeURIComponent(p.id),"_blank"));
     ops.appendChild(w);
   }else if(!p.voucherEmitido && temRessonancia(p)){
     const v = el("button","btn btn-sm","Emitir voucher");

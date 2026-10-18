@@ -78,7 +78,10 @@
     <label class="f">Emissão
       <input type="date" id="fEmissao">
     </label>
-    <button class="btn btn-primary" id="bBaixar" type="button">Baixar voucher (imagem)</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="bEnviar" type="button">Enviar no WhatsApp do paciente</button>
+      <button class="btn" id="bBaixar" type="button">Só baixar a imagem</button>
+    </div>
   </div>
   <div id="msg" class="msg info" hidden></div>
 
@@ -115,13 +118,14 @@
       </div>
     </div>
   </div>
-  <div class="aviso" id="aviso" hidden>A imagem baixada tem 1600 × 1000 pixels, pronta para mandar no WhatsApp junto com a mensagem.</div>
+  <div class="aviso" id="aviso" hidden>"Enviar no WhatsApp" manda a imagem com a mensagem pelo número da Bia e registra na ficha. A imagem tem 1600 × 1000 pixels.</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="config.js"></script>
 <script src="auth.js"></script>
+<script src="whats.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const sb = FUNIL.sb;
@@ -168,42 +172,84 @@ function escalar(){
   $("#stage").style.height = (1000*k)+"px";
 }
 
-async function baixar(){
+function nomeOk(){
   const nome = $("#fNome").value.trim();
-  if(nome.split(/\s+/).length < 2){ msg("Coloque o nome completo do paciente (nome e sobrenome), como está no documento.", "err"); $("#fNome").focus(); return; }
+  if(nome.split(/\s+/).length < 2){ msg("Coloque o nome completo do paciente (nome e sobrenome), como está no documento.", "err"); $("#fNome").focus(); return null; }
+  return nome;
+}
+const arquivoDe = nome => "voucher-blume-"+nome.toLowerCase().normalize("NFD").replace(/[^a-z0-9 ]/g,"").trim().replace(/\s+/g,"-")+".png";
+async function gerarCanvas(){
+  await document.fonts.ready;
+  const inner = $("#stageInner"), t = inner.style.transform;
+  inner.style.transform = "none";
+  try{ return await html2canvas($("#voucher"), {scale:1, backgroundColor:"#F7F4EF", useCORS:true}); }
+  finally{ inner.style.transform = t; }
+}
+// grava na ficha: nome completo, emissão e código do voucher (+ extras)
+async function registrar(nome, em, cod, extra, textoHist){
+  const dados = Object.assign({}, paciente, {
+    nomeCompleto: nome, voucherEmitido: em, voucherCodigo: cod,
+    voucherStatus: paciente.voucherStatus && paciente.voucherEmitido === em ? paciente.voucherStatus : "Aguardando uso",
+    atualizadoEm: new Date().toISOString()
+  }, extra||{});
+  const hist = [];
+  if(paciente.voucherEmitido !== em || !paciente.voucherCodigo) hist.push({data: hojeSP(), texto: "Voucher Blume gerado ("+cod+"), válido até "+br(somaDias(em,VALIDADE))});
+  if(textoHist) hist.push({data: hojeSP(), texto: textoHist});
+  if(hist.length) dados.historico = (paciente.historico||[]).concat(hist).slice(-40);
+  delete dados.id;
+  const { error } = await sb.from("funil_pacientes").update({ dados }).eq("id", id);
+  if(error) throw error;
+  paciente = Object.assign({id}, dados);
+}
+
+async function baixar(){
+  const nome = nomeOk(); if(!nome) return;
   const em = $("#fEmissao").value || hojeSP();
   const cod = codigo(paciente, em);
   const b = $("#bBaixar"); b.disabled = true; b.textContent = "Gerando…"; msg("");
   try{
-    await document.fonts.ready;
-    const inner = $("#stageInner"), t = inner.style.transform;
-    inner.style.transform = "none";
-    const canvas = await html2canvas($("#voucher"), {scale:1, backgroundColor:"#F7F4EF", useCORS:true});
-    inner.style.transform = t;
+    const canvas = await gerarCanvas();
     const a = document.createElement("a");
-    a.href = canvas.toDataURL("image/png");
-    a.download = "voucher-blume-"+nome.toLowerCase().normalize("NFD").replace(/[^a-z0-9 ]/g,"").trim().replace(/\s+/g,"-")+".png";
+    a.href = canvas.toDataURL("image/png"); a.download = arquivoDe(nome);
     document.body.appendChild(a); a.click(); a.remove();
-
-    // grava na ficha: nome completo, emissão e código do voucher
-    const dados = Object.assign({}, paciente, {
-      nomeCompleto: nome, voucherEmitido: em, voucherCodigo: cod,
-      voucherStatus: paciente.voucherStatus && paciente.voucherEmitido === em ? paciente.voucherStatus : "Aguardando uso",
-      atualizadoEm: new Date().toISOString()
-    });
-    if(paciente.voucherEmitido !== em || !paciente.voucherCodigo){
-      dados.historico = (paciente.historico||[]).concat([{data: hojeSP(), texto: "Voucher Blume gerado ("+cod+"), válido até "+br(somaDias(em,VALIDADE))}]).slice(-40);
-    }
-    delete dados.id;
-    const { error } = await sb.from("funil_pacientes").update({ dados }).eq("id", id);
-    if(error) throw error;
-    paciente = Object.assign({id}, dados);
-    msg("Voucher baixado e registrado na ficha. Agora é só mandar a imagem para o paciente no WhatsApp.", "ok");
+    await registrar(nome, em, cod);
+    msg("Voucher baixado e registrado na ficha.", "ok");
   }catch(e){
     msg("Não consegui gerar o voucher. Recarregue a página e tente de novo.", "err");
   }finally{
-    b.disabled = false; b.textContent = "Baixar voucher (imagem)";
+    b.disabled = false; b.textContent = "Só baixar a imagem";
   }
+}
+
+function textoWhats(em){
+  const pn = String(paciente.nome||"").trim().split(/\s+/)[0] || "";
+  const nome1 = pn ? pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase() : "";
+  const venc = somaDias(em, VALIDADE);
+  return "Oi"+(nome1?", "+nome1:"")+"! Como cortesia da Alinha Face, você ganhou um voucher para a ressonância magnética na Blume Medicina Diagnóstica, sem nenhum custo. Ele é no seu nome e vale até "+venc.slice(8,10)+"/"+venc.slice(5,7)+". O endereço e o telefone para agendar estão no voucher. Qualquer dúvida pra agendar, me chama!";
+}
+async function enviar(){
+  const nome = nomeOk(); if(!nome) return;
+  const em = $("#fEmissao").value || hojeSP();
+  const cod = codigo(paciente, em);
+  msg("");
+  const chat = await waChatPorTelefone(paciente.telefone);
+  if(!chat){ msg("Não achei conversa deste paciente com a Bia (confira o telefone na ficha). Use \"Só baixar a imagem\" e mande pelo WhatsApp normal.", "err"); return; }
+  const legenda = textoWhats(em);
+  if(!confirm("Enviar o voucher de "+nome+" pelo WhatsApp da Bia?\n\nMensagem que vai junto:\n"+legenda)) return;
+  const b = $("#bEnviar"); b.disabled = true; b.textContent = "Enviando…";
+  try{
+    const canvas = await gerarCanvas();
+    const blob = await new Promise(r=>canvas.toBlob(r, "image/png"));
+    await waEnviarArquivo(chat.chat_id, blob, arquivoDe(nome), legenda);
+    await registrar(nome, em, cod, { regua: Object.assign({}, paciente.regua, { d0: hojeSP() }) },
+      "Voucher Blume enviado ao paciente pelo WhatsApp (pelo site)");
+    msg("Voucher enviado para o paciente e registrado na ficha. ✔", "ok");
+    b.textContent = "Enviado ✔";
+    return;
+  }catch(e){
+    msg("Não consegui enviar: "+e.message+". Você pode usar \"Só baixar a imagem\".", "err");
+  }
+  b.disabled = false; b.textContent = "Enviar no WhatsApp do paciente";
 }
 
 (async ()=>{
@@ -221,6 +267,7 @@ async function baixar(){
   await document.fonts.ready; desenhar();
   ["input","change"].forEach(ev=>{ $("#fNome").addEventListener(ev, desenhar); $("#fEmissao").addEventListener(ev, desenhar); });
   $("#bBaixar").addEventListener("click", baixar);
+  $("#bEnviar").addEventListener("click", enviar);
   addEventListener("resize", escalar);
 })();
 </script>

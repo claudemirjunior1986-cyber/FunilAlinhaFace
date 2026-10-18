@@ -25,6 +25,26 @@ async function waChamar(corpo){
   return data;
 }
 
+/* Guarda o arquivo no Storage (bucket privado "envios") e manda pelo WhatsApp da Bia.
+   Usado aqui e na página do voucher. Só depende de FUNIL. */
+async function waEnviarArquivo(chatId, blob, nome, legenda){
+  const mime = blob.type || (/\.pdf$/i.test(nome) ? "application/pdf" : "image/png");
+  const ext = (nome.match(/\.([a-z0-9]+)$/i)||[])[1] || (mime.split("/")[1]||"bin");
+  const caminho = chatId.replace(/[^A-Za-z0-9_-]/g,"") + "/" + Date.now() + "-" + Math.random().toString(36).slice(2,8) + "." + ext.toLowerCase();
+  const st = FUNIL.sb.storage.from("envios");
+  const up = await st.upload(caminho, blob, { contentType: mime, upsert: false });
+  if(up.error) throw new Error("não consegui guardar o arquivo (" + up.error.message + ")");
+  const sg = await st.createSignedUrl(caminho, 3600);
+  if(sg.error) throw new Error("não consegui gerar o link do arquivo");
+  return waChamar({ acao:"arquivo", chatId, url: sg.data.signedUrl,
+    tipo: mime.startsWith("image/") ? "imagem" : "documento", legenda: legenda||"", nome, mime });
+}
+async function waChatPorTelefone(tel){
+  const t8 = String(tel||"").replace(/\D/g,"").slice(-8); if(t8.length < 8) return null;
+  const { data } = await FUNIL.sb.from("funil_whats").select("chat_id,humano,ultima_em").eq("tel8", t8).order("ultima_em",{ascending:false}).limit(1);
+  return (data && data[0]) || null;
+}
+
 const waT8 = t => String(t||"").replace(/\D/g,"").slice(-8);
 function waPacienteDoChat(c){
   if(!c || !c.tel8) return null;
@@ -255,7 +275,27 @@ function waRenderConversa(carregando){
   ta.addEventListener("input",()=>{ WA.rascunho[c.chat_id] = ta.value; });
   ta.addEventListener("keydown",e=>{ if(e.key==="Enter" && !e.shiftKey && !e.isComposing){ e.preventDefault(); comp.requestSubmit(); } });
   const be = el("button","btn btn-primary","Enviar"); be.type = "submit";
-  comp.append(ta, be);
+  const fi = el("input"); fi.type = "file"; fi.accept = "image/*,application/pdf"; fi.hidden = true;
+  const ba = el("button","btn wa-anexo","📎"); ba.type = "button"; ba.title = "Enviar foto ou PDF (o texto escrito vai junto)";
+  ba.addEventListener("click",()=>fi.click());
+  fi.addEventListener("change", async ()=>{
+    const f = fi.files && fi.files[0]; fi.value = ""; if(!f) return;
+    if(f.size > 15*1024*1024){ toast("Arquivo grande demais (máximo 15 MB)."); return; }
+    if(!confirm("Enviar \"" + f.name + "\" para " + waNome(c) + (ta.value.trim() ? ", com o texto escrito como legenda?" : "?"))) return;
+    ba.disabled = true; be.disabled = true; ba.textContent = "…";
+    try{
+      const legenda = ta.value.trim();
+      await waEnviarArquivo(c.chat_id, f, f.name, legenda);
+      ta.value = ""; delete WA.rascunho[c.chat_id];
+      c.humano = true; c.ultima_de = "assistant"; c.ultima_em = new Date().toISOString();
+      WA.msgs.push({ id:"local"+Date.now(), de:"equipe", quem:FUNIL._nome||"Equipe", texto:(legenda||"") , documento: f.type.startsWith("image/") ? null : "#", arquivo:f.name, imagem: f.type.startsWith("image/") ? URL.createObjectURL(f) : null, em:c.ultima_em });
+      waRenderMensagens(true); waRenderLista();
+      toast("Arquivo enviado.");
+      setTimeout(()=>waCarregarMensagens(true), 3000);
+    }catch(e){ toast("Não enviou: " + e.message); }
+    finally{ ba.disabled = false; be.disabled = false; ba.textContent = "📎"; }
+  });
+  comp.append(fi, ba, ta, be);
   comp.addEventListener("submit", e=>{ e.preventDefault(); waEnviar(ta, be); });
   const nota = el("div","wa-nota", c.humano ? "Sai pelo WhatsApp da Bia, com o seu nome registrado aqui no site." :
     "Ao enviar, a conversa passa para a equipe e a Bia para de responder este paciente (dá para devolver depois).");

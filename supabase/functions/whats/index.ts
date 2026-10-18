@@ -8,6 +8,8 @@
 //   enviar    {chatId, texto}   -> assume a conversa (Bia para) e envia a mensagem
 //   assumir   {chatId}          -> equipe assume; a Bia para de responder
 //   devolver  {chatId}          -> devolve a conversa para a Bia
+//   arquivo   {chatId, url, tipo:'imagem'|'documento', legenda?, nome?, mime?}
+//             -> envia imagem/PDF já guardado no Storage (bucket "envios", link assinado)
 
 const WORKSPACE = "3DB36E552D5A00174085B2C1E91B873D";
 const API = "https://api.gptmaker.ai/v2";
@@ -136,6 +138,29 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             humano: true, ultima: texto.replace(/\s+/g, " ").slice(0, 160), ultima_de: "assistant",
             ultima_em: new Date().toISOString(), visto_em: new Date().toISOString(), visto_por: eu.email,
+          }),
+        });
+        return json({ ok: true });
+      }
+      case "arquivo": {
+        const url = String(p.url || "");
+        if (!p.chatId || !url) return json({ erro: "falta conversa ou arquivo" }, 400);
+        if (!url.startsWith(SB_URL + "/storage/v1/object/sign/envios/")) return json({ erro: "arquivo fora do lugar permitido" }, 400);
+        const id = encodeURIComponent(p.chatId);
+        const legenda = String(p.legenda || "").trim().slice(0, 1000);
+        try { await gm(`/chat/${id}/start-human`, { method: "PUT" }); } catch { /* já estava com a equipe */ }
+        if (p.tipo === "documento") {
+          await gm(`/chat/${id}/send-message`, { method: "POST", body: JSON.stringify({
+            document: url, documentName: String(p.nome || "documento.pdf").slice(0, 120), documentMimetype: String(p.mime || "application/pdf") }) });
+          if (legenda) await gm(`/chat/${id}/send-message`, { method: "POST", body: JSON.stringify({ message: legenda }) });
+        } else {
+          await gm(`/chat/${id}/send-message`, { method: "POST", body: JSON.stringify({ image: url, message: legenda }) });
+        }
+        await rest(auth, "funil_whats?chat_id=eq." + id, {
+          method: "PATCH",
+          body: JSON.stringify({
+            humano: true, ultima: (p.tipo === "documento" ? "📄 " : "📷 ") + (legenda || p.nome || "arquivo").replace(/\s+/g, " ").slice(0, 150),
+            ultima_de: "assistant", ultima_em: new Date().toISOString(), visto_em: new Date().toISOString(), visto_por: eu.email,
           }),
         });
         return json({ ok: true });
