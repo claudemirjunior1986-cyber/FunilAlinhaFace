@@ -38,7 +38,7 @@ function waChatDoPaciente(p){
   return melhor;
 }
 // paciente falou por último, nos últimos 30 dias, e ninguém abriu a conversa no site depois disso
-const waAguardando = c => c.ultima_de === "user" && (c.ultima_em||"") > new Date(Date.now()-30*864e5).toISOString()
+const waAguardando = c => !c.ignorado && c.ultima_de === "user" && (c.ultima_em||"") > new Date(Date.now()-30*864e5).toISOString()
   && (!c.visto_em || (c.ultima_em||"") > c.visto_em);
 function waNome(c){ const p = waPacienteDoChat(c); return (p && p.nome) || c.nome || telBR(c.telefone) || "Sem nome"; }
 function waQuando(isoStr){
@@ -61,12 +61,14 @@ async function waLerTabela(){
     linhas.push(...data);
     if(data.length < 1000) break;
   }
-  // contatos marcados como "não é paciente" (tabela funil_ignorados) ficam fora da lista
+  // contatos marcados como "não é paciente" (tabela funil_ignorados) não contam como "Aguardando",
+// mas continuam em "Todas" e na busca
   try{
     const { data:ig } = await FUNIL.sb.from("funil_ignorados").select("id");
     WA.ignorados = new Set((ig||[]).map(r=>String(r.id).replace(/^k/,"")));
   }catch(e){ WA.ignorados = WA.ignorados || new Set(); }
-  WA.chats = new Map(linhas.filter(c=>!WA.ignorados.has(c.tel8)).map(c=>[c.chat_id, c]));
+  linhas.forEach(c=>{ c.ignorado = WA.ignorados.has(c.tel8); });
+  WA.chats = new Map(linhas.map(c=>[c.chat_id, c]));
   WA.carregou = true;
   waBadge();
   if(modo === "whats") waRenderLista();
@@ -160,7 +162,8 @@ function waRenderLista(){
     const tags = el("div","wa-tags");
     if(waAguardando(c)) tags.appendChild(el("span","wa-tag wa-tag-esp","Aguardando resposta"));
     tags.appendChild(el("span","wa-tag", c.humano ? "Equipe" : "Bia"));
-    if(!p) tags.appendChild(el("span","wa-tag wa-tag-sem","Sem ficha"));
+    if(c.ignorado) tags.appendChild(el("span","wa-tag","Não é paciente"));
+    else if(!p) tags.appendChild(el("span","wa-tag wa-tag-sem","Sem ficha"));
     it.append(topo, linha, tags);
     it.addEventListener("click",()=>waAbrir(c.chat_id));
     box.appendChild(it);
@@ -229,7 +232,9 @@ function waRenderConversa(carregando){
   const id = el("div","wa-cab-id");
   id.append(el("strong",null,waNome(c)), el("span",null, telBR(c.telefone) + (c.humano ? " · com a equipe (Bia pausada)" : " · Bia respondendo")));
   const acoes = el("div","wa-cab-acoes");
-  if(p){
+  if(c.ignorado && !p){
+    /* contato da equipe / não paciente: sem ficha */
+  }else if(p){
     const bf = el("button","btn btn-sm","Abrir ficha"); bf.addEventListener("click",()=>abrirDrawer(p.id)); acoes.appendChild(bf);
   }else{
     const bn = el("button","btn btn-sm","Criar ficha"); bn.title = "Cadastra como paciente novo (A classificar)";
