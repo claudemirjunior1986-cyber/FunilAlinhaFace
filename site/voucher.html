@@ -133,7 +133,7 @@ const VALIDADE = 5;
 const hojeSP = () => new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo"}).format(new Date());
 const somaDias = (d,n) => { const x = new Date(d+"T12:00:00"); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
 const br = d => d ? d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4) : "—";
-let paciente = null, id = new URLSearchParams(location.search).get("id");
+let avulso = false, paciente = null, id = new URLSearchParams(location.search).get("id");
 
 function msg(t, tipo){ const m = $("#msg"); m.hidden = !t; m.className = "msg "+(tipo||"info"); m.textContent = t||""; }
 
@@ -141,7 +141,7 @@ function codigo(p, emissao){
   if(p.voucherCodigo && p.voucherEmitido === emissao) return p.voucherCodigo;
   const d = emissao.slice(8,10)+emissao.slice(5,7)+emissao.slice(2,4);
   const tel = String(p.telefone||"").replace(/\D/g,"");
-  const fim = tel.length >= 4 ? tel.slice(-4) : String(Math.floor(1000+Math.random()*9000));
+  const fim = tel.length >= 4 ? tel.slice(-4) : (p._fim = p._fim || String(Math.floor(1000+Math.random()*9000)));
   return "AF-RM-"+d+"-"+fim;
 }
 
@@ -212,12 +212,12 @@ async function baixar(){
     const a = document.createElement("a");
     a.href = canvas.toDataURL("image/png"); a.download = arquivoDe(nome);
     document.body.appendChild(a); a.click(); a.remove();
-    await registrar(nome, em, cod);
-    msg("Voucher baixado e registrado na ficha.", "ok");
+    if(avulso){ msg("Voucher gerado e baixado. Válido até "+br(somaDias(em,VALIDADE))+".", "ok"); }
+    else { await registrar(nome, em, cod); msg("Voucher baixado e registrado na ficha.", "ok"); }
   }catch(e){
     msg("Não consegui gerar o voucher. Recarregue a página e tente de novo.", "err");
   }finally{
-    b.disabled = false; b.textContent = "Só baixar a imagem";
+    b.disabled = false; b.textContent = avulso ? "Gerar e baixar voucher" : "Só baixar a imagem";
   }
 }
 
@@ -254,7 +254,23 @@ async function enviar(){
 
 (async ()=>{
   await FUNIL.exigir(["admin"]);
-  if(!id){ msg("Abra o voucher pela ficha do paciente ou pela aba Exames pedidos.", "err"); return; }
+  if(!id){
+    // voucher avulso: só nome e data de início; não grava em ficha nenhuma
+    avulso = true;
+    paciente = { telefone: "" };
+    document.querySelector("label.f:nth-of-type(2)").firstChild.textContent = "Data de início ";
+    $("#bEnviar").hidden = true;
+    $("#bBaixar").textContent = "Gerar e baixar voucher"; $("#bBaixar").classList.add("btn-primary");
+    $("#fNome").value = ""; $("#fEmissao").value = hojeSP();
+    $("#form").hidden = false; $("#stage").hidden = false; $("#aviso").hidden = false;
+    $("#aviso").textContent = "Voucher avulso: preencha o nome completo e a data de início. A validade (5 dias) é calculada sozinha. A imagem tem 1600 × 1000 pixels.";
+    escalar(); desenhar(); await document.fonts.ready; desenhar();
+    ["input","change"].forEach(ev=>{ $("#fNome").addEventListener(ev, desenhar); $("#fEmissao").addEventListener(ev, desenhar); });
+    $("#bBaixar").addEventListener("click", baixar);
+    addEventListener("resize", escalar);
+    $("#fNome").focus();
+    return;
+  }
   const { data, error } = await sb.from("funil_pacientes").select("id,dados").eq("id", id).maybeSingle();
   if(error || !data){ msg("Paciente não encontrado.", "err"); return; }
   paciente = Object.assign({id:data.id}, data.dados);
