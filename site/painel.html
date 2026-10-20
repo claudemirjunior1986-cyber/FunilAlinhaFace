@@ -105,6 +105,11 @@
   .cir-tot{font-size:12.5px;color:var(--ink-2);padding:9px 14px;border-top:1px solid var(--line);background:var(--surface-2)}
   .cal-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
   .cal-top h2{font-family:var(--font-display);font-size:19px;margin:0;letter-spacing:-.02em;min-width:180px}
+  .cal-det .it-acao{grid-template-columns:auto minmax(0,1fr) auto;cursor:default}
+  .cal-det .it-acao:hover{background:transparent}
+  .it-acao .nm{flex:1;text-align:left;background:none;border:0;padding:0;color:var(--ink);font:inherit;font-weight:600;cursor:pointer;display:flex;flex-direction:column;min-width:0}
+  .it-acao .nm .sub{font-weight:400}
+  .ops-acao{display:flex;gap:6px;flex-shrink:0}
   .cal-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin:0 0 10px}
   .cal-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:0}
   .cal-wrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
@@ -121,7 +126,7 @@
   .cal .lin{display:flex;align-items:center;gap:5px;font-size:11.5px;line-height:1.25;color:var(--ink-2);white-space:nowrap;overflow:hidden}
   .cal .lin b{font-family:var(--font-mono);font-size:12px;color:var(--ink);font-weight:600}
   .cal .lin i{width:7px;height:7px;border-radius:2px;flex:none}
-  .c-cont{background:#7C8CA5} .c-lead{background:#2C5A93} .c-ag{background:#B4913F} .c-ok{background:#1F7A55} .c-falta{background:#A83228}
+  .c-acao{background:#6B4FA0} .c-cont{background:#7C8CA5} .c-lead{background:#2C5A93} .c-ag{background:#B4913F} .c-ok{background:#1F7A55} .c-falta{background:#A83228}
   @media (max-width:640px){.cal .dia{min-height:64px;padding:5px} .cal .lin span.t{display:none} .cal{gap:3px}}
   .cal-det .grp2{padding:10px 14px 4px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600;border-top:1px solid var(--line)}
   .cal-det .grp2:first-of-type{border-top:0}
@@ -744,14 +749,23 @@ function diaDe(iso){ return String(iso||"").slice(0,10); }
 function dadosDoMes(ano, mes){
   const pref = ano+"-"+String(mes+1).padStart(2,"0");
   const porDia = {};
-  const dia = d => (porDia[d] = porDia[d] || {contatos:[], consultas:[]});
+  const dia = d => (porDia[d] = porDia[d] || {contatos:[], consultas:[], acoes:[]});
   for(const p of pacientes.values()){
     const c = diaDe(p.criadoEm); if(c.startsWith(pref)) dia(c).contatos.push(p);
     const q = diaDe(p.dataConsulta); if(q.startsWith(pref)) dia(q).consultas.push(p);
+    const a = diaDe(p.dataProximaAcao); if(a.startsWith(pref) && temAcao(p)) dia(a).acoes.push(p);
   }
   return porDia;
 }
 const ehLead = p => p.etapa !== "triagem";
+// próxima ação marcada (ignora quem já saiu do funil)
+const temAcao = p => !!(p.dataProximaAcao && !["perdido"].includes(p.etapa));
+function concluirAcao(p){
+  const q = Object.assign({}, pacientes.get(p.id));
+  registrarHistorico(q, "Ação feita: "+(q.proximaAcao||"sem descrição"));
+  q.ultimaAcao = (q.proximaAcao||"")+" ("+dataBR(hoje())+")"; q.proximaAcao = ""; q.dataProximaAcao = "";
+  salvar(q); toast("Ação marcada como feita. Se precisar, marque a próxima na ficha.");
+}
 function renderCal(){
   const box = $("#calview"); box.textContent = "";
   const h = hoje();
@@ -788,7 +802,7 @@ function renderCal(){
   box.appendChild(k);
 
   const leg = el("div","cal-leg");
-  [["c-cont","Contatos"],["c-lead","Leads"],["c-ag","Consultas marcadas"],["c-ok","Consultados"],["c-falta","Faltas"]].forEach(([c,t])=>{ const s = el("span"); const i = el("i",c); s.append(i, document.createTextNode(t)); leg.appendChild(s); });
+  [["c-acao","Ações marcadas"],["c-cont","Contatos"],["c-lead","Leads"],["c-ag","Consultas marcadas"],["c-ok","Consultados"],["c-falta","Faltas"]].forEach(([c,t])=>{ const s = el("span"); const i = el("i",c); s.append(i, document.createTextNode(t)); leg.appendChild(s); });
   box.appendChild(leg);
 
   const wrap = el("div","cal-wrap");
@@ -805,6 +819,7 @@ function renderCal(){
     const x = dados[iso];
     if(doMes && x){
       const linha = (cls, n, um, varios) => { if(!n) return; const l = el("div","lin"); l.append(el("i",cls), el("b",null,String(n)), el("span","t",n===1?um:varios)); b.appendChild(l); };
+      linha("c-acao", x.acoes.length, "ação", "ações");
       linha("c-cont", x.contatos.length, "contato", "contatos");
       linha("c-lead", x.contatos.filter(ehLead).length, "lead", "leads");
       linha("c-ag", x.consultas.length, "consulta", "consultas");
@@ -819,9 +834,28 @@ function renderCal(){
 
   // detalhe do dia escolhido
   const det = el("section","panel cal-det");
-  const x = dados[calSel] || {contatos:[], consultas:[]};
+  const x = dados[calSel] || {contatos:[], consultas:[], acoes:[]};
   const dd = new Date(calSel+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"long", day:"2-digit", month:"long"});
   const hd = el("div","panel-head"); hd.append(el("h3",null,dd.charAt(0).toUpperCase()+dd.slice(1))); det.appendChild(hd);
+
+  // ações marcadas para o dia (no dia de hoje, inclui as atrasadas)
+  let acoes = x.acoes.slice();
+  if(calSel===h) acoes = acoes.concat([...pacientes.values()].filter(p=>temAcao(p) && p.dataProximaAcao < h));
+  acoes.sort((a,b)=>String(a.dataProximaAcao).localeCompare(String(b.dataProximaAcao)) || String(a.nome).localeCompare(String(b.nome)));
+  det.appendChild(el("div","grp2","Ações marcadas · "+acoes.length+(calSel===h && acoes.some(p=>p.dataProximaAcao<h) ? " (inclui atrasadas)" : "")));
+  if(!acoes.length) det.appendChild(el("div","vazio","Nenhuma ação marcada para este dia."));
+  acoes.forEach(p=>{
+    const it = el("div","it it-acao");
+    const atras = p.dataProximaAcao < h;
+    const nm = el("button","nm",p.nome||"Sem nome"); nm.title = "Abrir ficha"; nm.addEventListener("click",()=>abrirDrawer(p.id));
+    nm.appendChild(el("span","sub",(p.proximaAcao||"Ação sem descrição")+(atras?" · era para "+dataBR(p.dataProximaAcao):"")));
+    const ops = el("span","ops-acao");
+    if(p.telefone){ const w = el("button","btn btn-sm","WhatsApp"); w.title = "Abrir a conversa com o paciente"; w.addEventListener("click",()=>abrirWhats(p, "")); ops.appendChild(w); }
+    const f = el("button","btn btn-sm btn-primary","Feito"); f.title = "Marca a ação como feita e registra no histórico";
+    f.addEventListener("click",()=>concluirAcao(p)); ops.appendChild(f);
+    it.append(el("span","pill "+(atras?"crit":"neu"), atras?"Atrasada":"Ação"), nm, ops);
+    det.appendChild(it);
+  });
 
   det.appendChild(el("div","grp2","Consultas · "+x.consultas.length));
   if(!x.consultas.length) det.appendChild(el("div","vazio","Nenhuma consulta marcada."));
