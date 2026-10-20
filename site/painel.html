@@ -396,6 +396,32 @@
     .wa-volta{display:inline-flex}
     .wa-b{max-width:88%}
   }
+
+  /* ===== Recados ===== */
+  #btnRecados.rc-novo{background:#6B4FA0;color:#fff;border-color:#6B4FA0;font-weight:600}
+  .rc-abas{display:flex;gap:4px;padding:10px 18px 0}
+  .rc-abas button{flex:1;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:7px;padding:7px;cursor:pointer;font:inherit}
+  .rc-abas button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  .rc-vazio{color:var(--ink-3);text-align:center;padding:30px 10px}
+  .rc-card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--surface)}
+  .rc-card.pend{border-color:#6B4FA0;box-shadow:inset 3px 0 0 #6B4FA0}
+  .rc-card.feito{opacity:.7}
+  .rc-topo{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+  .rc-hora{color:var(--ink-3);font-size:12px;white-space:nowrap}
+  .rc-pac{align-self:flex-start;border:0;background:var(--accent-soft);color:var(--ink);border-radius:99px;padding:2px 10px;font-size:12.5px;cursor:pointer;font-family:inherit}
+  .rc-pac-fixo{font-size:13px;background:var(--accent-soft);border-radius:8px;padding:6px 10px}
+  .rc-cita{font-size:12px;color:var(--ink-3);border-left:2px solid var(--line-strong);padding-left:8px}
+  .rc-txt{white-space:pre-wrap;font-size:14px;line-height:1.45}
+  .rc-rod{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .rc-st{font-size:12px;color:var(--ink-3)}
+  .rc-ops{display:flex;gap:6px}
+  .rc-ficha-corpo{display:flex;flex-direction:column;gap:8px}
+  .rc-scrim{position:fixed;inset:0;background:rgba(9,17,31,.45);z-index:70}
+  .rc-modal{position:fixed;z-index:71;top:50%;left:50%;transform:translate(-50%,-50%);width:min(460px,94vw);background:var(--surface);color:var(--ink);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 24px 60px rgba(9,17,31,.3)}
+  .rc-modal h3{margin:0;font-family:var(--font-display);font-size:17px}
+  .rc-modal label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-2)}
+  .rc-modal select,.rc-modal textarea{width:100%;border:1px solid var(--line-strong);border-radius:8px;padding:9px 10px;background:var(--surface);color:var(--ink);font:inherit}
+  .rc-mops{display:flex;justify-content:flex-end;gap:8px}
 </style>
 </head>
 <body>
@@ -425,6 +451,7 @@
       <button id="viewTable" aria-pressed="false">Tabela</button>
       <button id="viewRel" aria-pressed="false">Relatórios</button>
     </div>
+    <button class="btn" id="btnRecados" title="Orientações internas da equipe">📩 Recados</button>
     <button class="btn" id="btnVoucher" title="Voucher Blume avulso: só nome e data de início">Gerar voucher</button>
     <button class="btn" id="btnImport">Importar</button>
     <button class="btn" id="btnExport">Exportar CSV</button>
@@ -497,6 +524,7 @@
 <script src="config.js"></script>
 <script src="auth.js"></script>
 <script src="whats.js"></script>
+<script src="recados.js"></script>
 <script>
 /* ============ modelo ============ */
 const STAGES = [
@@ -653,6 +681,7 @@ async function conectar(){
   $("#statusText").textContent = "Base conectada — tudo que você editar fica salvo para a equipe.";
   $("#statusDot").classList.remove("off");
   waIniciar();
+  rcIniciar(eu);
   DB.collection("encaminhamentos").onSnapshot(snap=>{
     encaminhamentos = new Map(snap.docs.map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
     render();
@@ -2260,6 +2289,8 @@ function abrirDrawer(id){
     b.appendChild(box);
   }
 
+  if(id) b.appendChild(rcSecaoFicha(p));
+
   const fs6 = el("fieldset"); fs6.append(el("div","legend","Hist\u00f3rico de contatos"));
   const hist = (p.historico||[]).slice().reverse();
   if(hist.length){
@@ -2427,6 +2458,7 @@ $("#btnLimpar").addEventListener("click",()=>{
 });
 $("#btnNew").addEventListener("click",()=>abrirDrawer(null));
 $("#btnImport").addEventListener("click",abrirImport);
+$("#btnRecados").addEventListener("click",rcAbrirPainel);
 $("#btnVoucher").addEventListener("click",()=>window.open("voucher.html","_blank"));
 $("#btnExport").addEventListener("click",exportar);
 $("#viewBoard").addEventListener("click",()=>trocarModo("board"));
