@@ -8,6 +8,7 @@
 //   enviar    {chatId, texto}   -> assume a conversa (Bia para) e envia a mensagem
 //   assumir   {chatId}          -> equipe assume; a Bia para de responder
 //   devolver  {chatId}          -> devolve a conversa para a Bia
+//   iniciar   {telefone, texto} -> começa conversa nova com um número que ainda não falou com a Bia
 //   arquivo   {chatId, url, tipo:'imagem'|'documento', legenda?, nome?, mime?}
 //             -> envia imagem/PDF já guardado no Storage (bucket "envios", link assinado)
 
@@ -190,6 +191,28 @@ Deno.serve(async (req) => {
           }),
         });
         return json({ ok: true });
+      }
+      case "iniciar": {
+        let tel = String(p.telefone || "").replace(/\D/g, "");
+        const texto = String(p.texto || "").trim();
+        if (tel.length === 10 || tel.length === 11) tel = "55" + tel;
+        if (tel.length < 12 || !texto) return json({ erro: "falta telefone ou mensagem" }, 400);
+        // canal da Bia: o mesmo das conversas existentes
+        const lista = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=5`);
+        const canal = (Array.isArray(lista) ? lista : []).map((c: any) => c.channelId).find(Boolean);
+        if (!canal) return json({ erro: "não achei o canal da Bia" }, 502);
+        await gm(`/channel/${encodeURIComponent(canal)}/start-conversation`, { method: "POST", body: JSON.stringify({ phone: tel, message: texto }) });
+        // traz a conversa nova para a lista do site
+        let chatId: string | null = null;
+        for (let tent = 0; tent < 4 && !chatId; tent++) {
+          if (tent) await new Promise((r) => setTimeout(r, 1500));
+          const novos = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=20`);
+          const arr = Array.isArray(novos) ? novos : [];
+          await gravarChats(auth, arr.filter((c: any) => !c.isGroup).map(linhaDoChat));
+          chatId = arr.find((c: any) => so8(c.whatsappPhone) === tel.slice(-8))?.id || null;
+        }
+        if (chatId) await registrarEnvio(auth, chatId, texto, eu.email);
+        return json({ ok: true, chatId });
       }
       case "assumir":
       case "devolver": {

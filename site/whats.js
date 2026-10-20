@@ -158,8 +158,18 @@ function waRenderLista(){
   document.querySelectorAll(".wa-filtros button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.f===WA.filtro)));
   const q = WA.busca.trim().toLowerCase(), qd = q.replace(/\D/g,"");
   let lista = [...WA.chats.values()];
+  let semConversa = [];
   if(q){
-    lista = lista.filter(c => waNome(c).toLowerCase().includes(q) || (qd.length>=3 && String(c.telefone||"").includes(qd)));
+    const q8 = qd.length >= 8 ? qd.slice(-8) : "";
+    lista = lista.filter(c => waNome(c).toLowerCase().includes(q) || (c.nome||"").toLowerCase().includes(q)
+      || (qd.length>=3 && String(c.telefone||"").includes(qd)) || (q8 && c.tel8 === q8));
+    // pacientes do funil que batem com a busca mas nunca conversaram com a Bia
+    const comChat = new Set([...WA.chats.values()].map(c=>c.tel8));
+    semConversa = [...pacientes.values()].filter(p=>{
+      const t = String(p.telefone||"").replace(/\D/g,"");
+      if(t.length < 10 || comChat.has(t.slice(-8))) return false;
+      return (p.nome||"").toLowerCase().includes(q) || (qd.length>=3 && t.includes(qd)) || (q8 && t.slice(-8) === q8);
+    }).slice(0, 20);
   }else if(WA.filtro === "aguardando"){
     lista = lista.filter(waAguardando);
   }else if(WA.filtro === "equipe"){
@@ -168,6 +178,22 @@ function waRenderLista(){
   lista.sort((a,b)=>(b.ultima_em||"").localeCompare(a.ultima_em||""));
   box.textContent = "";
   if(!WA.carregou){ box.appendChild(el("div","wa-vazio","Carregando conversas…")); return; }
+  if(semConversa.length){
+    box.appendChild(el("div","wa-sec","No funil, sem conversa com a Bia"));
+    for(const p of semConversa){
+      const it = el("div","wa-item wa-item-sem");
+      const topo = el("div","wa-item-top"); topo.append(el("strong",null,p.nome||"Sem nome"));
+      const linha = el("div","wa-item-txt", telBR(p.telefone));
+      const acoes = el("div","wa-tags");
+      const bi = el("button","btn btn-sm btn-primary","Iniciar conversa");
+      bi.addEventListener("click",()=>waIniciarConversa(p, bi));
+      const bf = el("button","btn btn-sm","Abrir ficha"); bf.addEventListener("click",()=>abrirDrawer(p.id));
+      acoes.append(bi, bf);
+      it.append(topo, linha, acoes); box.appendChild(it);
+    }
+    if(lista.length) box.appendChild(el("div","wa-sec","Conversas"));
+  }
+  if(!lista.length && semConversa.length) return;
   if(!lista.length){
     box.appendChild(el("div","wa-vazio", q ? "Nenhuma conversa com esse nome ou telefone." :
       WA.filtro==="aguardando" ? "Nenhum paciente esperando resposta. 👏" : "Nenhuma conversa aqui."));
@@ -377,6 +403,24 @@ function waCriarFicha(c){
     ultimaMensagem: (c.ultima||"").slice(0,120), ultimaMensagemEm: c.ultima_em
   };
   salvar(p); toast("Ficha criada em A classificar."); waRenderConversa(); waRenderLista();
+}
+
+async function waIniciarConversa(p, botao){
+  const nome1 = String(p.nome||"").trim().split(/\s+/)[0] || "";
+  const sug = "Oi" + (nome1 ? ", " + nome1.charAt(0).toUpperCase() + nome1.slice(1).toLowerCase() : "") + "! Aqui é da Alinha Face. Tudo bem?";
+  const texto = prompt("Primeira mensagem para " + (p.nome||"o paciente") + " (" + telBR(p.telefone) + "):", sug);
+  if(texto === null || !texto.trim()) return;
+  botao.disabled = true; botao.textContent = "Enviando…";
+  try{
+    const r = await waChamar({ acao:"iniciar", telefone: p.telefone, texto: texto.trim() });
+    await waLerTabela();
+    toast("Conversa iniciada com " + (p.nome||"o paciente") + ".");
+    if(r.chatId && WA.chats.has(r.chatId)){ WA.busca = ""; const b = document.getElementById("waBusca"); if(b) b.value = ""; WA.filtro = "todas"; waAbrir(r.chatId); }
+    else { toast("Mensagem enviada. A conversa aparece na lista em alguns segundos."); setTimeout(()=>waAtualizar(1), 4000); }
+  }catch(e){
+    toast("Não consegui iniciar: " + e.message);
+    botao.disabled = false; botao.textContent = "Iniciar conversa";
+  }
 }
 
 /* Usado pelos botões "WhatsApp" do painel: abre a conversa aqui no site com a mensagem pronta.
