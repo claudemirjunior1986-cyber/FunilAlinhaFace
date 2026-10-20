@@ -76,6 +76,23 @@
     .item .pill{grid-column:2;justify-self:start}
     .ficha{grid-template-columns:1fr}
   }
+  
+  /* avisos da equipe */
+  #tAvisos.novo{color:#6B4FA0;font-weight:700}
+  .av{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:7px;background:var(--surface);margin-bottom:10px}
+  .av.pend{border-color:#6B4FA0;box-shadow:inset 3px 0 0 #6B4FA0}
+  .av.feito{opacity:.65}
+  .av-topo{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+  .av-topo span{color:var(--ink-3);white-space:nowrap}
+  .av-pac{align-self:flex-start;border:0;background:var(--surface-2);border-radius:99px;padding:3px 11px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--ink)}
+  .av-txt{white-space:pre-wrap;line-height:1.45}
+  .av-anexo{align-self:flex-start;border:1px solid var(--line-strong);background:var(--surface-2);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:inherit;color:var(--ink);font-weight:600}
+  .av-rod{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .av-st{font-size:12px;color:var(--ink-3)}
+  .av-ops{display:flex;gap:6px;flex-wrap:wrap}
+  .av-resp{display:flex;flex-direction:column;gap:8px}
+  .av-resp textarea{min-height:80px}
+  .av-cita{font-size:12.5px;color:var(--ink-3);border-left:2px solid var(--line-strong);padding-left:8px}
 </style>
 </head>
 <body>
@@ -96,6 +113,7 @@
   <div class="tabs" role="group" aria-label="Visualização">
     <button id="tAgenda" aria-pressed="true">Agenda</button>
     <button id="tPac" aria-pressed="false">Meus pacientes</button>
+    <button id="tAvisos" aria-pressed="false">Avisos da equipe</button>
   </div>
 
   <div id="conteudo"></div>
@@ -121,7 +139,7 @@ const ETAPAS = {triagem:"A classificar",lead:"Lead novo",agendou:"Consulta agend
 
 const sb = FUNIL.sb;
 const TIPOS_EXAME = ["Ressonância magnética","Tomografia","Radiografia / panorâmica","Exames de sangue","Outro"];
-let eu = null, pacientes = [], aba = "agenda", busca = "";
+let eu = null, pacientes = [], aba = "agenda", busca = "", avisos = [];
 
 function precisaRegistro(p){
   return p.dataConsulta && p.dataConsulta <= hoje() && !p.consultaRegistradaEm && ["agendou","lead","triagem"].includes(p.etapa);
@@ -146,7 +164,110 @@ async function carregar(){
 function render(){
   $("#tAgenda").setAttribute("aria-pressed", aba==="agenda");
   $("#tPac").setAttribute("aria-pressed", aba==="pac");
+  $("#tAvisos").setAttribute("aria-pressed", aba==="avisos");
+  badgeAvisos();
+  if(aba === "avisos") return renderAvisos();
   aba === "agenda" ? renderAgenda() : renderPacientes();
+}
+
+/* ---------- avisos da equipe (recados para o cirurgião) ---------- */
+const quando = iso => { if(!iso) return ""; const d = new Date(iso);
+  return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",timeZone:"America/Sao_Paulo"})+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",timeZone:"America/Sao_Paulo"}); };
+const meuEmail = () => String((eu&&eu.email)||"").toLowerCase();
+const avisosPendentes = () => avisos.filter(r => r.para === meuEmail() && !r.feito_em);
+async function carregarAvisos(){
+  const { data, error } = await sb.from("funil_recados").select("*").order("criado_em",{ascending:false}).limit(300);
+  if(error) return;
+  avisos = data || [];
+  badgeAvisos();
+  if(aba === "avisos") renderAvisos();
+  const sec = document.getElementById("avFicha"); if(sec) desenharAvisosFicha(sec, sec.dataset.pid);
+}
+function badgeAvisos(){
+  const b = $("#tAvisos"); if(!b) return;
+  const n = avisosPendentes().length, novos = avisos.filter(r=>r.para===meuEmail() && !r.lido_em).length;
+  b.textContent = n ? "Avisos da equipe · " + n : "Avisos da equipe";
+  b.classList.toggle("novo", novos > 0);
+}
+async function abrirAnexo(r){
+  const w = window.open("about:blank","_blank");
+  const { data, error } = await sb.storage.from("anexos").createSignedUrl(r.anexo, 600);
+  if(error || !data){ if(w) w.close(); toast("Não consegui abrir o anexo."); return; }
+  if(w) w.location = data.signedUrl; else location.href = data.signedUrl;
+}
+function cartaoAviso(r, naFicha){
+  const c = el("div","av" + (r.feito_em ? " feito" : "") + (r.para===meuEmail() && !r.feito_em ? " pend" : ""));
+  const topo = el("div","av-topo");
+  topo.append(el("strong",null, r.de===meuEmail() ? "Você → " + (r.para_nome||r.para) : (r.de_nome||r.de)), el("span",null,quando(r.criado_em)));
+  c.appendChild(topo);
+  if(r.paciente_id && !naFicha){
+    const meu = pacientes.find(x=>x.id===r.paciente_id);
+    const pb = el("button","av-pac","👤 " + (r.paciente_nome || "Paciente") + (meu ? "" : " (não está na sua lista)"));
+    if(meu) pb.addEventListener("click",()=>abrir(meu.id)); else pb.disabled = true;
+    c.appendChild(pb);
+  }
+  if(r.responde_a){ const o = avisos.find(x=>x.id===r.responde_a); if(o) c.appendChild(el("div","av-cita","↪ "+String(o.texto).slice(0,140))); }
+  c.appendChild(el("div","av-txt", r.texto));
+  if(r.anexo){ const a = el("button","av-anexo","📎 Abrir " + (r.anexo_nome || "anexo")); a.addEventListener("click",()=>abrirAnexo(r)); c.appendChild(a); }
+  const rod = el("div","av-rod");
+  rod.appendChild(el("div","av-st", r.feito_em ? "✔ Visto e respondido " + quando(r.feito_em) : (r.de===meuEmail() ? (r.lido_em ? "Lido " + quando(r.lido_em) : "Ainda não lido") : "Aguardando seu retorno")));
+  const ops = el("div","av-ops");
+  if(r.para === meuEmail()){
+    const rb = el("button","btn btn-sm btn-primary","Responder");
+    rb.addEventListener("click",()=>{
+      if(c.querySelector(".av-resp")) return;
+      const f = el("div","av-resp");
+      const t = el("textarea"); t.placeholder = "Seu retorno para " + (r.de_nome||"a equipe") + " (ex.: exame ok, pode marcar retorno / precisa de cirurgia / pedir outro exame)";
+      const lin = el("div","av-ops");
+      const cx = el("button","btn btn-sm btn-ghost","Cancelar"); cx.addEventListener("click",()=>f.remove());
+      const ok = el("button","btn btn-sm btn-primary","Enviar retorno");
+      ok.addEventListener("click", async ()=>{
+        const texto = t.value.trim(); if(!texto){ t.focus(); return; }
+        ok.disabled = true; ok.textContent = "Enviando…";
+        const { error } = await sb.from("funil_recados").insert({
+          de: meuEmail(), de_nome: eu.nome, para: r.de, para_nome: r.de_nome,
+          paciente_id: r.paciente_id, paciente_nome: r.paciente_nome, texto, responde_a: r.id
+        });
+        if(error){ toast("Não consegui enviar. Tente de novo."); ok.disabled = false; ok.textContent = "Enviar retorno"; return; }
+        const agora = new Date().toISOString();
+        await sb.from("funil_recados").update({ feito_em: agora, lido_em: r.lido_em || agora }).eq("id", r.id);
+        toast("Retorno enviado para " + (r.de_nome||"a equipe") + ".");
+        carregarAvisos();
+      });
+      lin.append(cx, ok); f.append(t, lin); c.appendChild(f); t.focus();
+    });
+    ops.appendChild(rb);
+    if(!r.feito_em){
+      const vb = el("button","btn btn-sm","Visto ✔"); vb.title = "Marca como visto, sem escrever resposta";
+      vb.addEventListener("click", async ()=>{
+        const agora = new Date().toISOString();
+        const { error } = await sb.from("funil_recados").update({ feito_em: agora, lido_em: r.lido_em || agora }).eq("id", r.id);
+        if(error) toast("Não consegui marcar."); else carregarAvisos();
+      });
+      ops.appendChild(vb);
+    }
+  }
+  rod.appendChild(ops); c.appendChild(rod);
+  return c;
+}
+function renderAvisos(){
+  const c = $("#conteudo"); c.textContent = "";
+  const recebidos = avisos.filter(r=>r.para===meuEmail()).sort((a,b)=>(!!a.feito_em - !!b.feito_em) || String(b.criado_em).localeCompare(String(a.criado_em)));
+  const s = el("section","grupo");
+  const h = el("h2",null,"Avisos da equipe"); h.appendChild(el("span","n",String(avisosPendentes().length)));
+  s.appendChild(h);
+  if(!recebidos.length) s.appendChild(el("div","vazio","Nenhum aviso por enquanto. Quando a equipe mandar um exame ou pedir seu retorno sobre um paciente, aparece aqui."));
+  recebidos.forEach(r=>s.appendChild(cartaoAviso(r)));
+  c.appendChild(s);
+  // abriu a aba: o que chegou fica como lido
+  const ids = avisos.filter(r=>r.para===meuEmail() && !r.lido_em).map(r=>r.id);
+  if(ids.length){ const agora = new Date().toISOString(); avisos.forEach(r=>{ if(ids.includes(r.id)) r.lido_em = agora; }); badgeAvisos(); sb.from("funil_recados").update({ lido_em: agora }).in("id", ids).then(()=>{}); }
+}
+function desenharAvisosFicha(sec, pid){
+  sec.querySelectorAll(".av").forEach(n=>n.remove());
+  const lista = avisos.filter(r=>r.paciente_id===pid).sort((a,b)=>String(a.criado_em).localeCompare(String(b.criado_em)));
+  sec.style.display = lista.length ? "" : "none";
+  lista.forEach(r=>sec.appendChild(cartaoAviso(r, true)));
 }
 
 function itemPaciente(p, mostrarData){
@@ -234,6 +355,10 @@ function abrir(id){
   campo("WhatsApp", p.telefone);
   campo("Etapa", ETAPAS[p.etapa]);
   campo("Observações da equipe", p.observacoes, true);
+  const avs = el("div","bloco"); avs.id = "avFicha"; avs.dataset.pid = p.id;
+  avs.appendChild(el("h3",null,"Avisos da equipe sobre este paciente"));
+  b.appendChild(avs);
+  desenharAvisosFicha(avs, p.id);
   b.appendChild(f);
 
   const bloco = el("div","bloco");
@@ -331,6 +456,7 @@ function formRegistro(p){
 
 $("#tAgenda").addEventListener("click", ()=>{ aba = "agenda"; render(); });
 $("#tPac").addEventListener("click", ()=>{ aba = "pac"; render(); });
+$("#tAvisos").addEventListener("click", ()=>{ aba = "avisos"; render(); });
 $("#bSair").addEventListener("click", FUNIL.sair);
 $("#bSenha").addEventListener("click", FUNIL.trocarSenha);
 document.addEventListener("keydown", e => { if(e.key === "Escape") fechar(); });
@@ -339,6 +465,14 @@ document.addEventListener("keydown", e => { if(e.key === "Escape") fechar(); });
   eu = await FUNIL.exigir(["cirurgiao"]);
   $("#ola").textContent = "Olá, " + eu.nome;
   await carregar();
+  await carregarAvisos();
+  if(avisosPendentes().length && !pacientes.some(p=>p.dataConsulta===hoje())){ aba = "avisos"; render(); }
+  sb.channel("avisos")
+    .on("postgres_changes", { event: "*", schema: "public", table: "funil_recados" }, ev => {
+      if(ev.eventType === "INSERT" && ev.new && ev.new.para === meuEmail()) toast("📩 Novo aviso de " + (ev.new.de_nome||"equipe") + (ev.new.paciente_nome ? " sobre " + ev.new.paciente_nome : ""));
+      carregarAvisos();
+    }).subscribe();
+  setInterval(carregarAvisos, 2*60*1000);
   sb.channel("meus-pacientes")
     .on("postgres_changes", { event: "*", schema: "public", table: "funil_pacientes" }, () => carregar())
     .subscribe();
