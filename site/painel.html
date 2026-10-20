@@ -446,6 +446,7 @@
       <button id="viewCir" aria-pressed="false">Cirurgias</button>
       <button id="viewCal" aria-pressed="false">Calendário</button>
       <button id="viewGus" aria-pressed="false">Dr. Gustavo</button>
+      <button id="viewAfo" aria-pressed="false">Dr. Afonso</button>
       <button id="viewHoje" aria-pressed="false">Rotina do dia</button>
       <button id="viewBoard" aria-pressed="true">Funil</button>
       <button id="viewTable" aria-pressed="false">Tabela</button>
@@ -493,6 +494,7 @@
   <div id="calview" hidden></div>
   <div id="whatsview" hidden></div>
   <div id="gusview" hidden></div>
+  <div id="afoview" hidden></div>
   <div id="hojeview" hidden></div>
   <div id="relview" hidden></div>
 
@@ -751,6 +753,8 @@ function render(){
   if(bn){ const n = novos().length; bn.textContent = n ? "Novos · "+n : "Novos"; }
   const bg = document.getElementById("viewGus");
   if(bg){ const n = casosGustavo().length; bg.textContent = n ? "Dr. Gustavo · "+n : "Dr. Gustavo"; }
+  const ba = document.getElementById("viewAfo");
+  if(ba){ const n = casosMedico(MEDICOS.afo).length; ba.textContent = n ? "Dr. Afonso · "+n : "Dr. Afonso"; }
   const bx = document.getElementById("viewExames");
   if(bx){ const n = examesPendentes().length; bx.textContent = n ? "Exames pedidos · "+n : "Exames pedidos"; bx.classList.toggle("alerta", n>0); }
   const bc = document.getElementById("viewCir");
@@ -762,6 +766,7 @@ function render(){
   if(modo==="cal"){ renderCal(); return; }
   if(modo==="novos"){ renderNovos(); return; }
   if(modo==="gus"){ renderGus(); return; }
+  if(modo==="afo"){ renderAfo(); return; }
   if(modo==="hoje"){ renderHoje(); return; } if(modo==="rel"){ renderRel(); return; } renderKpis(); renderAlertas(); modo==="board" ? renderBoard() : renderTable(); }
 
 /* ============ calendário: entradas e consultas por dia ============ */
@@ -1182,54 +1187,69 @@ function linhaNovo(p){
   return row;
 }
 
-/* ============ Dr. Gustavo: casos que dependem de um retorno dele ============ */
+/* ============ Cirurgiões: casos que dependem de um retorno de cada um ============ */
 const semAcento = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
-function marcadoGustavo(p){
+// cada cirurgião tem sua aba: chave = palavra que marca o caso nas observações/próxima ação
+const MEDICOS = {
+  gus: { nome:"Dr. Gustavo", email:"gu.martins00@gmail.com", chave:"gustavo" },
+  afo: { nome:"Dr. Afonso",  email:"dr.aptrindadefilho@gmail.com", chave:"afonso" }
+};
+// tira as anotações automáticas de planilha, que citam o nome do médico mas não são pedido de retorno
+const textoLivre = t => String(t||"").replace(/\[Planilha Dr\.[^\]]*\][^;]*(;|$)/g," ");
+function marcadoMedico(m, p){
   if(["perdido","noshow"].includes(p.etapa)) return false;
-  return semAcento(p.observacoes).includes("gustavo") || semAcento(p.proximaAcao).includes("gustavo");
+  return semAcento(textoLivre(p.observacoes)).includes(m.chave) || semAcento(p.proximaAcao).includes(m.chave);
 }
+const marcadoGustavo = p => marcadoMedico(MEDICOS.gus, p);
 // desde quando esse caso está esperando: última cobrança, senão a data marcada, senão a entrada
 const esperaDesde = p => ((p.regua||{}).gus) || p.dataProximaAcao || (p.criadoEm||"").slice(0,10) || "";
-function casosGustavo(){
-  return [...pacientes.values()].filter(marcadoGustavo)
+function casosMedico(m){
+  return [...pacientes.values()].filter(p=>marcadoMedico(m, p))
     .sort((a,b)=> String(esperaDesde(a)).localeCompare(String(esperaDesde(b))));
 }
-// o que estamos esperando dele, em uma linha
-function pedidoGustavo(p){
-  const o = (p.observacoes||"").trim();
-  const a = (p.proximaAcao||"").trim();
-  // só aproveita o texto que fala do Gustavo; "gustavo" sozinho é apenas a marcação
-  const curta = o && o.length<=110 && !o.includes(" ; ") && semAcento(o).includes("gustavo") ? o : "";
-  if(curta && semAcento(curta)!=="gustavo") return curta;
-  if(a && semAcento(a).includes("gustavo") && semAcento(a)!=="gustavo") return a;
-  return "Cobrar retorno do Dr. Gustavo";
+const casosGustavo = () => casosMedico(MEDICOS.gus);
+// pacientes que estão no nome do cirurgião (o que ele vê no login dele)
+function pacientesDoMedico(m){
+  return [...pacientes.values()].filter(p=>p.cirurgiao===m.email && !["perdido"].includes(p.etapa));
 }
+// o que estamos esperando dele, em uma linha
+function pedidoMedico(m, p){
+  const o = textoLivre(p.observacoes).trim();
+  const a = (p.proximaAcao||"").trim();
+  const curta = o && o.length<=110 && !o.includes(" ; ") && semAcento(o).includes(m.chave) ? o : "";
+  if(curta && semAcento(curta)!==m.chave) return curta;
+  if(a && semAcento(a).includes(m.chave) && semAcento(a)!==m.chave) return a;
+  return "Cobrar retorno do "+m.nome;
+}
+const msgCobrarMedico = (m, p) => `${m.nome}, tudo bem? Sobre o paciente ${p.nome||""}${p.dataConsulta?", que passou em consulta em "+dataBR(p.dataConsulta):""}: consegue me dar um retorno para eu atualizar aqui? Obrigado!`;
 
-function renderGus(){
-  const box = $("#gusview"); box.textContent = "";
-  const lista = casosGustavo();
-  const t = hoje();
+function renderGus(){ renderMedico("gus"); }
+function renderAfo(){ renderMedico("afo"); }
+function renderMedico(k){
+  const m = MEDICOS[k];
+  const box = $("#"+k+"view"); box.textContent = "";
+  const lista = casosMedico(m);
   const dias = p => { const d = diasDesde(esperaDesde(p)); return d==null ? 0 : Math.max(d,0); };
 
   const head = el("div","hoje-head");
   const hl = el("div");
-  hl.append(el("h2",null,"Dr. Gustavo"),
-            el("div","dt","Casos que dependem de um retorno dele. Entram aqui sozinhos quando a ficha tem “gustavo” nas observações ou na próxima ação."));
+  hl.append(el("h2",null,m.nome),
+            el("div","dt","Casos que dependem de um retorno dele (entram sozinhos quando a ficha tem “"+m.chave+"” nas observações ou na próxima ação) e os pacientes que estão no nome dele."));
   const acts = el("div","acts");
-  const bLista = el("button","btn btn-primary","Copiar lista para o Dr. Gustavo");
-  bLista.addEventListener("click",copiarListaGustavo);
+  const bLista = el("button","btn btn-primary","Copiar lista para o "+m.nome);
+  bLista.addEventListener("click",()=>copiarListaMedico(k));
   acts.appendChild(bLista);
   head.append(hl,acts); box.appendChild(head);
 
+  const meus = pacientesDoMedico(m);
   const parados = lista.filter(p=>dias(p)>=5);
-  const cobrados = lista.filter(p=>(p.regua||{}).gus);
-  const k = el("div","kpis");
-  [{l:"Casos em aberto", v:lista.length, h:"esperando o Dr. Gustavo"},
+  const k2 = el("div","kpis");
+  [{l:"Esperando retorno", v:lista.length, h:"casos com o "+m.nome},
    {l:"Parados há 5+ dias", v:parados.length, h:"sem retorno dele", c:parados.length?"alert":""},
-   {l:"Nunca cobrados", v:lista.length-cobrados.length, h:"ninguém cobrou ainda", c:(lista.length-cobrados.length)?"warnk":""},
-   {l:"OPME parado aqui", v:brl(lista.reduce((s,p)=>s+(Number(p.opme)||0),0)), h:"valor represado", money:true}
-  ].forEach(x=>{ const d = el("div","kpi"+(x.money?" money":"")+(x.c?" "+x.c:"")); d.append(el("span","lbl",x.l), el("span","val",String(x.v)), el("span","hint",x.h)); k.appendChild(d); });
-  box.appendChild(k);
+   {l:"Pacientes no nome dele", v:meus.length, h:"o que ele vê no login"},
+   {l:"OPME com ele", v:brl(meus.reduce((s,p)=>s+(Number(p.opme)||0),0)), h:"pacientes ativos", money:true}
+  ].forEach(x=>{ const d = el("div","kpi"+(x.money?" money":"")+(x.c?" "+x.c:"")); d.append(el("span","lbl",x.l), el("span","val",String(x.v)), el("span","hint",x.h)); k2.appendChild(d); });
+  box.appendChild(k2);
 
   const pt = el("section","panel");
   const ph = el("div","panel-head");
@@ -1237,17 +1257,33 @@ function renderGus(){
   pt.appendChild(ph);
   if(!lista.length){
     const e = el("div","done-empty");
-    e.append(el("strong",null,"Nada pendente com ele"), document.createTextNode("Escreva “gustavo” nas observações de uma ficha para o caso aparecer aqui."));
+    e.append(el("strong",null,"Nada pendente com ele"), document.createTextNode("Escreva “"+m.chave+"” na próxima ação ou nas observações de uma ficha para o caso aparecer aqui."));
     pt.appendChild(e);
   }
-  for(const p of lista) pt.appendChild(linhaGus(p, dias(p)));
-  const nota = el("div","hint"); nota.style.padding="10px 14px"; nota.style.borderTop="1px solid var(--line)";
-  nota.textContent = "Para tirar um caso daqui, apague a palavra “gustavo” das observações e da próxima ação da ficha.";
-  pt.appendChild(nota);
+  for(const p of lista) pt.appendChild(linhaMedico(m, p, dias(p)));
   box.appendChild(pt);
+
+  // pacientes no nome dele, por etapa
+  const pm = el("section","panel"); pm.style.marginTop = "14px";
+  const pmh = el("div","panel-head"); pmh.append(el("h3",null,"Pacientes no nome dele"), el("span","n",String(meus.length)));
+  pm.appendChild(pmh);
+  if(!meus.length){ const e = el("div","done-empty"); e.append(el("strong",null,"Nenhum paciente"), document.createTextNode("Na ficha, escolha o "+m.nome+" em “Cirurgião responsável”.")); pm.appendChild(e); }
+  const ordem = STAGES.map(s=>s.k);
+  meus.slice().sort((a,b)=>ordem.indexOf(a.etapa)-ordem.indexOf(b.etapa) || String(a.nome).localeCompare(String(b.nome))).forEach(p=>{
+    const row = el("div","task");
+    row.appendChild(el("span","sev"));
+    const mid = el("div"); const t1 = el("div","t1");
+    const nm = el("button",null,p.nome||"Sem nome"); nm.title="Abrir ficha"; nm.addEventListener("click",()=>abrirDrawer(p.id));
+    t1.append(el("span","step",(STAGE_BY_KEY[p.etapa]||{}).l||"—"), nm);
+    const t2 = el("div","t2", [p.dataConsulta?"consulta "+dataBR(p.dataConsulta):"", p.consultaRegistradaEm?"registro do médico ✔":"", p.proximaAcao?"→ "+p.proximaAcao+(p.dataProximaAcao?" ("+dataBR(p.dataProximaAcao)+")":""):"", telBR(p.telefone)].filter(Boolean).join(" · "));
+    mid.append(t1,t2); row.appendChild(mid);
+    const ops = el("div","ops"); const f = el("button","btn btn-sm btn-ghost","Ficha"); f.addEventListener("click",()=>abrirDrawer(p.id)); ops.appendChild(f); row.appendChild(ops);
+    pm.appendChild(row);
+  });
+  box.appendChild(pm);
 }
 
-function linhaGus(p, d){
+function linhaMedico(m, p, d){
   const ult = (p.regua||{}).gus;
   const row = el("div","task"+(d>=5?" late":(d>=2?" warn":"")));
   row.appendChild(el("span","sev"));
@@ -1256,19 +1292,19 @@ function linhaGus(p, d){
   const nm = el("button",null,p.nome||"Sem nome"); nm.title="Abrir ficha"; nm.addEventListener("click",()=>abrirDrawer(p.id));
   t1.append(el("span","step "+(d>=5?"p":""),(STAGE_BY_KEY[p.etapa]||{}).l||"—"), nm);
   const t2 = el("div","t2");
-  t2.append(document.createTextNode(pedidoGustavo(p)
+  t2.append(document.createTextNode(pedidoMedico(m, p)
     + (ult ? " · cobrado em "+dataBR(ult) : " · nunca cobrado")
     + (p.dataConsulta ? " · consulta "+dataBR(p.dataConsulta) : "")));
   if(d>=2){ t2.append(document.createTextNode(" · ")); t2.append(el("span","late-txt","esperando há "+d+" dia"+(d===1?"":"s"))); }
   mid.append(t1,t2); row.appendChild(mid);
   const ops = el("div","ops");
-  const c = el("button","btn btn-sm","Cobrar"); c.title="Copiar a mensagem pronta para mandar ao Dr. Gustavo";
-  c.addEventListener("click",()=>copiar(MSG.gus(p),"Mensagem copiada — mande para o Dr. Gustavo."));
+  const c = el("button","btn btn-sm","Cobrar"); c.title="Copiar a mensagem pronta para mandar ao "+m.nome;
+  c.addEventListener("click",()=>copiar(msgCobrarMedico(m,p),"Mensagem copiada — mande para o "+m.nome+"."));
   const j = el("button","btn btn-sm btn-primary","Cobrei hoje");
   j.addEventListener("click",()=>{
     const alvo = Object.assign({}, pacientes.get(p.id));
     alvo.regua = Object.assign({}, alvo.regua, {gus:hoje()});
-    registrarHistorico(alvo, "Dr. Gustavo · cobrado o retorno");
+    registrarHistorico(alvo, m.nome+" · cobrado o retorno");
     salvar(alvo); toast("Cobrança registrada: "+(p.nome||""));
   });
   const f = el("button","btn btn-sm btn-ghost","Ficha"); f.addEventListener("click",()=>abrirDrawer(p.id));
@@ -1893,21 +1929,23 @@ function abrirResumoSemana(){
   modalTexto("Resumo da semana", blocos, txt);
 }
 
-function copiarListaGustavo(){
-  const lista = casosGustavo();
+function copiarListaGustavo(){ copiarListaMedico("gus"); }
+function copiarListaMedico(k){
+  const m = MEDICOS[k];
+  const lista = casosMedico(m);
   // texto que VAI para ele: só nome e telefone, nada de recado interno
   const linhas = lista.map(p=>{
     const tel = telBR(p.telefone);
     return (p.nome||"Sem nome") + (tel ? " — "+tel : "");
   });
-  [...encaminhamentos.values()].filter(e=>!ENC_FECHADOS.includes(e.status) && /gustavo/i.test(e.parceiro||""))
+  [...encaminhamentos.values()].filter(e=>!ENC_FECHADOS.includes(e.status) && semAcento(e.parceiro).includes(m.chave))
     .forEach(e=>linhas.push(String(e.paciente||"Sem nome")));
-  if(!linhas.length){ toast("Nenhum caso em aberto com o Dr. Gustavo."); return; }
-  const txt = "Dr. Gustavo, segue a lista dos pacientes que dependem de um retorno seu:\n"
+  if(!linhas.length){ toast("Nenhum caso em aberto com o "+m.nome+"."); return; }
+  const txt = m.nome+", segue a lista dos pacientes que dependem de um retorno seu:\n"
     + linhas.map((l,i)=>(i+1)+". "+l).join("\n")
     + "\nConsegue me dar um retorno? Obrigado!";
   const blocos = [[lista.length,"casos em aberto"],[lista.filter(p=>(diasDesde(esperaDesde(p))||0)>=5).length,"parados há 5+ dias"]];
-  modalTexto("Lista para o Dr. Gustavo", blocos, txt, "Texto pronto para enviar ao Dr. Gustavo pelo WhatsApp:");
+  modalTexto("Lista para o "+m.nome, blocos, txt, "Texto pronto para enviar ao "+m.nome+" pelo WhatsApp:");
 }
 
 /* ============ relatórios ============ */
@@ -2483,6 +2521,8 @@ function trocarModo(m){
   $("#viewWhats").setAttribute("aria-pressed", String(m==="whats"));
   $("#whatsview").hidden = m!=="whats";
   $("#viewGus").setAttribute("aria-pressed", String(m==="gus"));
+  $("#viewAfo").setAttribute("aria-pressed", String(m==="afo"));
+  $("#afoview").hidden = m!=="afo";
   $("#viewHoje").setAttribute("aria-pressed", String(m==="hoje"));
   $("#viewBoard").setAttribute("aria-pressed", String(m==="board"));
   $("#viewTable").setAttribute("aria-pressed", String(m==="table"));
@@ -2493,7 +2533,7 @@ function trocarModo(m){
   $("#hojeview").hidden = m!=="hoje";
   $("#novosview").hidden = m!=="novos";
   $("#gusview").hidden = m!=="gus";
-  $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus" || m==="exames" || m==="cir" || m==="cal" || m==="whats";
+  $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus" || m==="afo" || m==="exames" || m==="cir" || m==="cal" || m==="whats";
   if(typeof waAgendarLista==="function" && DB) waAgendarLista();
   document.querySelector('.seg button[aria-pressed="true"]')?.scrollIntoView({block:"nearest",inline:"center"});
   render();
@@ -2504,6 +2544,7 @@ $("#viewExames").addEventListener("click",()=>trocarModo("exames"));
 $("#viewCir").addEventListener("click",()=>trocarModo("cir"));
 $("#viewCal").addEventListener("click",()=>trocarModo("cal"));
 $("#viewGus").addEventListener("click",()=>trocarModo("gus"));
+$("#viewAfo").addEventListener("click",()=>trocarModo("afo"));
 $("#viewHoje").addEventListener("click",()=>trocarModo("hoje"));
 $("#viewRel").addEventListener("click",()=>trocarModo("rel"));
 
