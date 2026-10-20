@@ -229,6 +229,8 @@ function rcNovo(paciente, respondendo, paraPadrao){
       }
       registrarHistorico(q, "Aviso ao " + dest.nome + (anexo_nome ? " (com anexo: " + anexo_nome + ")" : "") + ": " + texto.replace(/\s+/g," ").slice(0,200));
       salvar(q);
+      // reabre a ficha já atualizada, para o "Salvar" dela não desfazer a tarefa
+      if(document.getElementById("drawer") && typeof abrirDrawer === "function") setTimeout(()=>abrirDrawer(paciente.id), 50);
     }
     scrim.remove(); m.remove();
     toast((paraCir ? "Aviso enviado para o " : "Recado enviado para ") + (dest.nome || "a equipe") + "." + (paraCir && paciente && cc.checked ? " Sua tarefa de cobrar ficou para " + dataBR(dc.value) + "." : ""));
