@@ -362,6 +362,7 @@
   .wa-tags{display:flex;gap:4px;flex-wrap:wrap}
   .wa-tag{font-size:11px;padding:1px 7px;border-radius:99px;background:var(--surface-3);color:var(--ink-2)}
   .wa-tag-esp{background:#1F7A55;color:#fff} .wa-tag-sem{background:var(--warn-bg);color:var(--warn)}
+  .ag-frame{width:100%;height:calc(100vh - 230px);min-height:520px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;margin-bottom:10px}
   .wa-sec{font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);padding:10px 12px 4px;background:var(--surface-2);border-bottom:1px solid var(--line)}
   .wa-item-sem{cursor:default} .wa-item-sem:hover{background:transparent} .wa-item-sem .wa-tags{gap:6px;margin-top:4px}
   .wa-vazio{padding:24px 16px;color:var(--ink-3);text-align:center}
@@ -453,6 +454,7 @@
       <button id="viewExames" aria-pressed="false">Exames pedidos</button>
       <button id="viewCir" aria-pressed="false">Cirurgias</button>
       <button id="viewCal" aria-pressed="false">Calendário</button>
+      <button id="viewAg" aria-pressed="false">Agenda Dr. Gustavo</button>
       <button id="viewGus" aria-pressed="false">Dr. Gustavo</button>
       <button id="viewAfo" aria-pressed="false">Dr. Afonso</button>
       <button id="viewHoje" aria-pressed="false">Rotina do dia</button>
@@ -500,6 +502,7 @@
   <div id="examesview" hidden></div>
   <div id="cirview" hidden></div>
   <div id="calview" hidden></div>
+  <div id="agview" hidden></div>
   <div id="whatsview" hidden></div>
   <div id="gusview" hidden></div>
   <div id="afoview" hidden></div>
@@ -535,6 +538,7 @@
 <script src="auth.js"></script>
 <script src="whats.js"></script>
 <script src="recados.js"></script>
+<script src="agenda.js"></script>
 <script>
 /* ============ modelo ============ */
 const STAGES = [
@@ -772,6 +776,7 @@ function render(){
   if(modo==="exames"){ renderExames(); return; }
   if(modo==="cir"){ renderCir(); return; }
   if(modo==="cal"){ renderCal(); return; }
+  if(modo==="ag"){ if(!$("#agview").childElementCount) renderAgendaMed("gus"); return; }
   if(modo==="novos"){ renderNovos(); return; }
   if(modo==="gus"){ renderGus(); return; }
   if(modo==="afo"){ renderAfo(); return; }
@@ -2256,6 +2261,7 @@ function abrirDrawer(id){
   fs2.append(g2,g2b,g2d);
   const hCir = el("div","hint"); hCir.textContent = "O cirurgião escolhido vê este paciente na agenda dele no site, e só ele.";
   fs2.append(hCir);
+  if(typeof agBotaoFicha === "function") fs2.append(agBotaoFicha(p));
   const g2c = el("div","grid2");
   g2c.append(campo("Exames solicitados em", inp("f_dexames","date",p.dataExames||"")),
              campo("Proposta enviada em", inp("f_dprop","date",p.dataProposta||"")));
@@ -2526,6 +2532,8 @@ function trocarModo(m){
   $("#cirview").hidden = m!=="cir";
   $("#viewCal").setAttribute("aria-pressed", String(m==="cal"));
   $("#calview").hidden = m!=="cal";
+  $("#viewAg").setAttribute("aria-pressed", String(m==="ag"));
+  $("#agview").hidden = m!=="ag";
   $("#viewWhats").setAttribute("aria-pressed", String(m==="whats"));
   $("#whatsview").hidden = m!=="whats";
   $("#viewGus").setAttribute("aria-pressed", String(m==="gus"));
@@ -2541,7 +2549,7 @@ function trocarModo(m){
   $("#hojeview").hidden = m!=="hoje";
   $("#novosview").hidden = m!=="novos";
   $("#gusview").hidden = m!=="gus";
-  $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus" || m==="afo" || m==="exames" || m==="cir" || m==="cal" || m==="whats";
+  $("#funilTop").hidden = m==="hoje" || m==="rel" || m==="novos" || m==="gus" || m==="afo" || m==="exames" || m==="cir" || m==="cal" || m==="ag" || m==="whats";
   if(typeof waAgendarLista==="function" && DB) waAgendarLista();
   document.querySelector('.seg button[aria-pressed="true"]')?.scrollIntoView({block:"nearest",inline:"center"});
   render();
@@ -2551,6 +2559,7 @@ $("#viewNovos").addEventListener("click",()=>trocarModo("novos"));
 $("#viewExames").addEventListener("click",()=>trocarModo("exames"));
 $("#viewCir").addEventListener("click",()=>trocarModo("cir"));
 $("#viewCal").addEventListener("click",()=>trocarModo("cal"));
+$("#viewAg").addEventListener("click",()=>trocarModo("ag"));
 $("#viewGus").addEventListener("click",()=>trocarModo("gus"));
 $("#viewAfo").addEventListener("click",()=>trocarModo("afo"));
 $("#viewHoje").addEventListener("click",()=>trocarModo("hoje"));
