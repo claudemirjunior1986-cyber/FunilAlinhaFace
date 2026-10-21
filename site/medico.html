@@ -266,8 +266,9 @@ function renderAvisos(){
 function desenharAvisosFicha(sec, pid){
   sec.querySelectorAll(".av").forEach(n=>n.remove());
   const lista = avisos.filter(r=>r.paciente_id===pid).sort((a,b)=>String(a.criado_em).localeCompare(String(b.criado_em)));
-  sec.style.display = lista.length ? "" : "none";
-  lista.forEach(r=>sec.appendChild(cartaoAviso(r, true)));
+  const vz = sec.querySelector(".av-vazio"); if(vz) vz.style.display = lista.length ? "none" : "";
+  const compo = sec.querySelector(":scope > .av-resp");
+  lista.forEach(r=>sec.insertBefore(cartaoAviso(r, true), compo || null));
 }
 
 function itemPaciente(p, mostrarData){
@@ -356,9 +357,24 @@ function abrir(id){
   campo("Etapa", ETAPAS[p.etapa]);
   campo("Observações da equipe", p.observacoes, true);
   const avs = el("div","bloco"); avs.id = "avFicha"; avs.dataset.pid = p.id;
-  avs.appendChild(el("h3",null,"Avisos da equipe sobre este paciente"));
+  avs.appendChild(el("h3",null,"Recados com a equipe sobre este paciente"));
+  avs.appendChild(el("div","vazio av-vazio","Nenhum recado ainda."));
+  // o cirurgião manda um recado para a equipe (Claudemir e Ana Clara)
+  const comp = el("div","av-resp");
+  const tq = el("textarea"); tq.placeholder = "Recado para a equipe sobre " + (p.nome||"este paciente") + " (ex.: ela vai mandar a carteirinha; marcar retorno em 15 dias)";
+  const be = el("button","btn btn-sm btn-primary","Mandar recado para a equipe");
+  be.addEventListener("click", async ()=>{
+    const texto = tq.value.trim(); if(!texto){ tq.focus(); return; }
+    be.disabled = true; be.textContent = "Enviando…";
+    const { error } = await sb.rpc("recado_para_equipe", { p_paciente_id: p.id, p_texto: texto });
+    be.disabled = false; be.textContent = "Mandar recado para a equipe";
+    if(error){ toast("Não consegui enviar. Tente de novo."); return; }
+    tq.value = ""; toast("Recado enviado para a equipe."); carregarAvisos();
+  });
+  comp.append(tq, be);
   b.appendChild(avs);
   desenharAvisosFicha(avs, p.id);
+  avs.appendChild(comp);
   b.appendChild(f);
 
   const bloco = el("div","bloco");
@@ -419,7 +435,7 @@ function formRegistro(p){
   ix.style.marginTop = "8px";
   qx.append(cks, ix);
   const qr = el("label","f perg"); qr.append(document.createTextNode("Resumo da consulta"));
-  const tr = el("textarea"); tr.placeholder = "Queixa, achados, conduta e próximo passo. Só a equipe Alinha Face vê."; tr.value = p.resumoConsulta||""; qr.appendChild(tr);
+  const tr = el("textarea"); tr.placeholder = "Queixa, achados, conduta e próximo passo. Ao salvar, a equipe (Claudemir e Ana Clara) recebe este resumo como recado."; tr.value = p.resumoConsulta||""; qr.appendChild(tr);
   f.append(q1, q2, qx, qr);
 
   function ajustar(){
