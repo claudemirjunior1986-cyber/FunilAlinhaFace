@@ -94,10 +94,30 @@ async function waLerTabela(){
   if(modo === "whats") waRenderLista();
 }
 async function waAtualizar(paginas){
-  try{ await waChamar({ acao:"atualizar", paginas: paginas||1 }); }
-  catch(e){ if(modo==="whats") waRenderAviso(); return; }
+  if(WA.atualizando) return; WA.atualizando = true;
+  try{ await waChamar({ acao:"atualizar", paginas: paginas||1 }); WA.atualizadoEm = new Date(); WA.erroAtualizar = ""; }
+  catch(e){ WA.erroAtualizar = e.message; if(modo==="whats") waRenderAviso(); WA.atualizando = false; waRenderHora(); return; }
+  WA.atualizando = false;
   await waLerTabela();
+  waRenderHora();
 }
+function waRenderHora(){
+  const h = document.getElementById("waHora"); if(!h) return;
+  h.textContent = WA.erroAtualizar ? "⚠ não consegui atualizar" :
+    (WA.atualizadoEm ? "Atualizado às " + WA.atualizadoEm.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"}) : "Atualizando…");
+  h.classList.toggle("erro", !!WA.erroAtualizar);
+}
+// voltou para o site/app depois de um tempo fora: atualiza na hora
+function waAoVoltar(){
+  if(document.hidden) return;
+  if(!WA.atualizadoEm || Date.now() - WA.atualizadoEm > 15000){
+    waAtualizar(Date.now() - (WA.atualizadoEm||0) > 6*3600e3 ? 3 : 1);
+    if(WA.aberto && modo==="whats") waCarregarMensagens(true);
+  }
+}
+document.addEventListener("visibilitychange", waAoVoltar);
+addEventListener("focus", waAoVoltar);
+addEventListener("online", waAoVoltar);
 function waIniciar(){
   waLerTabela().catch(()=>{});
   FUNIL.sb.channel("rt-whats")
@@ -130,6 +150,7 @@ function renderWhats(){
       '<div class="wa">' +
         '<div class="wa-lista">' +
           '<div class="wa-busca"><input type="text" id="waBusca" placeholder="Buscar nome ou telefone">' +
+          '<div class="wa-atual"><span id="waHora">Atualizando…</span><button type="button" id="waAtualizarBtn" title="Buscar conversas novas agora">↻ Atualizar</button></div>' +
           '<div class="wa-filtros" role="group" aria-label="Filtro">' +
             '<button data-f="aguardando">Aguardando</button><button data-f="equipe">Com a equipe</button><button data-f="todas">Todas</button>' +
           '</div></div>' +
@@ -139,9 +160,11 @@ function renderWhats(){
         '<div class="wa-conversa" id="waConversa"></div>' +
       '</div>';
     $("#waBusca").addEventListener("input", e=>{ WA.busca = e.target.value; waRenderLista(); });
+    $("#waAtualizarBtn").addEventListener("click", async e=>{ const b = e.currentTarget; b.disabled = true; b.textContent = "↻ …"; await waAtualizar(2); if(WA.aberto) await waCarregarMensagens(true); b.disabled = false; b.textContent = "↻ Atualizar"; });
     box.querySelectorAll(".wa-filtros button").forEach(b=>b.addEventListener("click",()=>{ WA.filtro = b.dataset.f; waRenderLista(); }));
   }
   waRenderAviso();
+  waRenderHora();
   waRenderLista();
   waRenderConversa();
 }
