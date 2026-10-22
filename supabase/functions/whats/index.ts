@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
         const nomeRes = "RS" + sala.replace(/-/g, "").slice(0, 12) + Date.now();
         const r = await gm(`/agent/${AGENTE_RESUMO}/conversation`, {
           method: "POST",
-          body: JSON.stringify({ contextId: nomeRes, chatName: nomeRes, prompt: "GERAR RESUMO\n\nTranscrição da consulta (em trechos, na ordem):\n" + tr.slice(0, 60000) }),
+          body: JSON.stringify({ contextId: nomeRes, chatName: nomeRes, prompt: "GERAR RESUMO\n\nObservações: a transcrição é automática e pode errar palavras parecidas (ex.: \"a mil\"/\"a 1000\" = Amil, \"uni med\" = Unimed, \"bradesco saúde\", \"sul américa\", \"hap vida\" = Hapvida, \"notre dame\"/\"intermédica\"). Interprete pelo contexto. Use TUDO o que foi falado, inclusive em perguntas e respostas curtas (ex.: \"Qual seu plano? É a Amil\" = CONVÊNIO: Amil; \"Você tem dor de cabeça? Tenho\" = sintoma). Escreva \"não mencionado\" só quando o assunto realmente não apareceu.\n\nTranscrição da consulta (em trechos, na ordem):\n" + tr.slice(0, 60000) }),
         });
         let resumo = String(r?.message || "").trim();
         // às vezes a resposta não vem na hora: busca a resposta do agente na conversa

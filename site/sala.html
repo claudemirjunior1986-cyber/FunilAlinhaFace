@@ -297,6 +297,8 @@ function gravLigarRemoto(stream){
 function gravTipo(){ return ["audio/webm;codecs=opus","audio/webm","audio/mp4"].find(t=>window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || ""; }
 function gravIniciar(){
   if(EH_PACIENTE || !G.ctx || G.ativo || aceitePaciente !== true || !window.MediaRecorder) return;
+  // se o médico entrou de novo na mesma sala, continua a numeração dos trechos
+  if(!G.n && linha && linha.transcricao) G.n = (String(linha.transcricao).match(/\[Trecho /g) || []).length;
   G.ativo = true; G.pausado = false; $("#grav").hidden = false; $("#grav").classList.remove("pausa"); $("#bGrav").textContent = "Pausar";
   gravNovoTrecho();
   gravStatus();
@@ -307,12 +309,13 @@ function gravNovoTrecho(){
   const rec = new MediaRecorder(G.dest.stream, tipo ? { mimeType: tipo, audioBitsPerSecond: 32000 } : undefined);
   const pedacos = []; const n = ++G.n;
   rec.ondataavailable = e => { if(e.data && e.data.size) pedacos.push(e.data); };
-  rec.onstop = () => { const blob = new Blob(pedacos, { type: rec.mimeType || tipo || "audio/webm" }); if(blob.size > 2000) gravEnviar(blob, n); };
+  let terminou; G.parada = new Promise(r => terminou = r);
+  rec.onstop = () => { const blob = new Blob(pedacos, { type: rec.mimeType || tipo || "audio/webm" }); if(blob.size > 2000) gravEnviar(blob, n); terminou(); };
   rec.start(10000);
   G.rec = rec;
   clearTimeout(G.timer); G.timer = setTimeout(()=>{ if(G.rec === rec && rec.state === "recording"){ rec.stop(); gravNovoTrecho(); } }, TRECHO_MS);
 }
-function gravParar(){ clearTimeout(G.timer); if(G.rec && G.rec.state === "recording") G.rec.stop(); G.rec = null; }
+function gravParar(){ clearTimeout(G.timer); if(G.rec && G.rec.state === "recording") G.rec.stop(); G.rec = null; return G.parada || Promise.resolve(); }
 async function paraWav(blob){         // Safari grava em mp4: converte para WAV 16 kHz
   const ab = await blob.arrayBuffer();
   const buf = await new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 16000, 16000).decodeAudioData(ab);
@@ -354,6 +357,8 @@ async function gerarResumo(){
   $("#blocoResumo").hidden = false; $("#bRefazer").hidden = true;
   const st = $("#resumoStatus"); st.className = "msg info";
   st.textContent = "Terminando de transcrever o áudio…";
+  // espera o último trecho fechar e terminar de transcrever (pode ter entrado na fila agora)
+  try{ await Promise.race([G.parada || Promise.resolve(), new Promise(r=>setTimeout(r,8000))]); }catch(e){}
   await G.fila;
   st.textContent = "Escrevendo o resumo (leva alguns segundos)…";
   const { data, error } = await sb.functions.invoke("whats", { body: { acao:"resumir", sala: SALA } });
