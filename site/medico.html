@@ -93,6 +93,34 @@
   .av-resp{display:flex;flex-direction:column;gap:8px}
   .av-resp textarea{min-height:80px}
   .av-cita{font-size:12.5px;color:var(--ink-3);border-left:2px solid var(--line-strong);padding-left:8px}
+
+  /* agenda em calendário */
+  .cal-top{display:flex;align-items:center;gap:8px;margin:4px 0 12px}
+  .cal-top h2{font-size:19px;margin:0 6px;min-width:190px;text-align:center}
+  .cal-wrap{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:16px;align-items:start}
+  .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+  .cal .dow{font-size:11.5px;font-weight:600;color:var(--ink-3);text-align:center;padding:2px 0 4px;text-transform:uppercase;letter-spacing:.04em}
+  .cal .dia{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:9px;min-height:92px;padding:5px 6px;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+  .cal .dia:hover{border-color:var(--line-strong)}
+  .cal .dia.fora{opacity:.45}
+  .cal .dia.hoje .num{background:var(--accent);color:var(--accent-ink);border-radius:99px;padding:0 7px}
+  .cal .dia.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+  .cal .num{font-size:12.5px;font-weight:600;align-self:flex-start;margin-bottom:2px}
+  .cal .ev{font-size:11.5px;line-height:1.3;border-radius:5px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--surface-2);color:var(--ink)}
+  .cal .ev b{font-weight:600}
+  .cal .ev.ok{background:var(--ok-bg);color:var(--ok)}
+  .cal .ev.warn{background:var(--warn-bg);color:var(--warn)}
+  .cal .ev.crit{background:var(--crit-bg);color:var(--crit)}
+  .cal .mais{font-size:11px;color:var(--ink-3);padding-left:4px}
+  .cal .pontos{display:none;font-size:9px;letter-spacing:1px;color:var(--accent)}
+  .cal-det h2{font-size:16px}
+  @media (max-width:900px){ .cal-wrap{grid-template-columns:1fr} }
+  @media (max-width:600px){
+    .cal .dia{min-height:54px;padding:4px;align-items:center}
+    .cal .ev,.cal .mais{display:none}
+    .cal .pontos{display:block}
+    .cal-top h2{min-width:0;font-size:17px}
+  }
 </style>
 </head>
 <body>
@@ -113,7 +141,6 @@
   <div class="tabs" role="group" aria-label="Visualização">
     <button id="tAgenda" aria-pressed="true">Agenda</button>
     <button id="tPac" aria-pressed="false">Meus pacientes</button>
-    <button id="tGoogle" aria-pressed="false">Google Agenda</button>
     <button id="tAvisos" aria-pressed="false">Avisos da equipe</button>
   </div>
 
@@ -167,28 +194,10 @@ function render(){
   $("#tAgenda").setAttribute("aria-pressed", aba==="agenda");
   $("#tPac").setAttribute("aria-pressed", aba==="pac");
   $("#tAvisos").setAttribute("aria-pressed", aba==="avisos");
-  $("#tGoogle").setAttribute("aria-pressed", aba==="google");
-  if(aba === "google") return renderGoogle();
+
   badgeAvisos();
   if(aba === "avisos") return renderAvisos();
   aba === "agenda" ? renderAgenda() : renderPacientes();
-}
-
-/* ---------- Google Agenda do próprio cirurgião (a mesma que a Bia usa) ---------- */
-function renderGoogle(){
-  const c = $("#conteudo"); c.textContent = "";
-  const cal = meuEmail();
-  const topo = el("div"); topo.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px";
-  topo.appendChild(el("div","vazio","Sua agenda do Google (" + cal + "), a mesma em que a Bia marca as consultas. Para ver aqui, o navegador precisa estar logado nessa conta Google."));
-  const ab = el("button","btn btn-sm","Abrir no Google Agenda");
-  ab.addEventListener("click", ()=>window.open("https://calendar.google.com/calendar/u/0/r/week","_blank","noopener"));
-  topo.appendChild(ab);
-  c.appendChild(topo);
-  const fr = document.createElement("iframe");
-  fr.src = "https://calendar.google.com/calendar/embed?src=" + encodeURIComponent(cal) + "&ctz=America%2FSao_Paulo&mode=WEEK&showPrint=0&showTitle=0&showCalendars=0&hl=pt_BR";
-  fr.title = "Google Agenda"; fr.loading = "lazy";
-  fr.style.cssText = "width:100%;height:calc(100vh - 230px);min-height:520px;border:1px solid var(--line);border-radius:12px;background:#fff";
-  c.appendChild(fr);
 }
 
 /* ---------- avisos da equipe (recados para o cirurgião) ---------- */
@@ -321,21 +330,76 @@ function grupo(titulo, lista, mostrarData, vazio){
 
 const porHorario = (a,b) => ((a.dataConsulta||"")+(a.horaConsulta||"")).localeCompare((b.dataConsulta||"")+(b.horaConsulta||""));
 
+let calMes = null, calDia = null;
+const MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 function renderAgenda(){
   const c = $("#conteudo"); c.textContent = "";
-  const h = hoje(), limite = somaDias(h, 14);
-  const deHoje = pacientes.filter(p => p.dataConsulta === h).sort(porHorario);
+  const h = hoje();
+  if(!calMes) calMes = h.slice(0,7);
+  if(!calDia || !calDia.startsWith(calMes)) calDia = h.startsWith(calMes) ? h : calMes + "-01";
+  const ano = Number(calMes.slice(0,4)), mes = Number(calMes.slice(5,7)) - 1;
+  const ativos = pacientes.filter(p => p.dataConsulta && !["perdido"].includes(p.etapa));
+  const porDia = {};
+  ativos.forEach(p => { (porDia[p.dataConsulta] = porDia[p.dataConsulta] || []).push(p); });
+  Object.values(porDia).forEach(l => l.sort(porHorario));
   const pendentes = pacientes.filter(p => precisaRegistro(p) && p.dataConsulta < h).sort(porHorario);
-  const proximas = pacientes.filter(p => p.dataConsulta > h && p.dataConsulta <= limite && !["perdido","noshow"].includes(p.etapa)).sort(porHorario);
 
+  // números rápidos
+  const deHoje = porDia[h] || [];
+  const doMes = ativos.filter(p => p.dataConsulta.startsWith(calMes));
   const k = el("div","kpis");
-  [["Hoje", deHoje.length, ""], ["Faltam registrar", pendentes.length + deHoje.filter(precisaRegistro).length, pendentes.length?"alert":""], ["Próximos 14 dias", proximas.length, ""]]
+  [["Hoje", deHoje.length, ""], ["Faltam registrar", pendentes.length + deHoje.filter(precisaRegistro).length, pendentes.length?"alert":""], ["Consultas no mês", doMes.length, ""]]
     .forEach(([l,v,cl]) => { const d = el("div","card kpi"+(cl?" "+cl:"")); d.append(el("span","v",String(v)), el("span","l",l)); k.appendChild(d); });
   c.appendChild(k);
-
   if(pendentes.length) c.appendChild(grupo("Consultas passadas sem registro", pendentes, true, ""));
-  c.appendChild(grupo("Hoje · "+dataBR(h), deHoje, false, "Nenhuma consulta marcada para hoje."));
-  c.appendChild(grupo("Próximos dias", proximas, true, "Nada marcado nas próximas duas semanas."));
+
+  // cabeçalho do mês
+  const top = el("div","cal-top");
+  const ant = el("button","btn btn-sm","‹"), prox = el("button","btn btn-sm","›"), hj = el("button","btn btn-sm btn-ghost","Hoje");
+  const mover = n => { const d = new Date(ano, mes + n, 1); calMes = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0"); calDia = null; renderAgenda(); };
+  ant.addEventListener("click", ()=>mover(-1)); prox.addEventListener("click", ()=>mover(1));
+  hj.addEventListener("click", ()=>{ calMes = h.slice(0,7); calDia = h; renderAgenda(); });
+  const nm = MESES[mes]; top.append(ant, el("h2",null, nm.charAt(0).toUpperCase() + nm.slice(1) + " de " + ano), prox, hj);
+  c.appendChild(top);
+
+  const wrap = el("div","cal-wrap");
+  const grid = el("div","cal");
+  ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].forEach(d => grid.appendChild(el("div","dow",d)));
+  const ini = new Date(ano, mes, 1 - new Date(ano, mes, 1).getDay());
+  for(let i=0;i<42;i++){
+    const d = new Date(ini); d.setDate(ini.getDate()+i);
+    if(i>=35 && d.getMonth()!==mes) break;
+    const iso = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    const doM = d.getMonth()===mes;
+    const cel = el("button","dia"+(doM?"":" fora")+(iso===h?" hoje":"")+(iso===calDia?" sel":""));
+    cel.appendChild(el("span","num",String(d.getDate())));
+    const l = porDia[iso] || [];
+    l.slice(0,3).forEach(p => {
+      const [, cls] = situacao(p);
+      const ev = el("div","ev "+cls);
+      ev.append(el("b",null,(p.horaConsulta||"").slice(0,5)), el("span",null," "+String(p.nome||"").split(" ")[0]));
+      cel.appendChild(ev);
+    });
+    if(l.length > 3) cel.appendChild(el("div","mais","+" + (l.length-3)));
+    if(l.length) cel.appendChild(el("div","pontos", "●".repeat(Math.min(l.length,5))));
+    cel.addEventListener("click", ()=>{ if(!doM) calMes = iso.slice(0,7); calDia = iso; renderAgenda(); });
+    grid.appendChild(cel);
+  }
+  wrap.appendChild(grid);
+
+  // consultas do dia escolhido
+  const det = el("section","grupo cal-det");
+  const dd = new Date(calDia+"T12:00:00");
+  const tit = dd.toLocaleDateString("pt-BR",{weekday:"long", day:"2-digit", month:"long"});
+  const lista = porDia[calDia] || [];
+  const hh = el("h2",null, tit.charAt(0).toUpperCase()+tit.slice(1)); hh.appendChild(el("span","n",String(lista.length)));
+  det.appendChild(hh);
+  const ld = el("div","lista");
+  if(!lista.length) ld.appendChild(el("div","vazio","Nenhuma consulta neste dia."));
+  lista.forEach(p => ld.appendChild(itemPaciente(p, false)));
+  det.appendChild(ld);
+  wrap.appendChild(det);
+  c.appendChild(wrap);
 }
 
 function renderPacientes(){
@@ -505,7 +569,7 @@ function formRegistro(p){
 $("#tAgenda").addEventListener("click", ()=>{ aba = "agenda"; render(); });
 $("#tPac").addEventListener("click", ()=>{ aba = "pac"; render(); });
 $("#tAvisos").addEventListener("click", ()=>{ aba = "avisos"; render(); });
-$("#tGoogle").addEventListener("click", ()=>{ aba = "google"; render(); });
+
 $("#bSair").addEventListener("click", FUNIL.sair);
 $("#bSenha").addEventListener("click", FUNIL.trocarSenha);
 document.addEventListener("keydown", e => { if(e.key === "Escape") fechar(); });
