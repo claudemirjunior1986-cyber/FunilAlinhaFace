@@ -115,11 +115,15 @@ Deno.serve(async (req) => {
   const u = await fetch(SB_URL + "/auth/v1/user", { headers: { apikey: SB_KEY, Authorization: auth } });
   if (!u.ok) return json({ erro: "faça login de novo" }, 401);
   const eu = await u.json();
-  const adm = await rest(auth, "rpc/eh_admin", { method: "POST", body: "{}" });
-  if (!adm.ok || (await adm.json()) !== true) return json({ erro: "só administradores" }, 403);
-
   let p: any = {};
   try { p = await req.json(); } catch { /* corpo vazio */ }
+
+  // teleconsulta: o cirurgião também usa (o banco só deixa ele ver as salas dele)
+  const livre = p.acao === "transcrever" || p.acao === "resumir";
+  if (!livre) {
+    const adm = await rest(auth, "rpc/eh_admin", { method: "POST", body: "{}" });
+    if (!adm.ok || (await adm.json()) !== true) return json({ erro: "só administradores" }, 403);
+  }
 
   try {
     switch (p.acao) {
@@ -293,6 +297,17 @@ Deno.serve(async (req) => {
           if (c) await gm(`/chat/${c.id}`, { method: "DELETE" });
         } catch { /* ok */ }
         return json({ ok: true, resumo });
+      }
+      case "limpar_resumo": {
+        // apaga as conversas que ficaram no agente "Resumo de Consultas" (não tem paciente nelas)
+        let apagadas = 0;
+        for (let volta = 0; volta < 10; volta++) {
+          const cs = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=50&agentId=${AGENTE_RESUMO}`);
+          const alvo = (Array.isArray(cs) ? cs : []).filter((c: any) => c.agentId === AGENTE_RESUMO && !c.channelId);
+          if (!alvo.length) break;
+          for (const c of alvo) { try { await gm(`/chat/${c.id}`, { method: "DELETE" }); apagadas++; } catch { /* segue */ } }
+        }
+        return json({ ok: true, apagadas });
       }
       case "assumir":
       case "devolver": {
