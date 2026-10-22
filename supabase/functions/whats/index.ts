@@ -271,8 +271,20 @@ Deno.serve(async (req) => {
           method: "POST",
           body: JSON.stringify({ contextId: nomeRes, chatName: nomeRes, prompt: "GERAR RESUMO\n\nTranscrição da consulta (em trechos, na ordem):\n" + tr.slice(0, 60000) }),
         });
-        const resumo = String(r?.message || "").trim();
-        if (!resumo) return json({ erro: "o resumo não veio" }, 502);
+        let resumo = String(r?.message || "").trim();
+        // às vezes a resposta não vem na hora: busca a resposta do agente na conversa
+        for (let t = 0; t < 20 && !resumo; t++) {
+          await espera(3000);
+          try {
+            const cs = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=3&query=${nomeRes}`);
+            const c = (Array.isArray(cs) ? cs : []).find((x: any) => x.name === nomeRes);
+            if (!c) continue;
+            const ms = await gm(`/chat/${c.id}/messages?page=1&pageSize=5`);
+            const a = (Array.isArray(ms) ? ms : []).find((m: any) => m.role === "assistant" && String(m.text || "").length > 40);
+            if (a) resumo = String(a.text).trim();
+          } catch { /* tenta de novo */ }
+        }
+        if (!resumo) return json({ erro: "o resumo não veio", detalhe: JSON.stringify(r).slice(0, 300) }, 502);
         await rest(auth, "funil_teleconsultas?id=eq." + sala, { method: "PATCH", body: JSON.stringify({ resumo_ia: resumo, resumo_em: new Date().toISOString() }) });
         // limpeza da conversa de resumo no GPT Maker
         try {
