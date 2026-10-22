@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
         for (let pg = 1; pg <= paginas; pg++) {
           const lista = await gm(`/workspace/${WORKSPACE}/chats?page=${pg}&pageSize=100`);
           const arr = Array.isArray(lista) ? lista : [];
-          await gravarChats(auth, arr.filter((c: any) => !c.isGroup && c.channelId).map(linhaDoChat));
+          await gravarChats(auth, arr.filter((c: any) => !c.isGroup && c.channelId && c.agentId !== AGENTE_RESUMO).map(linhaDoChat));
           total += arr.length;
           if (arr.length < 100) break;
         }
@@ -216,7 +216,7 @@ Deno.serve(async (req) => {
           if (tent) await new Promise((r) => setTimeout(r, 1500));
           const novos = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=20`);
           const arr = Array.isArray(novos) ? novos : [];
-          await gravarChats(auth, arr.filter((c: any) => !c.isGroup && c.channelId).map(linhaDoChat));
+          await gravarChats(auth, arr.filter((c: any) => !c.isGroup && c.channelId && c.agentId !== AGENTE_RESUMO).map(linhaDoChat));
           chatId = arr.find((c: any) => so8(c.whatsappPhone) === tel.slice(-8))?.id || null;
         }
         if (chatId) await registrarEnvio(auth, chatId, texto, eu.email);
@@ -304,11 +304,12 @@ Deno.serve(async (req) => {
         for (let volta = 0; volta < 10; volta++) {
           const cs = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=50&agentId=${AGENTE_RESUMO}`);
           const lista = Array.isArray(cs) ? cs : [];
-          if (p.ver) return json({ total: lista.length, exemplo: lista.slice(0, 3).map((c: any) => ({ ...c, conversation: undefined })) });
-          const alvo = lista.filter((c: any) => !c.channelId && !c.isGroup &&
-            (c.agentId === AGENTE_RESUMO || /^(TX|RS)[0-9a-f]/i.test(String(c.name || "")) || String(c.name || "") === "Desconhecido"));
+          const alvo = lista.filter((c: any) => c.agentId === AGENTE_RESUMO);
           if (!alvo.length) break;
-          for (const c of alvo) { try { await gm(`/chat/${c.id}`, { method: "DELETE" }); apagadas++; } catch { /* segue */ } }
+          for (const c of alvo) {
+            try { await gm(`/chat/${encodeURIComponent(c.id)}`, { method: "DELETE" }); apagadas++; } catch { /* segue */ }
+            await rest(auth, "funil_whats?chat_id=eq." + encodeURIComponent(c.id), { method: "DELETE" });
+          }
         }
         return json({ ok: true, apagadas });
       }
