@@ -122,6 +122,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script src="auth.js"></script>
+<script src="tele.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 function el(tag, cls, txt){ const e = document.createElement(tag); if(cls) e.className = cls; if(txt!=null) e.textContent = txt; return e; }
@@ -376,6 +377,17 @@ function abrir(id){
   desenharAvisosFicha(avs, p.id);
   avs.appendChild(comp);
   b.appendChild(f);
+
+  const tb = el("div","bloco");
+  const bt = el("button","btn btn-primary","🎥 Iniciar teleconsulta");
+  bt.addEventListener("click", async ()=>{
+    const w = window.open("about:blank","_blank");
+    try{ const id = await teleSala(p, meuEmail()); if(w) w.location = teleLinkMedico(id); else location.href = teleLinkMedico(id); }
+    catch(e){ if(w) w.close(); toast("Não consegui abrir a sala. Tente de novo."); }
+  });
+  tb.append(el("h3",null,"Consulta online"), bt,
+    el("div","vazio","Abre a sala de vídeo. Lá aparece o link para mandar ao paciente, se a equipe ainda não mandou."));
+  b.appendChild(tb);
 
   const bloco = el("div","bloco");
   if(p.consultaRegistradaEm){

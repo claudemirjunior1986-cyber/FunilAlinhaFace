@@ -539,6 +539,7 @@
 <script src="whats.js"></script>
 <script src="recados.js"></script>
 <script src="agenda.js"></script>
+<script src="tele.js"></script>
 <script>
 /* ============ modelo ============ */
 const STAGES = [
@@ -2261,7 +2262,15 @@ function abrirDrawer(id){
   fs2.append(g2,g2b,g2d);
   const hCir = el("div","hint"); hCir.textContent = "O cirurgião escolhido vê este paciente na agenda dele no site, e só ele.";
   fs2.append(hCir);
-  if(typeof agBotaoFicha === "function") fs2.append(agBotaoFicha(p));
+  const btsCons = el("div","rc-ficha-bts");
+  if(typeof agBotaoFicha === "function") btsCons.append(agBotaoFicha(p));
+  if(id){
+    const bt = el("button","btn btn-sm","🎥 Teleconsulta"); bt.type = "button";
+    bt.title = "Cria a sala de vídeo da consulta e manda o link para o paciente";
+    bt.addEventListener("click",()=>abrirTeleconsulta(pacientes.get(p.id) || p));
+    btsCons.append(bt);
+  }
+  fs2.append(btsCons);
   const g2c = el("div","grid2");
   g2c.append(campo("Exames solicitados em", inp("f_dexames","date",p.dataExames||"")),
              campo("Proposta enviada em", inp("f_dprop","date",p.dataProposta||"")));
@@ -2399,6 +2408,25 @@ function abrirDrawer(id){
     if(atual===0 || Object.values(OPME_PADRAO).includes(atual)) $("#f_opme").value = OPME_PADRAO[e.target.value]||0;
   });
   $("#f_nome").focus();
+}
+async function abrirTeleconsulta(p){
+  let id;
+  try{ id = await teleSala(p); }catch(e){ toast("Não consegui criar a sala. Tente de novo."); return; }
+  const cir = CIRURGIOES.find(c=>c.email===p.cirurgiao);
+  document.querySelectorAll(".rc-scrim,.rc-modal").forEach(n=>n.remove());
+  const scrim = el("div","rc-scrim"); const m = el("div","rc-modal");
+  m.append(el("h3",null,"🎥 Teleconsulta — " + (p.nome||"paciente")),
+    el("div","hint","A sala é própria do site: o paciente entra pelo link, sem instalar nada. O médico entra pela área dele (ficha do paciente → Iniciar teleconsulta) ou pelo link de médico abaixo."));
+  const msg = teleMensagem(p, id, cir ? cir.nome : "");
+  const ta = el("textarea"); ta.value = msg; ta.rows = 6; m.append(ta);
+  const ops = el("div","rc-mops"); ops.style.flexWrap = "wrap";
+  const bw = el("button","btn btn-primary","Enviar no WhatsApp"); bw.addEventListener("click",()=>{ scrim.remove(); m.remove(); abrirWhats(p, ta.value); });
+  const bc = el("button","btn","Copiar link do paciente"); bc.addEventListener("click",()=>copiar(teleLinkPaciente(id),"Link do paciente copiado."));
+  const be = el("button","btn","Entrar na sala"); be.title = "Abre a sala como equipe/médico"; be.addEventListener("click",()=>window.open(teleLinkMedico(id),"_blank"));
+  const bx = el("button","btn btn-ghost","Fechar"); bx.addEventListener("click",()=>{ scrim.remove(); m.remove(); });
+  ops.append(bx, be, bc, bw); m.appendChild(ops);
+  scrim.addEventListener("click",()=>{ scrim.remove(); m.remove(); });
+  document.body.append(scrim, m);
 }
 function fecharOverlays(){ document.querySelectorAll(".scrim,.drawer,.modal").forEach(n=>n.remove()); }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") fecharOverlays(); });
