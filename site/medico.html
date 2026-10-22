@@ -532,6 +532,11 @@ function formRegistro(p){
   qx.append(cks, ix);
   const qr = el("label","f perg"); qr.append(document.createTextNode("Resumo da consulta"));
   const tr = el("textarea"); tr.placeholder = "Queixa, achados, conduta e próximo passo. Ao salvar, a equipe (Claudemir e Ana Clara) recebe este resumo como recado."; tr.value = p.resumoConsulta||""; qr.appendChild(tr);
+  // rascunho da IA da teleconsulta (se houver), quando o resumo ainda está vazio
+  if(!tr.value){
+    sb.from("funil_teleconsultas").select("resumo_ia,resumo_em").eq("paciente_id", p.id).not("resumo_ia","is",null).order("resumo_em",{ascending:false}).limit(1)
+      .then(({data})=>{ if(data && data[0] && !tr.value){ tr.value = data[0].resumo_ia; const av = el("div","vazio","✨ Rascunho feito pela IA a partir da teleconsulta. Revise e corrija antes de salvar."); av.style.color = "var(--accent)"; qr.appendChild(av); tr.style.minHeight = "260px"; } });
+  }
   f.append(q1, q2, qx, qr);
 
   function ajustar(){
@@ -579,6 +584,8 @@ document.addEventListener("keydown", e => { if(e.key === "Escape") fechar(); });
   $("#ola").textContent = "Olá, " + eu.nome;
   await carregar();
   await carregarAvisos();
+  const abrirId = new URLSearchParams(location.search).get("abrir");
+  if(abrirId && pacientes.some(x=>x.id===abrirId)){ abrir(abrirId); history.replaceState(null,"",location.pathname); }
   if(avisosPendentes().length && !pacientes.some(p=>p.dataConsulta===hoje())){ aba = "avisos"; render(); }
   sb.channel("avisos")
     .on("postgres_changes", { event: "*", schema: "public", table: "funil_recados" }, ev => {

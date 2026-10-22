@@ -65,6 +65,15 @@
   .plano-b{position:absolute;left:12px;right:12px;bottom:calc(90px + env(safe-area-inset-bottom));display:flex;justify-content:center}
   .plano-b a,.plano-b button{background:rgba(11,20,36,.85);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:10px;padding:9px 14px;text-decoration:none;font-size:13.5px}
   .fim{flex:1;display:grid;place-items:center;padding:20px;text-align:center}
+  .grav{align-self:flex-start;display:flex;align-items:center;gap:8px;background:rgba(168,50,40,.85);border-radius:99px;padding:5px 6px 5px 12px;font-size:12.5px;pointer-events:auto}
+  .grav.pausa{background:rgba(11,20,36,.8)}
+  .grav button{border:0;border-radius:99px;padding:4px 10px;background:rgba(255,255,255,.2);color:#fff;font-size:12px}
+  .grav .bola{width:9px;height:9px;border-radius:50%;background:#fff;animation:pisca 1.2s infinite}
+  .grav.pausa .bola{animation:none;opacity:.5}
+  @keyframes pisca{50%{opacity:.25}}
+  .resumo{width:100%;min-height:300px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:10px;padding:12px;font:inherit;font-size:14px;line-height:1.5;text-align:left}
+  .fim .caixa{max-width:640px;text-align:left}
+  .ops{display:flex;gap:8px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -109,6 +118,7 @@
     <div class="topo">
       <div class="estado" id="estado"><span class="p"></span><span id="estadoT">Conectando…</span></div>
       <div class="selo" id="seloAceite" hidden></div>
+      <div class="grav" id="grav" hidden><span class="bola"></span><span id="gravT">Gravando áudio para o resumo</span><button id="bGrav" type="button">Pausar</button></div>
     </div>
     <div class="plano-b" id="planoB" hidden></div>
     <div class="barra">
@@ -124,6 +134,16 @@
     <div class="caixa">
       <h1>Consulta encerrada</h1>
       <p class="sub" id="fimTexto">Obrigado! Qualquer dúvida, fale com a gente pelo WhatsApp.</p>
+      <div id="blocoResumo" hidden style="display:flex;flex-direction:column;gap:10px">
+        <div class="msg info" id="resumoStatus">Gerando o resumo…</div>
+        <textarea class="resumo" id="resumoTxt" placeholder="O resumo aparece aqui."></textarea>
+        <div class="ops">
+          <button class="btn btn-primary" id="bFicha" type="button">Abrir a ficha para registrar a consulta</button>
+          <button class="btn" id="bCopiarResumo" type="button">Copiar resumo</button>
+          <button class="btn" id="bRefazer" type="button" hidden>Gerar o resumo de novo</button>
+        </div>
+        <p class="sub" style="font-size:12.5px;color:var(--ink-3)">Rascunho feito pela IA a partir do áudio. Revise antes de salvar no prontuário. O áudio já foi apagado.</p>
+      </div>
       <button class="btn" id="bVoltar" hidden>Entrar de novo</button>
     </div>
   </div>
@@ -182,7 +202,7 @@ function novaConexao(){
   if(local) local.getTracks().forEach(t => pc.addTrack(t, local));
   else { pc.addTransceiver("audio",{direction:"recvonly"}); pc.addTransceiver("video",{direction:"recvonly"}); }
   pc.onicecandidate = e => { if(e.candidate) enviar({ t:"cand", c: e.candidate, n }); };
-  pc.ontrack = e => { const r = $("#remoto"); if(r.srcObject !== e.streams[0]) r.srcObject = e.streams[0]; };
+  pc.ontrack = e => { const r = $("#remoto"); if(r.srcObject !== e.streams[0]) r.srcObject = e.streams[0]; gravLigarRemoto(e.streams[0]); };
   pc.onconnectionstatechange = () => {
     const s = pc.connectionState;
     if(s === "connected"){
@@ -190,6 +210,7 @@ function novaConexao(){
       estado(EH_PACIENTE ? "Conectado com o médico" : "Conectado com " + (nomePaciente || "o paciente"), "ok");
       espera("");
       if(!conectadoUmaVez){ conectadoUmaVez = true; if(!EH_PACIENTE) registrar({ inicio: new Date().toISOString() }, true); }
+      gravIniciar();
     }else if(s === "connecting"){
       estado("Conectando…");
       clearTimeout(timerFalha); timerFalha = setTimeout(()=>{ if(pc && pc.connectionState !== "connected") mostrarPlanoB(); }, 25000);
@@ -225,7 +246,7 @@ async function aoReceber({ payload: m }){
   }else{
     if(m.t === "hello"){
       if(m.nome) nomePaciente = m.nome;
-      if(typeof m.aceite === "boolean" && m.aceite !== aceitePaciente){ aceitePaciente = m.aceite; mostrarAceite(); registrar({ consentimento: m.aceite, consentimento_em: new Date().toISOString() }); }
+      if(typeof m.aceite === "boolean" && m.aceite !== aceitePaciente){ aceitePaciente = m.aceite; mostrarAceite(); await registrar({ consentimento: m.aceite, consentimento_em: new Date().toISOString() }); if(pc && pc.connectionState === "connected") gravIniciar(); }
       const st = pc ? pc.connectionState : "new";
       const recente = Date.now() - ultimaOferta < 12000;
       if(st === "connected" || ((st === "connecting" || st === "new") && pc && recente)) return;
@@ -260,6 +281,98 @@ function mostrarPlanoB(){
   }
 }
 
+/* ---------- gravação para o resumo (só o lado do médico, só com o aceite do paciente) ---------- */
+const TRECHO_MS = 5 * 60 * 1000;
+const G = { ctx:null, dest:null, rec:null, n:0, ativo:false, pausado:false, fila:Promise.resolve(), pend:0, feitos:0, erros:0, timer:null, remotoLigado:null };
+function gravPreparar(){            // chamado no clique em "Entrar" (gesto do usuário libera o áudio)
+  if(EH_PACIENTE || G.ctx) return;
+  try{ G.ctx = new (window.AudioContext || window.webkitAudioContext)(); G.dest = G.ctx.createMediaStreamDestination(); G.ctx.resume(); }catch(e){ G.ctx = null; }
+  if(G.ctx && local && local.getAudioTracks().length) G.ctx.createMediaStreamSource(new MediaStream(local.getAudioTracks())).connect(G.dest);
+}
+function gravLigarRemoto(stream){
+  if(!G.ctx || !stream || !stream.getAudioTracks().length || G.remotoLigado === stream) return;
+  G.remotoLigado = stream;
+  try{ G.ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks())).connect(G.dest); }catch(e){}
+}
+function gravTipo(){ return ["audio/webm;codecs=opus","audio/webm","audio/mp4"].find(t=>window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || ""; }
+function gravIniciar(){
+  if(EH_PACIENTE || !G.ctx || G.ativo || aceitePaciente !== true || !window.MediaRecorder) return;
+  G.ativo = true; G.pausado = false; $("#grav").hidden = false; $("#grav").classList.remove("pausa"); $("#bGrav").textContent = "Pausar";
+  gravNovoTrecho();
+  gravStatus();
+}
+function gravNovoTrecho(){
+  if(!G.ativo || G.pausado) return;
+  const tipo = gravTipo();
+  const rec = new MediaRecorder(G.dest.stream, tipo ? { mimeType: tipo, audioBitsPerSecond: 32000 } : undefined);
+  const pedacos = []; const n = ++G.n;
+  rec.ondataavailable = e => { if(e.data && e.data.size) pedacos.push(e.data); };
+  rec.onstop = () => { const blob = new Blob(pedacos, { type: rec.mimeType || tipo || "audio/webm" }); if(blob.size > 2000) gravEnviar(blob, n); };
+  rec.start(10000);
+  G.rec = rec;
+  clearTimeout(G.timer); G.timer = setTimeout(()=>{ if(G.rec === rec && rec.state === "recording"){ rec.stop(); gravNovoTrecho(); } }, TRECHO_MS);
+}
+function gravParar(){ clearTimeout(G.timer); if(G.rec && G.rec.state === "recording") G.rec.stop(); G.rec = null; }
+async function paraWav(blob){         // Safari grava em mp4: converte para WAV 16 kHz
+  const ab = await blob.arrayBuffer();
+  const buf = await new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 16000, 16000).decodeAudioData(ab);
+  const src = buf.getChannelData(0), ratio = buf.sampleRate / 16000, n = Math.floor(src.length / ratio);
+  const dv = new DataView(new ArrayBuffer(44 + n*2)); const w = (o,t)=>[...t].forEach((c,i)=>dv.setUint8(o+i,c.charCodeAt(0)));
+  w(0,"RIFF"); dv.setUint32(4,36+n*2,true); w(8,"WAVE"); w(12,"fmt "); dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,1,true);
+  dv.setUint32(24,16000,true); dv.setUint32(28,32000,true); dv.setUint16(32,2,true); dv.setUint16(34,16,true); w(36,"data"); dv.setUint32(40,n*2,true);
+  for(let i=0;i<n;i++){ const v = Math.max(-1, Math.min(1, src[Math.floor(i*ratio)])); dv.setInt16(44+i*2, v<0 ? v*0x8000 : v*0x7fff, true); }
+  return new Blob([dv], { type: "audio/wav" });
+}
+function gravEnviar(blob, n){
+  G.pend++; gravStatus();
+  G.fila = G.fila.then(async ()=>{
+    try{
+      let b = blob, ext = "webm";
+      if(!/webm/.test(blob.type)){ b = await paraWav(blob); ext = "wav"; }
+      const caminho = "tele/" + SALA + "/" + String(n).padStart(3,"0") + "." + ext;
+      const up = await sb.storage.from("anexos").upload(caminho, b, { contentType: b.type, upsert: true });
+      if(up.error) throw new Error(up.error.message);
+      const { error } = await sb.functions.invoke("whats", { body: { acao:"transcrever", sala: SALA, caminho } });
+      if(error) throw error;
+      G.feitos++;
+    }catch(e){ G.erros++; console.warn("trecho", n, e); }
+    G.pend--; gravStatus();
+  });
+}
+function gravStatus(){
+  const t = $("#gravT"); if(!t) return;
+  const extra = G.pend ? " · transcrevendo " + G.pend + "…" : (G.feitos ? " · " + G.feitos + " trecho(s) transcrito(s)" : "");
+  t.textContent = (G.pausado ? "Gravação pausada" : "Gravando áudio para o resumo") + extra + (G.erros ? " · ⚠ " + G.erros + " falhou" : "");
+}
+$("#bGrav").addEventListener("click", ()=>{
+  if(!G.ativo) return;
+  if(G.pausado){ G.pausado = false; $("#grav").classList.remove("pausa"); $("#bGrav").textContent = "Pausar"; gravNovoTrecho(); }
+  else { G.pausado = true; gravParar(); $("#grav").classList.add("pausa"); $("#bGrav").textContent = "Retomar"; }
+  gravStatus();
+});
+async function gerarResumo(){
+  $("#blocoResumo").hidden = false; $("#bRefazer").hidden = true;
+  const st = $("#resumoStatus"); st.className = "msg info";
+  st.textContent = "Terminando de transcrever o áudio…";
+  await G.fila;
+  st.textContent = "Escrevendo o resumo (leva alguns segundos)…";
+  const { data, error } = await sb.functions.invoke("whats", { body: { acao:"resumir", sala: SALA } });
+  if(error || !data || !data.resumo){
+    let m = "não consegui gerar o resumo"; try{ m = (await error.context.json()).erro || m; }catch(e){}
+    st.className = "msg"; st.textContent = "⚠ " + m + ". Tente de novo em instantes ou faça o resumo à mão.";
+    $("#bRefazer").hidden = false; return;
+  }
+  $("#resumoTxt").value = data.resumo;
+  st.textContent = "✔ Resumo pronto. Revise e use no registro da consulta.";
+  $("#bRefazer").hidden = false;
+}
+$("#bRefazer").addEventListener("click", gerarResumo);
+$("#bCopiarResumo").addEventListener("click", ()=>{ navigator.clipboard?.writeText($("#resumoTxt").value).then(()=>{ $("#bCopiarResumo").textContent = "Copiado ✔"; setTimeout(()=>$("#bCopiarResumo").textContent = "Copiar resumo", 2000); }); });
+$("#bFicha").addEventListener("click", ()=>{
+  const destino = (FUNIL._papel === "admin" ? "painel.html" : "medico.html?abrir=") + (FUNIL._papel === "admin" ? "" : encodeURIComponent(linha.paciente_id));
+  location.href = destino;
+});
+
 /* ---------- registro no banco (só o lado do médico, logado) ---------- */
 async function registrar(campos, soSeVazio){
   if(EH_PACIENTE || !linha) return;
@@ -274,6 +387,7 @@ async function entrar(){
     nomePaciente = $("#nome").value.trim();
     try{ localStorage.setItem("tele_nome", nomePaciente); }catch(e){}
   }
+  gravPreparar();
   $("#vEntrada").hidden = true; $("#vChamada").hidden = false;
   $("#local").srcObject = local;
   estado("Entrando na sala…");
@@ -300,9 +414,14 @@ function sair(){
   if(pc){ try{ pc.close(); }catch(e){} pc = null; }
   if(local) local.getTracks().forEach(t=>t.stop());
   if(canal){ try{ sb.removeChannel(canal); }catch(e){} }
+  const gravou = G.ativo; gravParar(); G.ativo = false;
   if(!EH_PACIENTE) registrar({ fim: new Date().toISOString() });
   $("#vChamada").hidden = true; $("#vFim").hidden = false;
-  if(!EH_PACIENTE){ $("#fimTexto").textContent = "Consulta encerrada. Registre a consulta na ficha do paciente (compareceu, exames e resumo)."; }
+  if(!EH_PACIENTE){
+    $("#fimTexto").textContent = gravou ? "Consulta encerrada. Gerando o resumo a partir do áudio…" : "Consulta encerrada. Registre a consulta na ficha do paciente (compareceu, exames e resumo).";
+    if(gravou) gerarResumo();
+    else { $("#blocoResumo").hidden = false; $("#resumoStatus").textContent = "Sem gravação nesta consulta (o paciente não autorizou ou ela não chegou a conectar). Escreva o resumo na ficha."; $("#resumoTxt").hidden = true; $("#bCopiarResumo").hidden = true; }
+  }
   $("#bVoltar").hidden = false;
 }
 addEventListener("pagehide", ()=>{ try{ enviar({ t:"bye" }); }catch(e){} });
@@ -348,6 +467,7 @@ $("#bCopiar").addEventListener("click", ()=>{
     try{ $("#nome").value = localStorage.getItem("tele_nome") || ""; }catch(e){}
   }else{
     const eu = await FUNIL.exigir(["cirurgiao","admin"]);
+    FUNIL._papel = eu.papel;
     const { data, error } = await sb.from("funil_teleconsultas").select("*").eq("id", SALA).maybeSingle();
     if(error || !data){ $("#subtitulo").textContent = ""; erro("Sala não encontrada para o seu login."); return; }
     linha = data; nomePaciente = data.paciente_nome || "";

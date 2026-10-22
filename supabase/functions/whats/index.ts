@@ -9,10 +9,14 @@
 //   assumir   {chatId}          -> equipe assume; a Bia para de responder
 //   devolver  {chatId}          -> devolve a conversa para a Bia
 //   iniciar   {telefone, texto} -> começa conversa nova com um número que ainda não falou com a Bia
+//   transcrever {sala, caminho} -> transcreve um trecho de áudio da teleconsulta (agente "Resumo de Consultas")
+//   resumir     {sala}          -> gera o resumo da consulta a partir da transcrição
 //   arquivo   {chatId, url, tipo:'imagem'|'documento', legenda?, nome?, mime?}
 //             -> envia imagem/PDF já guardado no Storage (bucket "envios", link assinado)
 
 const WORKSPACE = "3DB36E552D5A00174085B2C1E91B873D";
+const AGENTE_RESUMO = "3FB07B55850BE022B42DDA18E3B5B6A6";   // agente "Resumo de Consultas" (sem canal)
+const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const API = "https://api.gptmaker.ai/v2";
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 let SB_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
@@ -125,7 +129,7 @@ Deno.serve(async (req) => {
         for (let pg = 1; pg <= paginas; pg++) {
           const lista = await gm(`/workspace/${WORKSPACE}/chats?page=${pg}&pageSize=100`);
           const arr = Array.isArray(lista) ? lista : [];
-          await gravarChats(auth, arr.filter((c: any) => !c.isGroup).map(linhaDoChat));
+          await gravarChats(auth, arr.filter((c: any) => !c.isGroup && c.channelId).map(linhaDoChat));
           total += arr.length;
           if (arr.length < 100) break;
         }
@@ -208,11 +212,74 @@ Deno.serve(async (req) => {
           if (tent) await new Promise((r) => setTimeout(r, 1500));
           const novos = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=20`);
           const arr = Array.isArray(novos) ? novos : [];
-          await gravarChats(auth, arr.filter((c: any) => !c.isGroup).map(linhaDoChat));
+          await gravarChats(auth, arr.filter((c: any) => !c.isGroup && c.channelId).map(linhaDoChat));
           chatId = arr.find((c: any) => so8(c.whatsappPhone) === tel.slice(-8))?.id || null;
         }
         if (chatId) await registrarEnvio(auth, chatId, texto, eu.email);
         return json({ ok: true, chatId });
+      }
+      case "transcrever": {
+        const sala = String(p.sala || ""), caminho = String(p.caminho || "");
+        if (!/^[0-9a-f-]{36}$/i.test(sala) || !caminho.startsWith("tele/" + sala + "/")) return json({ erro: "trecho inválido" }, 400);
+        const rr = await rest(auth, "funil_teleconsultas?select=id,consentimento,transcricao&id=eq." + sala);
+        const linha = rr.ok ? (await rr.json())[0] : null;
+        if (!linha) return json({ erro: "sala não encontrada" }, 404);
+        if (linha.consentimento !== true) return json({ erro: "paciente não autorizou a gravação" }, 403);
+        // link temporário do áudio, assinado com o login de quem pediu
+        const sg = await fetch(SB_URL + "/storage/v1/object/sign/anexos/" + caminho, {
+          method: "POST", headers: { apikey: SB_KEY, Authorization: auth, "Content-Type": "application/json" },
+          body: JSON.stringify({ expiresIn: 3600 }),
+        });
+        if (!sg.ok) return json({ erro: "não achei o áudio" }, 404);
+        const url = SB_URL + "/storage/v1" + (await sg.json()).signedURL;
+        try {
+          await gm(`/agent/${AGENTE_RESUMO}/conversation`, { method: "POST", body: JSON.stringify({ contextId: "tele-" + sala + "-" + Date.now(), audio: url }) });
+        } catch { /* o agente não responde a áudio; a transcrição fica na conversa */ }
+        let texto = "", chatId = "";
+        for (let t = 0; t < 25 && !texto; t++) {
+          await espera(t ? 3000 : 1500);
+          const cs = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=8&agentId=${AGENTE_RESUMO}`);
+          for (const c of (Array.isArray(cs) ? cs : [])) {
+            const ms = await gm(`/chat/${c.id}/messages?page=1&pageSize=5`);
+            const a = (Array.isArray(ms) ? ms : []).find((m: any) => m.audioUrl === url);
+            if (a) { chatId = c.id; if (a.midiaContent) texto = String(a.midiaContent); break; }
+          }
+        }
+        // limpeza: apaga a conversa no GPT Maker e o áudio no Storage
+        if (chatId) { try { await gm(`/chat/${chatId}`, { method: "DELETE" }); } catch { /* ok */ } }
+        await fetch(SB_URL + "/storage/v1/object/anexos/" + caminho, { method: "DELETE", headers: { apikey: SB_KEY, Authorization: auth } });
+        if (!texto) return json({ erro: "a transcrição não ficou pronta" }, 504);
+        if (/não foi possível transcrever/i.test(texto)) texto = "[trecho sem fala reconhecível]";
+        const n = (caminho.match(/\/(\d+)\.\w+$/) || [])[1] || "?";
+        const nova = ((linha.transcricao || "") + "\n\n[Trecho " + n + "]\n" + texto).trim();
+        await rest(auth, "funil_teleconsultas?id=eq." + sala, { method: "PATCH", body: JSON.stringify({ transcricao: nova }) });
+        return json({ ok: true, caracteres: texto.length });
+      }
+      case "resumir": {
+        const sala = String(p.sala || "");
+        if (!/^[0-9a-f-]{36}$/i.test(sala)) return json({ erro: "sala inválida" }, 400);
+        const rr = await rest(auth, "funil_teleconsultas?select=id,transcricao,paciente_nome&id=eq." + sala);
+        const linha = rr.ok ? (await rr.json())[0] : null;
+        if (!linha) return json({ erro: "sala não encontrada" }, 404);
+        const tr = String(linha.transcricao || "").trim();
+        if (tr.length < 40) return json({ erro: "transcrição vazia ou curta demais para resumir" }, 400);
+        const r = await gm(`/agent/${AGENTE_RESUMO}/conversation`, {
+          method: "POST",
+          body: JSON.stringify({ contextId: "resumo-" + sala + "-" + Date.now(), prompt: "GERAR RESUMO\n\nTranscrição da consulta (em trechos, na ordem):\n" + tr.slice(0, 60000) }),
+        });
+        const resumo = String(r?.message || "").trim();
+        if (!resumo) return json({ erro: "o resumo não veio" }, 502);
+        await rest(auth, "funil_teleconsultas?id=eq." + sala, { method: "PATCH", body: JSON.stringify({ resumo_ia: resumo, resumo_em: new Date().toISOString() }) });
+        // limpeza da conversa de resumo no GPT Maker
+        try {
+          const cs = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=5&agentId=${AGENTE_RESUMO}`);
+          for (const c of (Array.isArray(cs) ? cs : [])) {
+            if (String(c.conversation || "").slice(0, 25) === resumo.replace(/\s+/g, " ").slice(0, 25) || String(c.conversation || "").startsWith("QUEIXA")) {
+              await gm(`/chat/${c.id}`, { method: "DELETE" }); break;
+            }
+          }
+        } catch { /* ok */ }
+        return json({ ok: true, resumo });
       }
       case "assumir":
       case "devolver": {

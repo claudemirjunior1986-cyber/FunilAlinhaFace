@@ -88,7 +88,8 @@ async function waLerTabela(){
     WA.ignorados = new Set((ig||[]).map(r=>String(r.id).replace(/^k/,"")));
   }catch(e){ WA.ignorados = WA.ignorados || new Set(); }
   linhas.forEach(c=>{ c.ignorado = WA.ignorados.has(c.tel8); });
-  WA.chats = new Map(linhas.map(c=>[c.chat_id, c]));
+  // só conversas do WhatsApp (as do agente de resumo de consultas não têm telefone)
+  WA.chats = new Map(linhas.filter(c=>c.telefone).map(c=>[c.chat_id, c]));
   WA.carregou = true;
   waBadge();
   if(modo === "whats") waRenderLista();
