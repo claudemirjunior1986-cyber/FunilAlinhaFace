@@ -303,7 +303,10 @@ Deno.serve(async (req) => {
         let apagadas = 0;
         for (let volta = 0; volta < 10; volta++) {
           const cs = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=50&agentId=${AGENTE_RESUMO}`);
-          const alvo = (Array.isArray(cs) ? cs : []).filter((c: any) => c.agentId === AGENTE_RESUMO && !c.channelId);
+          const lista = Array.isArray(cs) ? cs : [];
+          if (p.ver) return json({ total: lista.length, exemplo: lista.slice(0, 3).map((c: any) => ({ ...c, conversation: undefined })) });
+          const alvo = lista.filter((c: any) => !c.channelId && !c.isGroup &&
+            (c.agentId === AGENTE_RESUMO || /^(TX|RS)[0-9a-f]/i.test(String(c.name || "")) || String(c.name || "") === "Desconhecido"));
           if (!alvo.length) break;
           for (const c of alvo) { try { await gm(`/chat/${c.id}`, { method: "DELETE" }); apagadas++; } catch { /* segue */ } }
         }
