@@ -113,6 +113,7 @@
   <div class="tabs" role="group" aria-label="Visualização">
     <button id="tAgenda" aria-pressed="true">Agenda</button>
     <button id="tPac" aria-pressed="false">Meus pacientes</button>
+    <button id="tGoogle" aria-pressed="false">Google Agenda</button>
     <button id="tAvisos" aria-pressed="false">Avisos da equipe</button>
   </div>
 
@@ -166,9 +167,28 @@ function render(){
   $("#tAgenda").setAttribute("aria-pressed", aba==="agenda");
   $("#tPac").setAttribute("aria-pressed", aba==="pac");
   $("#tAvisos").setAttribute("aria-pressed", aba==="avisos");
+  $("#tGoogle").setAttribute("aria-pressed", aba==="google");
+  if(aba === "google") return renderGoogle();
   badgeAvisos();
   if(aba === "avisos") return renderAvisos();
   aba === "agenda" ? renderAgenda() : renderPacientes();
+}
+
+/* ---------- Google Agenda do próprio cirurgião (a mesma que a Bia usa) ---------- */
+function renderGoogle(){
+  const c = $("#conteudo"); c.textContent = "";
+  const cal = meuEmail();
+  const topo = el("div"); topo.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px";
+  topo.appendChild(el("div","vazio","Sua agenda do Google (" + cal + "), a mesma em que a Bia marca as consultas. Para ver aqui, o navegador precisa estar logado nessa conta Google."));
+  const ab = el("button","btn btn-sm","Abrir no Google Agenda");
+  ab.addEventListener("click", ()=>window.open("https://calendar.google.com/calendar/u/0/r/week","_blank","noopener"));
+  topo.appendChild(ab);
+  c.appendChild(topo);
+  const fr = document.createElement("iframe");
+  fr.src = "https://calendar.google.com/calendar/embed?src=" + encodeURIComponent(cal) + "&ctz=America%2FSao_Paulo&mode=WEEK&showPrint=0&showTitle=0&showCalendars=0&hl=pt_BR";
+  fr.title = "Google Agenda"; fr.loading = "lazy";
+  fr.style.cssText = "width:100%;height:calc(100vh - 230px);min-height:520px;border:1px solid var(--line);border-radius:12px;background:#fff";
+  c.appendChild(fr);
 }
 
 /* ---------- avisos da equipe (recados para o cirurgião) ---------- */
@@ -485,6 +505,7 @@ function formRegistro(p){
 $("#tAgenda").addEventListener("click", ()=>{ aba = "agenda"; render(); });
 $("#tPac").addEventListener("click", ()=>{ aba = "pac"; render(); });
 $("#tAvisos").addEventListener("click", ()=>{ aba = "avisos"; render(); });
+$("#tGoogle").addEventListener("click", ()=>{ aba = "google"; render(); });
 $("#bSair").addEventListener("click", FUNIL.sair);
 $("#bSenha").addEventListener("click", FUNIL.trocarSenha);
 document.addEventListener("keydown", e => { if(e.key === "Escape") fechar(); });
