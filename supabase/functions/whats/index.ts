@@ -106,18 +106,95 @@ async function gravarChats(auth: string, linhas: any[]) {
   if (!r.ok) throw new Error("Banco: " + (await r.text()).slice(0, 200));
 }
 
+// ---------- avisos de consulta para os cirurgiões (fila funil_avisos_medico) ----------
+async function processarAvisos() {
+  const SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  if (!SR) throw new Error("sem chave de serviço");
+  const db = (path: string, init: RequestInit = {}) => fetch(SB_URL + "/rest/v1/" + path, {
+    ...init, headers: { apikey: SR, Authorization: "Bearer " + SR, "Content-Type": "application/json", ...(init.headers || {}) },
+  });
+  // espera 1 minuto depois da última mudança (a equipe costuma salvar a ficha mais de uma vez)
+  const limite = new Date(Date.now() - 60000).toISOString();
+  const r = await db("funil_avisos_medico?select=*&situacao=eq.fila&order=criado_em.asc&limit=50");
+  const fila: any[] = r.ok ? await r.json() : [];
+  if (!fila.length) return { ok: true, enviados: 0 };
+  // por paciente + cirurgião, só vale o aviso mais recente
+  const ultimo = new Map<string, any>();
+  for (const a of fila) ultimo.set(a.paciente_id + "|" + a.email + "|" + (a.tipo === "cancelada" ? "c" : "m"), a);
+  let enviados = 0;
+  const canalDe = async () => {
+    const lista = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=5`);
+    return (Array.isArray(lista) ? lista : []).map((c: any) => c.channelId).find(Boolean);
+  };
+  let canal: string | undefined;
+  for (const a of fila) {
+    const chave = a.paciente_id + "|" + a.email + "|" + (a.tipo === "cancelada" ? "c" : "m");
+    if (ultimo.get(chave) !== a) {
+      await db("funil_avisos_medico?id=eq." + a.id, { method: "PATCH", body: JSON.stringify({ situacao: "substituido" }) });
+      continue;
+    }
+    if (a.criado_em > limite) continue;            // ainda dentro do minuto de espera
+    // aviso de remarcação/nova anula um cancelamento pendente do mesmo paciente e cirurgião, e vice-versa
+    const oposto = ultimo.get(a.paciente_id + "|" + a.email + "|" + (a.tipo === "cancelada" ? "m" : "c"));
+    if (oposto && oposto.criado_em > a.criado_em) {
+      await db("funil_avisos_medico?id=eq." + a.id, { method: "PATCH", body: JSON.stringify({ situacao: "substituido" }) });
+      continue;
+    }
+    try {
+      let tel = String(a.telefone || "").replace(/\D/g, "");
+      if (tel.length === 10 || tel.length === 11) tel = "55" + tel;
+      const t8 = tel.slice(-8);
+      const cw = await db("funil_whats?select=chat_id&tel8=eq." + t8 + "&limit=1");
+      let chatId: string | null = cw.ok ? ((await cw.json())[0]?.chat_id || null) : null;
+      if (chatId) {
+        try { await gm(`/chat/${encodeURIComponent(chatId)}/start-human`, { method: "PUT" }); } catch { /* já estava com a equipe */ }
+        await gm(`/chat/${encodeURIComponent(chatId)}/send-message`, { method: "POST", body: JSON.stringify({ message: a.texto }) });
+      } else {
+        canal = canal || await canalDe();
+        if (!canal) throw new Error("não achei o canal da Bia");
+        await gm(`/channel/${encodeURIComponent(canal)}/start-conversation`, { method: "POST", body: JSON.stringify({ phone: tel, message: a.texto }) });
+        // a Bia não deve responder o cirurgião: põe a conversa nova com a equipe
+        for (let t = 0; t < 4 && !chatId; t++) {
+          await espera(1500);
+          const novos = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=20`);
+          chatId = (Array.isArray(novos) ? novos : []).find((c: any) => so8(c.whatsappPhone) === t8)?.id || null;
+        }
+        if (chatId) { try { await gm(`/chat/${encodeURIComponent(chatId)}/start-human`, { method: "PUT" }); } catch { /* ok */ } }
+      }
+      if (chatId) {
+        await db("funil_whats_envios", { method: "POST", headers: { Prefer: "return=minimal" },
+          body: JSON.stringify({ chat_id: chatId, texto: a.texto.slice(0, 2000), por: "avisos@alinhaface", por_nome: "Aviso automático" }) });
+        await db("funil_whats?chat_id=eq." + encodeURIComponent(chatId), { method: "PATCH", body: JSON.stringify({ humano: true }) });
+      }
+      await db("funil_avisos_medico?id=eq." + a.id, { method: "PATCH", body: JSON.stringify({ situacao: "enviado", enviado_em: new Date().toISOString() }) });
+      enviados++;
+    } catch (e) {
+      const n = (a.tentativas || 0) + 1;
+      await db("funil_avisos_medico?id=eq." + a.id, { method: "PATCH",
+        body: JSON.stringify({ tentativas: n, erro: String((e as Error).message || e).slice(0, 300), situacao: n >= 5 ? "erro" : "fila" }) });
+    }
+  }
+  return { ok: true, enviados };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ erro: "use POST" }, 405);
+
+  // fila de avisos aos cirurgiões: chamado pelo agendador do banco a cada minuto.
+  // Não recebe conteúdo de fora: só envia o que o próprio banco colocou na fila.
+  const corpoTxt = await req.text();
+  let p: any = {};
+  try { p = corpoTxt ? JSON.parse(corpoTxt) : {}; } catch { /* corpo vazio */ }
+  if (p.acao === "processar_avisos") {
+    try { return json(await processarAvisos()); } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
+  }
 
   const auth = req.headers.get("Authorization") || "";
   SB_KEY = req.headers.get("apikey") || SB_KEY;   // a chave pública que o site já manda
   const u = await fetch(SB_URL + "/auth/v1/user", { headers: { apikey: SB_KEY, Authorization: auth } });
   if (!u.ok) return json({ erro: "faça login de novo" }, 401);
   const eu = await u.json();
-  let p: any = {};
-  try { p = await req.json(); } catch { /* corpo vazio */ }
-
   // teleconsulta: o cirurgião também usa (o banco só deixa ele ver as salas dele)
   const livre = p.acao === "transcrever" || p.acao === "resumir";
   if (!livre) {
