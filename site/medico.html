@@ -472,6 +472,7 @@ function abrir(id){
   tb.append(el("h3",null,"Consulta online"), bt,
     el("div","vazio","Abre a sala de vídeo. Lá aparece o link para mandar ao paciente, se a equipe ainda não mandou."));
   b.appendChild(tb);
+  b.appendChild(teleSecaoFicha(p, "medico"));
 
   const bloco = el("div","bloco");
   if(p.consultaRegistradaEm){

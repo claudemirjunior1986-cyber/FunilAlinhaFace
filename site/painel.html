@@ -2415,6 +2415,7 @@ function abrirDrawer(id){
     b.appendChild(box);
   }
 
+  if(id && typeof teleSecaoFicha === "function") b.appendChild(teleSecaoFicha(p, "painel"));
   if(id) b.appendChild(rcSecaoFicha(p));
 
   const fs6 = el("fieldset"); fs6.append(el("div","legend","Hist\u00f3rico de contatos"));
