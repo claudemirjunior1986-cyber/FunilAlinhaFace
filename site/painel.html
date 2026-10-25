@@ -431,6 +431,23 @@
   .rc-chk input[type=date]{width:auto;border:1px solid var(--line-strong);border-radius:7px;padding:5px 8px;background:var(--surface);color:var(--ink)}
   .rc-anexo{align-self:flex-start;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer;font-family:inherit}
   .rc-ficha-bts{display:flex;gap:8px;flex-wrap:wrap}
+
+  /* quadros do topo clicáveis */
+  .kpi-click{font:inherit;color:inherit;text-align:left;cursor:pointer;transition:border-color .15s, box-shadow .15s}
+  .kpi-click:hover{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+  .kpi-click:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .kpi-modal{max-width:640px}
+  .kpi-busca{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--surface);color:var(--ink)}
+  .kpi-lista{display:flex;flex-direction:column;gap:4px}
+  .kpi-linha{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;cursor:pointer;background:var(--surface)}
+  .kpi-linha:hover{border-color:var(--accent)}
+  .kpi-linha .ke{display:flex;flex-direction:column;min-width:0}
+  .kpi-linha .kn{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kpi-linha .ki{font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kpi-linha .ks{font-size:11.5px;font-weight:600;border:1px solid;border-radius:99px;padding:2px 8px;white-space:nowrap;flex-shrink:0}
+  .kpi-linha .kv{font-weight:700;color:var(--gold);white-space:nowrap}
+  .kpi-lista .vazio{padding:10px;color:var(--ink-3);font-size:13px}
+  .kpi-sep{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin:10px 2px 2px}
 </style>
 </head>
 <body>
@@ -1337,20 +1354,68 @@ function renderKpis(){
   const pipe = todos.filter(p=>PIPELINE.includes(p.etapa)).reduce((s,p)=>s+(Number(p.opme)||0),0);
   const feito = todos.filter(p=>FEITAS.includes(p.etapa)).reduce((s,p)=>s+(Number(p.opme)||0),0);
 
+  const andamento = todos.filter(p=>["docs_conv","autorizacao","autorizado"].includes(p.etapa));
+  const feitas = todos.filter(p=>FEITAS.includes(p.etapa));
+  const faltou = todos.filter(p=>p.etapa==="noshow");
+  const comOpme = todos.filter(p=>PIPELINE.includes(p.etapa) && Number(p.opme)>0).sort((a,b)=>(Number(b.opme)||0)-(Number(a.opme)||0));
   const tiles = [
-    {l:"Pacientes ativos", v:ativos.length, h:todos.length+" no total"},
-    {l:"Agendaram consulta", v:passouAgenda.length, h:"inclui quem faltou"},
-    {l:"Comparecimento", v:taxa+"%", h:compareceu.length+" de "+passouAgenda.length},
-    {l:"Aguardando exames", v:exames.length, h:"entre consulta e retorno"},
-    {l:"Cirurgias em andamento", v:todos.filter(p=>["docs_conv","autorizacao","autorizado"].includes(p.etapa)).length, h:marcadas.length+" marcadas · "+todos.filter(p=>FEITAS.includes(p.etapa)).length+" realizadas"},
-    {l:"OPME no funil", v:brl(pipe), h:brl(feito)+" já realizado", money:true}
+    {l:"Pacientes ativos", v:ativos.length, h:todos.length+" no total", lista:ativos},
+    {l:"Agendaram consulta", v:passouAgenda.length, h:"inclui quem faltou", lista:passouAgenda},
+    {l:"Comparecimento", v:taxa+"%", h:compareceu.length+" de "+passouAgenda.length, lista:compareceu, extra:["Faltaram", faltou], dica:compareceu.length+" compareceram"+(faltou.length?" · "+faltou.length+" faltaram (no fim da lista)":"")},
+    {l:"Aguardando exames", v:exames.length, h:"entre consulta e retorno", lista:exames},
+    {l:"Cirurgias em andamento", v:andamento.length, h:marcadas.length+" marcadas · "+feitas.length+" realizadas", lista:andamento, extra:["Marcadas e realizadas", [...marcadas, ...feitas]]},
+    {l:"OPME no funil", v:brl(pipe), h:brl(feito)+" já realizado", money:true, lista:comOpme, opme:true, dica:"Pacientes com valor de OPME, do maior para o menor"}
   ];
   const box = $("#kpis"); box.textContent="";
   for(const t of tiles){
-    const d = el("div","kpi"+(t.money?" money":""));
+    const d = el("button","kpi kpi-click"+(t.money?" money":"")); d.type = "button";
+    d.title = "Clique para ver os pacientes";
     d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",String(t.h)));
+    d.addEventListener("click",()=>modalListaKpi(t));
     box.appendChild(d);
   }
+}
+
+// lista de pacientes por trás de cada quadro do topo
+function modalListaKpi(t){
+  fecharOverlays();
+  const scrim = el("div","scrim"); scrim.addEventListener("click",fecharOverlays);
+  const m = el("div","modal kpi-modal"); m.setAttribute("role","dialog"); m.setAttribute("aria-label",t.l);
+  const h = el("header"); h.append(el("h2",null,t.l+" · "+t.lista.length));
+  const x = el("button","btn btn-ghost btn-sm","Fechar"); x.addEventListener("click",fecharOverlays); h.appendChild(x); m.appendChild(h);
+  const b = el("div","body");
+  const busca = el("input"); busca.type = "search"; busca.placeholder = "Procurar por nome ou telefone…"; busca.className = "kpi-busca";
+  b.append(el("div","hint",(t.dica||"Clique no paciente para abrir a ficha.")), busca);
+  const lista = el("div","kpi-lista"); b.appendChild(lista);
+  const ordem = l => [...l].sort((a,c)=> t.opme ? 0 : String(a.nome||"").localeCompare(String(c.nome||""),"pt-BR"));
+  const linha = p => {
+    const r = el("button","kpi-linha"); r.type = "button";
+    const st = STAGE_BY_KEY[p.etapa] || {l:p.etapa||"—", c:"#8B93A3"};
+    const nome = el("span","kn", p.nome||"(sem nome)");
+    const info = [p.telefone, p.dataConsulta ? "consulta "+dataBR(p.dataConsulta) : "", p.cirurgiao ? nomeCirurgiao(p.cirurgiao) : ""].filter(Boolean).join(" · ");
+    const esq = el("span","ke"); esq.append(nome, el("span","ki",info));
+    const etq = el("span","ks", st.l); etq.style.borderColor = st.c; etq.style.color = st.c;
+    r.append(esq, t.opme ? el("span","kv",brl(Number(p.opme)||0)) : etq);
+    r.dataset.busca = (String(p.nome||"")+" "+String(p.telefone||"").replace(/\D/g,"")).toLowerCase();
+    r.addEventListener("click",()=>{ fecharOverlays(); abrirDrawer(p.id); });
+    return r;
+  };
+  const desenhar = () => {
+    lista.textContent = "";
+    const q = busca.value.trim().toLowerCase(), qd = q.replace(/\D/g,"");
+    const passa = r => !q || r.dataset.busca.includes(q) || (qd.length>=4 && r.dataset.busca.includes(qd));
+    let n = 0;
+    ordem(t.lista).map(linha).filter(passa).forEach(r=>{ lista.appendChild(r); n++; });
+    if(t.extra && t.extra[1].length){
+      const rs = ordem(t.extra[1]).map(linha).filter(passa);
+      if(rs.length){ lista.appendChild(el("div","kpi-sep",t.extra[0]+" · "+rs.length)); rs.forEach(r=>lista.appendChild(r)); n += rs.length; }
+    }
+    if(!n) lista.appendChild(el("div","vazio","Nenhum paciente aqui."));
+  };
+  busca.addEventListener("input",desenhar);
+  desenhar();
+  m.appendChild(b);
+  document.body.append(scrim,m);
 }
 
 function renderAlertas(){
