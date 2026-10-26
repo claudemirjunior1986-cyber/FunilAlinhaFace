@@ -59,3 +59,18 @@ Cabeçalho em todas as chamadas: `x-agenda-token: <AGENDA_TOKEN>`
 - Comportamento da Bia, seção 5: a regra antiga "todo presencial vai para a Ana Clara" foi trocada por:
   consultar horários pela intenção; presencial em SP (Mooca, Vila Mariana) e Salvador marcado pela intenção;
   presencial em Porto Alegre continua com o link da Ana Clara; on-line com o Dr. Gustavo segue as regras de :15/:45.
+
+## Mudança de caminho (26/10/2026, mais tarde)
+
+As Intenções acima foram **inativadas** (não excluídas). A Bia não as chamava: preferia a ferramenta do Google Calendar.
+Agora os três médicos são agendas do Google conectadas na integração Google Calendar do GPT Maker, com "Distribuição Inteligente":
+
+- **Gustavo**: gu.martins00@gmail.com (on-line, :15/:45)
+- **Dr. Afonso - presencial SP (Mooca/Vila Mariana)**: calendário da conta alinhaface@gmail.com, ter/qui/sex 9h–17h, qua 14h–18h
+- **Dr. Victor - Bahia e Nordeste**: calendário da conta alinhaface@gmail.com, seg/ter 8h–20h, qui 14h–19h, sex 8h–12h e 14h–18h
+
+Outros ajustes feitos na Bia:
+- Treinamento "Endereço" (documento antigo, sem Salvador) removido; novo treinamento em texto com Moema, Vila Mariana, Mooca, Salvador e Porto Alegre, separado por região.
+- Trabalho: descrição da empresa cita presencial em São Paulo, Salvador e Porto Alegre.
+- Comportamento: presencial dá só a unidade do estado do paciente; link da Ana Clara só no presencial de Porto Alegre.
+- Regras de transferência: transfere para a Ana Clara só quando pedir humano ou presencial em Porto Alegre (antes era qualquer presencial).
