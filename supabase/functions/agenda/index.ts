@@ -118,7 +118,9 @@ async function rpc(fn: string, body: unknown) {
 // até 6 horários, espalhados em até 3 dias (2 por dia), para a Bia oferecer
 function escolher(slots: { data: string; hora: string }[]) {
   const porDia = new Map<string, string[]>();
-  for (const s of slots) {
+  // o banco nem sempre devolve em ordem: ordena por dia e hora antes de escolher
+  const ord = [...slots].sort((x, y) => (x.data + x.hora).localeCompare(y.data + y.hora));
+  for (const s of ord) {
     if (!porDia.has(s.data)) { if (porDia.size >= 3) break; porDia.set(s.data, []); }
     const l = porDia.get(s.data)!;
     if (l.length < 2) l.push(s.hora);

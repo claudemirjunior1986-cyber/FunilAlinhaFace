@@ -210,8 +210,9 @@ begin
   select * into slot from agenda_slots(p_chave, mod, p_data, p_data, case when achou then r.id end) s
    where s.hora = hh limit 1;
   if not found then
-    select coalesce(jsonb_agg(jsonb_build_object('data', x.data, 'hora', x.hora)), '[]'::jsonb) into sug
-      from (select * from agenda_slots(p_chave, mod, p_data, null, case when achou then r.id end) limit 5) x;
+    select coalesce(jsonb_agg(jsonb_build_object('data', x.data, 'hora', x.hora) order by x.data, x.hora), '[]'::jsonb) into sug
+      from (select * from agenda_slots(p_chave, mod, p_data, null, case when achou then r.id end) z
+            order by z.data, z.hora limit 5) x;
     return jsonb_build_object('ok', false, 'motivo', 'horario_indisponivel', 'sugestoes', sug);
   end if;
 
