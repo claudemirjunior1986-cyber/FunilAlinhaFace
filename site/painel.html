@@ -362,6 +362,24 @@
   .wa-tags{display:flex;gap:4px;flex-wrap:wrap}
   .wa-tag{font-size:11px;padding:1px 7px;border-radius:99px;background:var(--surface-3);color:var(--ink-2)}
   .wa-tag-esp{background:#1F7A55;color:#fff} .wa-tag-sem{background:var(--warn-bg);color:var(--warn)}
+  .ag-tabs{display:inline-flex;gap:4px;background:var(--surface-2);padding:3px;border-radius:9px;margin-bottom:12px}
+  .ag-tabs button{border:0;background:transparent;color:var(--ink-2);font:inherit;font-size:13px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer}
+  .ag-tabs button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .ag-sem{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:14px}
+  .ag-dia{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px;min-width:0}
+  .ag-dia.hoje{border-color:var(--accent)}
+  .ag-dia h3{margin:0 0 2px;font-size:14.5px;font-family:var(--font-display)}
+  .ag-dia .sub{font-size:12px;color:var(--ink-3);margin-bottom:8px}
+  .ag-cons{display:flex;gap:8px;align-items:baseline;width:100%;text-align:left;border:1px solid var(--line);background:var(--accent-soft);color:var(--ink);border-radius:8px;padding:6px 8px;margin-bottom:6px;font:inherit;font-size:13px;cursor:pointer}
+  .ag-cons b{font-family:var(--font-mono);font-size:12.5px}
+  .ag-cons span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ag-livres{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+  .ag-livre{border:1px dashed var(--line-strong);background:transparent;color:var(--ink-2);font-family:var(--font-mono);font-size:11.5px;padding:2px 6px;border-radius:6px;cursor:pointer}
+  .ag-livre:hover{border-style:solid;color:var(--accent)}
+  .ag-bloq{font-size:12px;color:var(--warn);background:var(--warn-bg);border-radius:7px;padding:4px 8px;margin-bottom:6px}
+  .ag-vazio{font-size:12.5px;color:var(--ink-3)}
+  .ag-lista-bloq{display:flex;flex-direction:column;gap:6px;max-width:560px}
+  .ag-lista-bloq div{display:flex;gap:8px;align-items:center;font-size:13px}
   .ag-frame{width:100%;height:calc(100vh - 230px);min-height:520px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;margin-bottom:10px}
   .wa-sec{font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);padding:10px 12px 4px;background:var(--surface-2);border-bottom:1px solid var(--line)}
   .wa-item-sem{cursor:default} .wa-item-sem:hover{background:transparent} .wa-item-sem .wa-tags{gap:6px;margin-top:4px}
@@ -471,7 +489,7 @@
       <button id="viewExames" aria-pressed="false">Exames pedidos</button>
       <button id="viewCir" aria-pressed="false">Cirurgias</button>
       <button id="viewCal" aria-pressed="false">Calendário</button>
-      <button id="viewAg" aria-pressed="false">Agenda Dr. Gustavo</button>
+      <button id="viewAg" aria-pressed="false">Agendas</button>
       <button id="viewGus" aria-pressed="false">Dr. Gustavo</button>
       <button id="viewAfo" aria-pressed="false">Dr. Afonso</button>
       <button id="viewHoje" aria-pressed="false">Rotina do dia</button>
@@ -582,7 +600,7 @@ const ORIGENS = ["Quiz do site","Anúncio (clique no WhatsApp)","Clique na foto 
 const TRATAMENTOS = ["DTM / ATM","Ortognática","DTM + Ortognática","A definir"];
 const OPME_PADRAO = {"DTM / ATM":11400,"Ortognática":25000,"DTM + Ortognática":36400,"A definir":0};
 const MODALIDADES = ["Online","Presencial"];
-const LOCAIS = ["Online","SP · Moema (Av. Jandira, 257)","SP · Vila Mariana (R. Francisco Cruz, 131)","SP · Mooca (Av. Paes de Barros, 3399)","Porto Alegre (R. Dr. Florêncio Ygartua, 422)"];
+const LOCAIS = ["Online","SP · Moema (Av. Jandira, 257)","SP · Vila Mariana (R. Francisco Cruz, 131)","SP · Mooca (Av. Paes de Barros, 3399)","Porto Alegre (R. Dr. Florêncio Ygartua, 422)","Salvador · Caminho das Árvores (R. da Alfazema, 761)"];
 const CONVENIOS = ["Sim","Não","Não sabe"];
 const PAGAMENTOS = ["Pelo convênio","Particular à vista","Particular parcelado","A definir"];
 const ACOES = [
@@ -606,7 +624,7 @@ const ACOES = [
   "Reativar paciente parado",
   "Outro (escrever)"
 ];
-const HORARIOS = (()=>{const a=[];for(let m=9*60+15;m<=19*60+45;m+=30){a.push(String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"));}return a;})();
+const HORARIOS = (()=>{const a=[];for(let m=8*60;m<=19*60+45;m+=15){a.push(String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"));}return a;})();
 const PIPELINE = ["agendou","compareceu","exames_sol","exames_ok","retorno","proposta","docs_conv","autorizacao","autorizado","cir_marcada"];
 const CIRURGIA = ["docs_conv","autorizacao","autorizado"];
 const CIR_LABEL = {docs_conv:"Cobrar carteirinha e documentos do paciente", autorizacao:"Cobrar a autorização com o convênio", autorizado:"Agendar a cirurgia com o hospital e o cirurgião"};
@@ -794,7 +812,7 @@ function render(){
   if(modo==="exames"){ renderExames(); return; }
   if(modo==="cir"){ renderCir(); return; }
   if(modo==="cal"){ renderCal(); return; }
-  if(modo==="ag"){ if(!$("#agview").childElementCount) renderAgendaMed("gus"); return; }
+  if(modo==="ag"){ renderAgendaMed(); return; }
   if(modo==="novos"){ renderNovos(); return; }
   if(modo==="gus"){ renderGus(); return; }
   if(modo==="afo"){ renderAfo(); return; }
@@ -2285,12 +2303,12 @@ function sel(id, opts, valor, vazio){
 }
 function inp(id,tipo,valor,ph){ const i=el("input"); i.id=id; i.type=tipo; if(valor!=null) i.value=valor; if(ph) i.placeholder=ph; return i; }
 
-function abrirDrawer(id){
+function abrirDrawer(id, pre){
   editandoId = id;
   const p = id ? Object.assign({}, pacientes.get(id)) : {
     id:novoId(), etapa:"lead", tratamento:"A definir", convenio:"Não sabe",
     pagamento:"A definir", modalidade:"Online", local:"Online",
-    criadoEm:new Date().toISOString(), opme:0
+    criadoEm:new Date().toISOString(), opme:0, ...(pre||{})
   };
   fecharOverlays();
   const scrim = el("div","scrim"); scrim.id="scrim"; scrim.addEventListener("click",fecharOverlays);
@@ -2457,6 +2475,7 @@ function abrirDrawer(id){
     if(p.voucherStatus==="Aguardando uso") p.voucherBaixa = "";
     const nova = $("#f_etapa").value;
     if(nova!==antes) aplicarEtapa(p,nova); else p.etapa = nova;
+    if(typeof agAjustarFicha === "function") agAjustarFicha(p);
     salvar(p); fecharOverlays(); toast(id ? "Ficha atualizada." : "Paciente cadastrado.");
   });
   f.appendChild(save);

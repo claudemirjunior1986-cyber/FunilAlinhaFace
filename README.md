@@ -26,6 +26,17 @@ Rode o arquivo inteiro no SQL Editor do Supabase. Ele cria:
 - `registrar_consulta(...)` — única forma de o cirurgião gravar algo: avança a etapa
   (nunca volta), guarda o resumo e escreve no histórico, sempre conferindo se o paciente é dele.
 
+Os arquivos numerados (`002_…` a `013_…`) são acréscimos; rode cada um uma vez, na ordem.
+`013_agendas_medicos.sql` cria as agendas do Dr. Afonso e do Dr. Victor dentro do funil
+(grade semanal, folgas, horários livres e marcação com trava contra horário duplicado).
+
+## Agendas
+
+- **Dr. Gustavo** — Google Agenda (gu.martins00@gmail.com), ligado direto à Bia no GPT Maker.
+- **Dr. Afonso e Dr. Victor** — agenda no próprio funil. A Bia consulta e marca pela função
+  `supabase/functions/agenda` (Intenções do GPT Maker); a equipe vê e marca na aba **Agendas** do painel.
+  Online de 15 em 15 min, presencial de 30 em 30. Configuração da Bia: `supabase/functions/agenda/BIA.md`.
+
 Dados de paciente nunca vão para o Git; ficam só no Supabase.
 
 ## Acessos
