@@ -3,10 +3,15 @@
    e cria eventos abrindo o Google Agenda já preenchido: quem salva é a pessoa, com a conta
    Google dela, que precisa ter a agenda compartilhada com permissão de editar.
    Usa do painel: el, $, toast, dataBR, hoje, pacientes, abrirDrawer.
-   Dr. Afonso e Dr. Victor: agenda dentro do funil (tabelas agenda_*, arquivo 013). */
+   Dr. Gustavo: agenda dele (gu.martins00). Dr. Afonso e Dr. Victor: calendários da conta
+   alinhaface@gmail.com, ligados à Bia no GPT Maker do mesmo jeito.
+   (A grade dentro do funil — tabelas agenda_*, arquivo 013 — ficou guardada, mas não é usada.) */
 const AGENDAS = {
-  gus: { nome: "Dr. Gustavo", calendario: "gu.martins00@gmail.com", duracaoMin: 30 }
+  gus:    { nome: "Dr. Gustavo", email: "gu.martins00@gmail.com",       calendario: "gu.martins00@gmail.com", duracaoMin: 15 },
+  afonso: { nome: "Dr. Afonso",  email: "dr.aptrindadefilho@gmail.com", calendario: "b084c9639ff3b3b3ad75465c059ca93ff5eeaf6483bd736ffb17ba1a07ecc4b9@group.calendar.google.com", duracaoMin: 30 },
+  victor: { nome: "Dr. Victor",  email: "admvictorssa@gmail.com",       calendario: "4ce2bc789a67e0f757eee2f6312298f3c15447217234364f6d7bca335fd68546@group.calendar.google.com", duracaoMin: 15 }
 };
+const agPorEmail = email => Object.keys(AGENDAS).find(k => AGENDAS[k].email === email) || "gus";
 const agTz = "America/Sao_Paulo";
 
 function agLinkVer(k){
@@ -33,7 +38,7 @@ function agLinkNovo(k, info){
   u.searchParams.set("ctz", agTz);
   u.searchParams.set("text", info.titulo || "Consulta Alinha Face");
   if(info.data){
-    const [d2,h2] = agSomaMin(info.data, info.hora, a.duracaoMin);
+    const [d2,h2] = agSomaMin(info.data, info.hora, info.duracaoMin || a.duracaoMin);
     u.searchParams.set("dates", agCarimbo(info.data, info.hora) + "/" + agCarimbo(d2, h2));
   }
   if(info.detalhes) u.searchParams.set("details", info.detalhes);
@@ -48,7 +53,8 @@ try{ AG.k = localStorage.getItem("funil_ag") || "gus"; }catch(e){ AG.k = "gus"; 
 function renderAgendaMed(k){
   if(k) AG.k = k;
   const box = $("#agview");
-  if(AG.k === "gus" && box.dataset.ag === "gus" && box.childElementCount) return;   // não recarrega o Google à toa
+  if(!AGENDAS[AG.k]) AG.k = "gus";
+  if(box.dataset.ag === AG.k && box.childElementCount) return;   // não recarrega o Google à toa
   box.dataset.ag = AG.k;
   box.textContent = "";
   const abas = el("div","ag-tabs");
@@ -58,7 +64,7 @@ function renderAgendaMed(k){
     abas.appendChild(b);
   });
   box.appendChild(abas);
-  if(AG.k === "gus") renderAgendaGoogle(box, "gus"); else renderAgendaFunil(box, AG.k);
+  renderAgendaGoogle(box, AG.k);
 }
 
 function renderAgendaGoogle(box, k){
@@ -276,8 +282,8 @@ function agAjustarFicha(p){
 
 /* ---------- botão dentro da ficha ---------- */
 function agBotaoFicha(p){
-  const b = el("button","btn btn-sm","📅 Agendar no Google (Dr. Gustavo)"); b.type = "button";
-  b.title = "Abre a agenda do Dr. Gustavo com a consulta preenchida (data e horário desta ficha)";
+  const b = el("button","btn btn-sm","📅 Agendar no Google"); b.type = "button";
+  b.title = "Abre a agenda do cirurgião escolhido na ficha (sem cirurgião: Dr. Gustavo) com a consulta preenchida";
   b.addEventListener("click",()=>{
     const data = $("#f_data").value, hora = $("#f_hora").value;
     if(!data || !hora){ toast("Preencha a data da consulta e o horário na ficha primeiro."); ($("#f_data").value ? $("#f_hora") : $("#f_data")).focus(); return; }
@@ -295,12 +301,15 @@ function agBotaoFicha(p){
       "",
       "Agendado pela equipe (painel Alinha Face)."
     ].filter(x=>x!==null).join("\n");
-    window.open(agLinkNovo("gus", {
+    const sc = $("#f_cir");
+    const k = agPorEmail(sc ? sc.value : "");
+    window.open(agLinkNovo(k, {
       titulo: "Consulta Alinha Face — " + nome, data, hora, detalhes,
+      duracaoMin: mod==="Presencial" ? 30 : 15,
       local: mod==="Presencial" ? local : "Online (Google Meet)"
     }), "_blank", "noopener");
-    // deixa a ficha pronta: Gustavo como responsável e etapa "agendou"
-    const sc = $("#f_cir"); if(sc && !sc.value) sc.value = AGENDAS.gus.calendario;
+    // deixa a ficha pronta: cirurgião responsável e etapa "agendou"
+    if(sc && !sc.value) sc.value = AGENDAS[k].email;
     const se = $("#f_etapa"); if(se && ["triagem","lead"].includes(se.value)) se.value = "agendou";
     toast("No Google, confira e clique em Salvar. Depois clique em Salvar aqui na ficha.");
   });
