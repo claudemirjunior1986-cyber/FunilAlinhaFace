@@ -49,8 +49,13 @@ Cabeçalho em todas as chamadas: `x-agenda-token: <AGENDA_TOKEN>`
 - **Variáveis do sistema:** `telefone` ← telefone do contato · `chat_id` ← id da conversa
 - **Corpo:** `{"acao":"agendar","estado":"…","modalidade":"…","data":"…","hora":"…","nome":"…","telefone":"…","chat_id":"…","observacao":"…"}`
 
-## Ajuste no Comportamento da Bia
+## Como ficou configurado (26/10/2026)
 
-O Comportamento está no limite (3000 caracteres). A regra antiga "toda consulta presencial vai para a Ana Clara"
-precisa ser trocada (não acrescentada) por algo como:
-"Presencial: use a intenção Consultar horários; só vai para a Ana Clara quando ela mandar."
+- As duas Intenções usam **POST**, corpo gerado automaticamente a partir dos campos e a ação em **Params**
+  (`acao=horarios` ou `acao=agendar`). Na de agendar, os Params também levam `telefone` = Telefone do Contato
+  e `chat_id` = Identificador do Chat.
+- Cabeçalho `x-agenda-token` com a mesma senha do segredo `AGENDA_TOKEN` (fica só no Supabase e no GPT Maker).
+- Função `agenda` publicada com "Verify JWT" desligado.
+- Comportamento da Bia, seção 5: a regra antiga "todo presencial vai para a Ana Clara" foi trocada por:
+  consultar horários pela intenção; presencial em SP (Mooca, Vila Mariana) e Salvador marcado pela intenção;
+  presencial em Porto Alegre continua com o link da Ana Clara; on-line com o Dr. Gustavo segue as regras de :15/:45.
