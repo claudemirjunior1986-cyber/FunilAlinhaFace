@@ -86,7 +86,7 @@ const quando = (d: string, h: string) => {
 
 // quem atende este paciente
 function rota(estado: string, mod: string) {
-  if (!estado) return { tipo: "perguntar", instrucao: "Antes de oferecer horários, pergunte em qual estado a pessoa mora." };
+  if (!estado) return { tipo: "perguntar", instrucao: "Mande no campo estado a SIGLA do estado (UF) da cidade que a pessoa disse (ex.: Ilhéus = BA, Campinas = SP, Caxias do Sul = RS) e use esta intenção de novo, sem perguntar nada à pessoa. Só pergunte o estado se a cidade não foi dita." };
   if (!mod) return { tipo: "perguntar", instrucao: "Pergunte se a pessoa prefere a consulta online (por vídeo) ou presencial." };
   if (NORDESTE.includes(estado)) {
     if (mod === "Presencial" && estado !== "BA") {
@@ -101,7 +101,7 @@ function rota(estado: string, mod: string) {
   if (estado === "RS") {
     return { tipo: "ana_clara", instrucao: "Consulta presencial em Porto Alegre: siga como sempre e envie o link do WhatsApp da Ana Clara para ela marcar." };
   }
-  return { tipo: "perguntar", instrucao: "Consulta presencial só existe em São Paulo e em Salvador. Pergunte se a pessoa prefere a consulta online (sem sair de casa) ou se consegue vir a São Paulo ou Salvador." };
+  return { tipo: "perguntar", instrucao: "Consulta presencial existe em São Paulo, Salvador e Porto Alegre. Pergunte se a pessoa prefere a consulta online (sem sair de casa) ou se consegue ir a uma dessas cidades." };
 }
 
 async function rpc(fn: string, body: unknown) {
