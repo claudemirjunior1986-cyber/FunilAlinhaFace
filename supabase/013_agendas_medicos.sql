@@ -22,7 +22,7 @@ create table if not exists public.agenda_medicos (
 
 insert into public.agenda_medicos (chave, nome, email, whatsapp) values
   ('afonso', 'Dr. Afonso', 'dr.aptrindadefilho@gmail.com', '5511933883877'),
-  ('victor', 'Dr. Victor', null,                           '5571981944808')
+  ('victor', 'Dr. Victor', 'admvictorssa@gmail.com',       '5571981944808')
 on conflict (chave) do update set nome = excluded.nome, whatsapp = excluded.whatsapp,
   email = coalesce(excluded.email, agenda_medicos.email);
 
@@ -298,8 +298,12 @@ $$;
 update public.perfis set whatsapp = '5511933883877', avisos_whats = true
  where email = 'dr.aptrindadefilho@gmail.com';
 
--- Dr. Victor: quando o login dele existir, rode as 3 linhas abaixo trocando o e-mail
--- (cria o perfil, liga o aviso e passa para ele as consultas que a Bia já marcou):
---   insert into public.perfis (email, nome, papel, whatsapp, avisos_whats) values ('EMAIL_DO_VICTOR', 'Dr. Victor', 'cirurgiao', '5571981944808', true) on conflict (email) do update set whatsapp = excluded.whatsapp, avisos_whats = true;
---   update public.agenda_medicos set email = 'EMAIL_DO_VICTOR' where chave = 'victor';
---   update public.funil_pacientes set dados = dados || jsonb_build_object('cirurgiao','EMAIL_DO_VICTOR') where dados->>'agendaMedico' = 'victor';
+-- Dr. Victor: perfil de cirurgião com aviso por WhatsApp.
+-- O login dele ainda precisa ser criado em Authentication → Users (admvictorssa@gmail.com).
+insert into public.perfis (email, nome, papel, whatsapp, avisos_whats)
+values ('admvictorssa@gmail.com', 'Dr. Victor', 'cirurgiao', '5571981944808', true)
+on conflict (email) do update set nome = excluded.nome, papel = excluded.papel,
+  whatsapp = excluded.whatsapp, avisos_whats = true;
+-- consultas que já tenham sido marcadas para ele sem e-mail passam a ser dele
+update public.funil_pacientes set dados = dados || jsonb_build_object('cirurgiao','admvictorssa@gmail.com')
+ where dados->>'agendaMedico' = 'victor' and coalesce(dados->>'cirurgiao','') = '';
