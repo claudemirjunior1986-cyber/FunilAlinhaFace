@@ -82,3 +82,5 @@ Outros ajustes feitos na Bia:
 - Comportamento: só oferece horários exatos (nunca faixas) e não repete a pergunta on-line/presencial se o paciente já disse.
 - Calendários do Afonso e do Victor compartilhados (fazer alterações e ver detalhes) com a Ana Clara e com o médico de cada um; continuam na conta alinhaface@gmail.com.
 - Manual da Bia corrigido (MANUALFAQBIA-27.10.2026.md) entregue para substituir o documento antigo no GPT Maker.
+- Modelo da Bia trocado de GPT-4.1 Mini para GPT-6 Luna (mesmo custo, 1 crédito por mensagem).
+- Manual antigo (documento) removido; o conteúdo corrigido entrou como 5 treinamentos em texto: Sobre a Alinha Face, ATM/DTM, Tratamento de DTM, Cirurgia ortognática, Plano de saúde/pagamento.
