@@ -74,3 +74,11 @@ Outros ajustes feitos na Bia:
 - Trabalho: descrição da empresa cita presencial em São Paulo, Salvador e Porto Alegre.
 - Comportamento: presencial dá só a unidade do estado do paciente; link da Ana Clara só no presencial de Porto Alegre.
 - Regras de transferência: transfere para a Ana Clara só quando pedir humano ou presencial em Porto Alegre (antes era qualquer presencial).
+
+## Ajustes de 27/10/2026
+
+- Moema (quartas) é do Dr. Gustavo e quem marca é a Ana Clara: a Bia trata Moema como Porto Alegre (envia o link da Ana Clara e transfere). Mooca e Vila Mariana continuam com o Dr. Afonso, agendados pela Bia.
+- Regra de transferência: pedir humano ou presencial em POA ou Moema (não Mooca/Vila Mariana/Salvador).
+- Comportamento: só oferece horários exatos (nunca faixas) e não repete a pergunta on-line/presencial se o paciente já disse.
+- Calendários do Afonso e do Victor compartilhados (fazer alterações e ver detalhes) com a Ana Clara e com o médico de cada um; continuam na conta alinhaface@gmail.com.
+- Manual da Bia corrigido (MANUALFAQBIA-27.10.2026.md) entregue para substituir o documento antigo no GPT Maker.
