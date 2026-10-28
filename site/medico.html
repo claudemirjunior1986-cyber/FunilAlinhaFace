@@ -121,6 +121,21 @@
     .cal .pontos{display:block}
     .cal-top h2{min-width:0;font-size:17px}
   }
+
+  /* retornos pedidos pela equipe */
+  section.retornos{border:1px solid var(--warn, #b4913f);border-radius:14px;padding:14px;background:color-mix(in srgb, var(--warn, #b4913f) 7%, var(--surface))}
+  .dica-ret{font-size:13px;color:var(--ink-3);margin:-4px 0 10px}
+  .ret-card{display:flex;flex-direction:column;gap:8px;padding:12px 14px;margin-bottom:10px}
+  .ret-top{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+  .ret-top b{font-size:15px}
+  .ret-info{font-size:12.5px;color:var(--ink-3)}
+  .ret-perg{font-size:13.5px;background:var(--surface-2, #f4f5f7);border-radius:8px;padding:8px 10px}
+  .ret-chips{display:flex;flex-wrap:wrap;gap:6px}
+  .ret-chips .chip{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 10px;cursor:pointer}
+  .ret-chips .chip:hover{border-color:var(--accent)}
+  .ret-card textarea{min-height:64px;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+  .ret-card .btn{align-self:flex-start}
+  .ret-ficha .ret-card{border:none;padding:0;box-shadow:none;background:transparent}
 </style>
 </head>
 <body>
@@ -332,6 +347,51 @@ const porHorario = (a,b) => ((a.dataConsulta||"")+(a.horaConsulta||"")).localeCo
 
 let calMes = null, calDia = null;
 const MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+/* ---------- casos em que a equipe espera um retorno do cirurgião ---------- */
+const semAc = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+function esperandoRetorno(){
+  const meu = semAc(String((eu&&eu.nome)||"").replace(/^dr[a]?\.?\s*/i,"").split(/\s+/)[0]);
+  return pacientes.filter(p => {
+    if(["perdido"].includes(p.etapa)) return false;
+    const a = semAc(p.proximaAcao).trim();
+    return a.startsWith("cobrar") && (a.includes("retorno do dr") || (meu && a.includes(meu)));
+  }).sort((a,b) => String(a.dataProximaAcao||a.dataConsulta||"").localeCompare(String(b.dataProximaAcao||b.dataConsulta||"")));
+}
+// o que a equipe perguntou, sem o "Cobrar retorno do Dr. X"
+function perguntaDaEquipe(p){
+  const t = String(p.proximaAcao||"").replace(/^cobrar\s+(o\s+)?(retorno\s+d[oa]\s+)?(dr[a]?\.?\s*)?[^:(·-]*/i,"").replace(/^[\s:·-]+/,"").trim();
+  return t && !/^\(lista enviada/i.test(t) ? t : "";
+}
+const RESPOSTAS_RAPIDAS = ["Atendi e pedi exames","Paciente não compareceu","Aguardando o paciente mandar os exames","Indiquei cirurgia","Sem indicação cirúrgica","Preciso de um retorno com o paciente","Ainda não consegui ver o caso"];
+function cartaoRetorno(p, naFicha){
+  const box = el("div","card ret-card");
+  if(!naFicha){
+    const top = el("button","ret-top"); top.type = "button";
+    top.append(el("b",null,p.nome||"Paciente"),
+      el("span","ret-info",[p.dataConsulta ? "consulta "+dataBR(p.dataConsulta) : "", p.tratamento, p.convenio==="Sim" ? (p.nomeConvenio||"convênio") : ""].filter(Boolean).join(" · ")));
+    top.title = "Abrir a ficha"; top.addEventListener("click", ()=>abrir(p.id));
+    box.appendChild(top);
+  }
+  const perg = perguntaDaEquipe(p);
+  box.appendChild(el("div","ret-perg", perg ? "A equipe pergunta: " + perg : "A equipe quer saber como ficou este paciente."));
+  const chips = el("div","ret-chips");
+  const ta = el("textarea"); ta.placeholder = "Sua resposta (ex.: atendi, pedi ressonância; volta em 15 dias)";
+  RESPOSTAS_RAPIDAS.forEach(t => { const b = el("button","chip",t); b.type = "button";
+    b.addEventListener("click", ()=>{ ta.value = ta.value.trim() ? ta.value.trim() + ". " + t : t; ta.focus(); }); chips.appendChild(b); });
+  const env = el("button","btn btn-primary btn-sm","Enviar retorno para a equipe"); env.type = "button";
+  env.addEventListener("click", async ()=>{
+    const texto = ta.value.trim(); if(!texto){ ta.focus(); toast("Escreva ou toque em uma resposta rápida."); return; }
+    env.disabled = true; env.textContent = "Enviando…";
+    const { error } = await sb.rpc("responder_equipe", { p_id: p.id, p_texto: texto });
+    if(error){ env.disabled = false; env.textContent = "Enviar retorno para a equipe"; toast("Não consegui enviar. Tente de novo."); return; }
+    toast("Retorno enviado para a equipe. Obrigado!");
+    if(naFicha) fechar();
+    await carregar();
+  });
+  box.append(chips, ta, env);
+  return box;
+}
+
 function renderAgenda(){
   const c = $("#conteudo"); c.textContent = "";
   const h = hoje();
@@ -348,9 +408,17 @@ function renderAgenda(){
   const deHoje = porDia[h] || [];
   const doMes = ativos.filter(p => p.dataConsulta.startsWith(calMes));
   const k = el("div","kpis");
-  [["Hoje", deHoje.length, ""], ["Faltam registrar", pendentes.length + deHoje.filter(precisaRegistro).length, pendentes.length?"alert":""], ["Consultas no mês", doMes.length, ""]]
+  [["Hoje", deHoje.length, ""], ["Retornos pedidos", esperandoRetorno().length, esperandoRetorno().length?"alert":""], ["Faltam registrar", pendentes.length + deHoje.filter(precisaRegistro).length, pendentes.length?"alert":""], ["Consultas no mês", doMes.length, ""]]
     .forEach(([l,v,cl]) => { const d = el("div","card kpi"+(cl?" "+cl:"")); d.append(el("span","v",String(v)), el("span","l",l)); k.appendChild(d); });
   c.appendChild(k);
+  const retornos = esperandoRetorno();
+  if(retornos.length){
+    const sr = el("section","grupo retornos");
+    const hr = el("h2",null,"A equipe está esperando seu retorno"); hr.appendChild(el("span","n",String(retornos.length)));
+    sr.append(hr, el("div","dica-ret","Responda aqui mesmo. A resposta vai direto para a equipe e o caso sai desta lista."));
+    retornos.forEach(p => sr.appendChild(cartaoRetorno(p)));
+    c.appendChild(sr);
+  }
   if(pendentes.length) c.appendChild(grupo("Consultas passadas sem registro", pendentes, true, ""));
 
   // cabeçalho do mês
@@ -441,6 +509,12 @@ function abrir(id){
   campo("WhatsApp", p.telefone);
   campo("Etapa", ETAPAS[p.etapa]);
   campo("Observações da equipe", p.observacoes, true);
+  if(esperandoRetorno().some(x => x.id === p.id)){
+    const br = el("div","bloco ret-ficha");
+    br.appendChild(el("h3",null,"⏳ A equipe está esperando seu retorno"));
+    br.appendChild(cartaoRetorno(p, true));
+    b.appendChild(br);
+  }
   const avs = el("div","bloco"); avs.id = "avFicha"; avs.dataset.pid = p.id;
   avs.appendChild(el("h3",null,"Recados com a equipe sobre este paciente"));
   avs.appendChild(el("div","vazio av-vazio","Nenhum recado ainda."));

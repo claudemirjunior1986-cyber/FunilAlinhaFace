@@ -1247,6 +1247,8 @@ const MEDICOS = {
 const textoLivre = t => String(t||"").replace(/\[Planilha Dr\.[^\]]*\][^;]*(;|$)/g," ");
 function marcadoMedico(m, p){
   if(["perdido","noshow"].includes(p.etapa)) return false;
+  // o médico já respondeu pela área dele: agora é a vez da equipe
+  if(/^retorno d[oa] /.test(semAcento(p.proximaAcao).trim())) return false;
   return semAcento(textoLivre(p.observacoes)).includes(m.chave) || semAcento(p.proximaAcao).includes(m.chave);
 }
 const marcadoGustavo = p => marcadoMedico(MEDICOS.gus, p);
