@@ -466,6 +466,17 @@
   .kpi-linha .kv{font-weight:700;color:var(--gold);white-space:nowrap}
   .kpi-lista .vazio{padding:10px;color:var(--ink-3);font-size:13px}
   .kpi-sep{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin:10px 2px 2px}
+
+  /* pendências com os cirurgiões (rotina do dia) */
+  .pend-med{margin-bottom:14px}
+  .pend-med .hint{padding:10px 14px 0}
+  .pend-med-lin{display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px 14px}
+  .pend-med-item{font:inherit;color:inherit;text-align:left;display:flex;flex-direction:column;gap:2px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;min-width:200px}
+  .pend-med-item span{font-size:12.5px;color:var(--ink-3)}
+  .pend-med-item.alerta{border-color:var(--crit)}
+  .pend-med-item.alerta span{color:var(--crit)}
+  .pend-med-item.ok{cursor:default;border-color:var(--accent)}
+  button.pend-med-item:hover{border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -1252,6 +1263,14 @@ function marcadoMedico(m, p){
   return semAcento(textoLivre(p.observacoes)).includes(m.chave) || semAcento(p.proximaAcao).includes(m.chave);
 }
 const marcadoGustavo = p => marcadoMedico(MEDICOS.gus, p);
+// a próxima ação depende de um retorno do cirurgião ("Cobrar retorno do Dr. X…", "Cobrar Gustavo…")
+function esperaMedico(p, m){
+  if(["perdido","noshow"].includes(p.etapa)) return false;
+  const a = semAcento(p.proximaAcao).trim();
+  if(!a.startsWith("cobrar")) return false;
+  if(m) return a.includes(m.chave) || (a.includes("retorno do dr") && p.cirurgiao===m.email);
+  return a.includes("retorno do dr") || Object.values(MEDICOS).some(x=>a.includes(x.chave));
+}
 // desde quando esse caso está esperando: última cobrança, senão a data marcada, senão a entrada
 const esperaDesde = p => ((p.regua||{}).gus) || p.dataProximaAcao || (p.criadoEm||"").slice(0,10) || "";
 function casosMedico(m){
@@ -1711,9 +1730,9 @@ function tarefasDe(p){
   if(p.etapa==="lead" && diasDesde((p.criadoEm||"").slice(0,10))>=2 && !r.reat && !acaoPendente){
     out.push({g:"lead", k:"reat", step:"Lead", cls:"", txt:"Uma tentativa de reativação no WhatsApp", sub:"entrou em "+dataBR((p.criadoEm||"").slice(0,10)), late:false, msg:"reat"});
   }
-  // marcado com "gustavo": o caso mora na aba Dr. Gustavo e sai da rotina do dia.
+  // esperando retorno do cirurgião: o caso está com ele (ele responde pela área dele) e sai da rotina.
   // só a consulta de hoje/amanhã continua aqui, porque é hora marcada com o paciente.
-  const soConsulta = marcadoGustavo(p) ? out.filter(x=>x.g==="conf") : out;
+  const soConsulta = esperaMedico(p) ? out.filter(x=>x.g==="conf") : out;
   return soConsulta.map(x=>Object.assign(x,{p}));
 }
 
@@ -1793,10 +1812,8 @@ function renderHoje(){
 
   // cabeçalho
   const head = el("div","hoje-head");
-  const nGus = casosGustavo().length;
   const hl = el("div"); hl.append(el("h2",null,"Rotina do dia"), el("div","dt",
-    (s=>s.charAt(0).toUpperCase()+s.slice(1))(new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"}))
-    + (nGus ? " · "+nGus+" caso"+(nGus===1?"":"s")+" com o Dr. Gustavo estão na aba dele" : "")));
+    (s=>s.charAt(0).toUpperCase()+s.slice(1))(new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"}))));
   const acts = el("div","acts");
   const bDia = el("button","btn","Resumo do dia"); bDia.addEventListener("click",abrirResumoDia);
   const bSem = el("button","btn","Resumo da semana"); bSem.addEventListener("click",abrirResumoSemana);
@@ -1816,6 +1833,31 @@ function renderHoje(){
   ];
   for(const t of tiles){ const d = el("div","kpi"+(t.c?" "+t.c:"")); d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",t.h)); k.appendChild(d); }
   box.appendChild(k);
+
+  // pendências com os cirurgiões: eles respondem pela área deles; a resposta volta para cá
+  const comMed = Object.entries(MEDICOS).map(([k,m])=>{
+    const l = todos.filter(p=>esperaMedico(p, m));
+    const parados = l.filter(p=>{ const d = diasDesde(esperaDesde(p)); return d!=null && d>=5; }).length;
+    return {k, m, n:l.length, parados};
+  }).filter(x=>x.n);
+  const respostas = todos.filter(p=>/^retorno d[oa] /.test(semAcento(p.proximaAcao).trim()) && p.dataProximaAcao && p.dataProximaAcao<=hoje()).length;
+  if(comMed.length || respostas){
+    const pm = el("section","panel pend-med");
+    const phm = el("div","panel-head"); phm.append(el("h3",null,"Pendências com os cirurgiões"));
+    pm.appendChild(phm);
+    pm.appendChild(el("div","hint","Eles veem esses casos na área deles e respondem por lá. Cada resposta volta para a lista de contatos abaixo como “Retorno do Dr. …”, para dar sequência com o paciente."));
+    const lin = el("div","pend-med-lin");
+    for(const x of comMed){
+      const b = el("button","pend-med-item"); b.type = "button";
+      b.append(el("b",null,x.m.nome), el("span",null, x.n+" esperando retorno"+(x.parados ? " · "+x.parados+" há 5+ dias" : "")));
+      if(x.parados) b.classList.add("alerta");
+      b.title = "Abrir a aba do "+x.m.nome; b.addEventListener("click",()=>trocarModo(x.k));
+      lin.appendChild(b);
+    }
+    if(respostas){ const r = el("div","pend-med-item ok"); r.append(el("b",null,"Respostas para tratar"), el("span",null, respostas+" retorno"+(respostas===1?"":"s")+" de cirurgião na lista abaixo")); lin.appendChild(r); }
+    pm.appendChild(lin);
+    box.appendChild(pm);
+  }
 
   const grid = el("div","hoje-grid");
 
