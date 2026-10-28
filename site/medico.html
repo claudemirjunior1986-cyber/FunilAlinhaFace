@@ -362,7 +362,7 @@ function perguntaDaEquipe(p){
   const t = String(p.proximaAcao||"").replace(/^cobrar\s+(o\s+)?(retorno\s+d[oa]\s+)?(dr[a]?\.?\s*)?[^:(·-]*/i,"").replace(/^[\s:·-]+/,"").trim();
   return t && !/^\(lista enviada/i.test(t) ? t : "";
 }
-const RESPOSTAS_RAPIDAS = ["Atendi e pedi exames","Paciente não compareceu","Aguardando o paciente mandar os exames","Indiquei cirurgia","Sem indicação cirúrgica","Preciso de um retorno com o paciente","Ainda não consegui ver o caso"];
+const RESPOSTAS_RAPIDAS = ["Não é meu paciente (foi atendido por outro cirurgião)","Atendi e pedi exames","Paciente não compareceu","Aguardando o paciente mandar os exames","Indiquei cirurgia","Sem indicação cirúrgica","Preciso de um retorno com o paciente","Ainda não consegui ver o caso"];
 function cartaoRetorno(p, naFicha){
   const box = el("div","card ret-card");
   if(!naFicha){
