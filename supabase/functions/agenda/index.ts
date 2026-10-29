@@ -117,18 +117,24 @@ async function rpc(fn: string, body: unknown) {
   return t ? JSON.parse(t) : null;
 }
 
-// até 6 horários, espalhados em até 3 dias (2 por dia), para a Bia oferecer
+// até 6 horários em até 3 dias, espalhados ao longo do dia (manhã, tarde, noite) para a Bia oferecer
 function escolher(slots: { data: string; hora: string }[]) {
   const porDia = new Map<string, string[]>();
   // o banco nem sempre devolve em ordem: ordena por dia e hora antes de escolher
   const ord = [...slots].sort((x, y) => (x.data + x.hora).localeCompare(y.data + y.hora));
   for (const s of ord) {
-    if (!porDia.has(s.data)) { if (porDia.size >= 3) break; porDia.set(s.data, []); }
-    const l = porDia.get(s.data)!;
-    if (l.length < 2) l.push(s.hora);
+    if (!porDia.has(s.data)) { if (porDia.size >= 3) continue; porDia.set(s.data, []); }
+    porDia.get(s.data)!.push(s.hora);
   }
   const out: { data: string; hora: string; texto: string }[] = [];
-  for (const [d, hs] of porDia) for (const h of hs) out.push({ data: d, hora: h, texto: quando(d, h) });
+  for (const [d, hs] of porDia) {
+    const pega: string[] = [];
+    for (const [de, ate] of [["00:00", "12:00"], ["12:00", "17:00"], ["17:00", "24:00"]]) {
+      const h = hs.find((x) => x >= de && x < ate && !pega.includes(x));
+      if (h) pega.push(h);
+    }
+    for (const h of pega.slice(0, 2)) out.push({ data: d, hora: h, texto: quando(d, h) });
+  }
   return out;
 }
 
