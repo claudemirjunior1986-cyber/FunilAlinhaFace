@@ -54,7 +54,8 @@ function renderAgendaMed(k){
   if(k) AG.k = k;
   const box = $("#agview");
   if(!AGENDAS[AG.k]) AG.k = "gus";
-  if(box.dataset.ag === AG.k && box.childElementCount) return;   // não recarrega o Google à toa
+  // só a agenda do Google não é redesenhada à toa; a do funil precisa redesenhar (troca de semana, bloqueios)
+  if(AG.k === "gus" && box.dataset.ag === "gus" && box.childElementCount) return;
   box.dataset.ag = AG.k;
   box.textContent = "";
   const abas = el("div","ag-tabs");
