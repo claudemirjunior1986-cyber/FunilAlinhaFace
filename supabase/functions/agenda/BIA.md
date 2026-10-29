@@ -91,3 +91,8 @@ Outros ajustes feitos na Bia:
 - Dr. Gustavo on-line fica para fora de SP e do Nordeste (ex.: Porto Alegre e demais estados).
 - GPT Maker → Integrações → Google Calendar: agendas renomeadas para "Dr. Afonso - SP (on-line e presencial Mooca/Vila Mariana)" e "Dr. Gustavo - on-line (fora de SP e do Nordeste)".
 - Comportamento, seção 5: "SP (on-line e presencial) = Dr. Afonso; on-line dos demais = Gustavo".
+
+## Ajuste de 29/10/2026 (tarde) — horário do on-line
+- On-line de todos os médicos: seg–sex 08:00–20:00 e sáb 08:00–14:00 (Config. Horários das três agendas no GPT Maker).
+- Presencial continua restrito, escrito no nome da agenda (a Bia lê): Dr. Afonso Mooca ter/qui/sex 9h–17h, Vila Mariana qua 14h–18h; Dr. Victor Salvador seg/ter 8h–20h, qui 14h–19h, sex 8h–12h e 14h–18h.
+- Testado: presencial Mooca na segunda 19h → Bia ofereceu ter/qui/sex 9h–17h; on-line sábado de manhã → 9h, 10h30, 11h30.
