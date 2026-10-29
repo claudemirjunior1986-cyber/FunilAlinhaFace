@@ -3,9 +3,9 @@
    e cria eventos abrindo o Google Agenda já preenchido: quem salva é a pessoa, com a conta
    Google dela, que precisa ter a agenda compartilhada com permissão de editar.
    Usa do painel: el, $, toast, dataBR, hoje, pacientes, abrirDrawer.
-   Dr. Gustavo: agenda dele (gu.martins00). Dr. Afonso e Dr. Victor: calendários da conta
-   alinhaface@gmail.com, ligados à Bia no GPT Maker do mesmo jeito.
-   (A grade dentro do funil — tabelas agenda_*, arquivo 013 — ficou guardada, mas não é usada.) */
+   Dr. Gustavo: agenda Google dele (gu.martins00), que a Bia usa no GPT Maker.
+   Dr. Afonso e Dr. Victor (desde 29/10/2026): agenda dentro do funil (tabelas agenda_*, arquivos 013 e 015);
+   a Bia marca pelas Intenções (função "agenda") e a consulta já cai na ficha. */
 const AGENDAS = {
   gus:    { nome: "Dr. Gustavo", email: "gu.martins00@gmail.com",       calendario: "gu.martins00@gmail.com", duracaoMin: 15 },
   afonso: { nome: "Dr. Afonso",  email: "dr.aptrindadefilho@gmail.com", calendario: "b084c9639ff3b3b3ad75465c059ca93ff5eeaf6483bd736ffb17ba1a07ecc4b9@group.calendar.google.com", duracaoMin: 30 },
@@ -64,7 +64,7 @@ function renderAgendaMed(k){
     abas.appendChild(b);
   });
   box.appendChild(abas);
-  renderAgendaGoogle(box, AG.k);
+  if(AG.k === "gus") renderAgendaGoogle(box, "gus"); else renderAgendaFunil(box, AG.k);
 }
 
 function renderAgendaGoogle(box, k){
@@ -173,8 +173,8 @@ async function renderAgendaFunil(box, k){
     const card = el("div","ag-dia" + (iso===hj ? " hoje" : ""));
     card.appendChild(el("h3",null, nomesDia[dow] + " " + dataBR(iso)));
     card.appendChild(el("div","sub", blocos.map(g=>
-      g.inicio.slice(0,5)+"–"+g.fim.slice(0,5)+" · "+(g.modalidades.includes("Presencial") ? (g.local||"Presencial").replace(/\s*\(.*\)$/,"") + " + online" : "só online")
-    ).join(" | ") || "fora da grade"));
+      (g.modalidades.includes("Presencial") ? "Presencial " + (g.local||"").replace(/\s*\(.*\)$/,"").replace(/^SP · |^Salvador · /,"") : "Online") + " " + g.inicio.slice(0,5)+"–"+g.fim.slice(0,5)
+    ).join(" · ") || "fora da grade"));
     agBloqueiosDia(k, iso).forEach(b=>{
       const t = (b.inicio.slice(0,10)===iso ? b.inicio.slice(11,16) : "00:00") + "–" + (b.fim.slice(0,10)===iso ? b.fim.slice(11,16) : "24:00");
       card.appendChild(el("div","ag-bloq","⛔ " + (t==="00:00–24:00" ? "Dia bloqueado" : "Bloqueado " + t) + (b.motivo ? " · " + b.motivo : "")));
@@ -188,17 +188,21 @@ async function renderAgendaFunil(box, k){
     });
     const livres = el("div","ag-livres");
     let n = 0;
-    blocos.forEach(g=>{
-      for(let t=agMin(g.inicio); t + 15 <= agMin(g.fim); t += 15){
-        if(iso < hj || (iso===hj && t < agora + 60)) continue;
-        if(!agLivre(k, iso, t, t+15)) continue;
-        const presOk = g.modalidades.includes("Presencial") && t % 30 === agMin(g.inicio) % 30 && t + 30 <= agMin(g.fim) && agLivre(k, iso, t, t+30);
-        const c = el("button","ag-livre", agHora(t)); c.type = "button";
-        c.title = presOk ? "Livre (online ou presencial)" : "Livre só para online (15 min)";
-        c.addEventListener("click",()=>agMarcar(k, g, iso, agHora(t), presOk));
-        livres.appendChild(c); n++;
-      }
-    });
+    const onl = blocos.filter(g=>g.modalidades.includes("Online"));
+    const pres = blocos.filter(g=>g.modalidades.includes("Presencial"));
+    const inicioDia = blocos.length ? Math.min(...blocos.map(g=>agMin(g.inicio))) : 0;
+    const fimDia = blocos.length ? Math.max(...blocos.map(g=>agMin(g.fim))) : 0;
+    for(let t=inicioDia; t + 15 <= fimDia; t += 15){
+      if(iso < hj || (iso===hj && t < agora + 60)) continue;
+      const okOn = onl.some(g=>t >= agMin(g.inicio) && t + 15 <= agMin(g.fim)) && agLivre(k, iso, t, t+15);
+      const gp = pres.find(g=>t >= agMin(g.inicio) && t + 30 <= agMin(g.fim) && (t - agMin(g.inicio)) % 30 === 0);
+      const presOk = !!gp && agLivre(k, iso, t, t+30);
+      if(!okOn && !presOk) continue;
+      const c = el("button","ag-livre" + (presOk ? " pres" : ""), agHora(t)); c.type = "button";
+      c.title = presOk && okOn ? "Livre (online ou presencial)" : presOk ? "Livre só presencial" : "Livre só para online (15 min)";
+      c.addEventListener("click",()=>agMarcar(k, gp || onl[0], iso, agHora(t), presOk, okOn));
+      livres.appendChild(c); n++;
+    }
     if(n) card.appendChild(livres);
     else if(iso >= hj) card.appendChild(el("div","ag-vazio","Sem horário livre."));
     sem.appendChild(card);
@@ -227,10 +231,11 @@ async function renderAgendaFunil(box, k){
   }
 }
 
-function agMarcar(k, g, iso, hora, presOk){
+function agMarcar(k, g, iso, hora, presOk, onOk){
   const m = agMedico(k);
   let mod = "Online";
-  if(presOk) mod = confirm("Marcar " + dataBR(iso) + " às " + hora + " com o " + m.nome + ".\n\nOK = presencial (" + (g.local||"") + ")\nCancelar = online") ? "Presencial" : "Online";
+  if(presOk && onOk === false) mod = "Presencial";
+  else if(presOk) mod = confirm("Marcar " + dataBR(iso) + " às " + hora + " com o " + m.nome + ".\n\nOK = presencial (" + (g.local||"") + ")\nCancelar = online") ? "Presencial" : "Online";
   abrirDrawer(null, {
     dataConsulta: iso, horaConsulta: hora, modalidade: mod,
     local: mod==="Presencial" ? (g.local||"") : "Online",
@@ -282,7 +287,15 @@ function agAjustarFicha(p){
 
 /* ---------- botão dentro da ficha ---------- */
 function agBotaoFicha(p){
-  const b = el("button","btn btn-sm","📅 Agendar no Google"); b.type = "button";
+  // Dr. Afonso e Dr. Victor: a agenda é a própria ficha (data/hora/modalidade); o botão abre a agenda dele no funil
+  const kf = agPorEmail(p.cirurgiao || "");
+  if(p.cirurgiao && kf !== "gus" && AGENDAS[kf]){
+    const v = el("button","btn btn-sm","📅 Ver horários livres do " + AGENDAS[kf].nome); v.type = "button";
+    v.title = "Abre a agenda do " + AGENDAS[kf].nome + " no site. Para marcar, basta preencher data, horário e modalidade nesta ficha e salvar.";
+    v.addEventListener("click",()=>{ try{ localStorage.setItem("funil_ag", kf); }catch(e){} AG.k = kf; fecharOverlays(); if(typeof trocarModo === "function") trocarModo("ag"); renderAgendaMed(kf); });
+    return v;
+  }
+  const b = el("button","btn btn-sm","📅 Agendar no Google (Dr. Gustavo)"); b.type = "button";
   b.title = "Abre a agenda do cirurgião escolhido na ficha (sem cirurgião: Dr. Gustavo) com a consulta preenchida";
   b.addEventListener("click",()=>{
     const data = $("#f_data").value, hora = $("#f_hora").value;
@@ -302,7 +315,7 @@ function agBotaoFicha(p){
       "Agendado pela equipe (painel Alinha Face)."
     ].filter(x=>x!==null).join("\n");
     const sc = $("#f_cir");
-    const k = agPorEmail(sc ? sc.value : "");
+    const k = "gus";
     window.open(agLinkNovo(k, {
       titulo: "Consulta Alinha Face — " + nome, data, hora, detalhes,
       duracaoMin: mod==="Presencial" ? 30 : 15,
