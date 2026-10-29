@@ -510,6 +510,7 @@
     </div>
     <button class="btn" id="btnRecados" title="Orientações internas da equipe">📩 Recados</button>
     <button class="btn" id="btnVoucher" title="Voucher Blume avulso: só nome e data de início">Gerar voucher</button>
+    <button class="btn" id="btnOrient" title="Orientações pré-operatórias para enviar ao paciente">Orientações</button>
     <button class="btn" id="btnImport">Importar</button>
     <button class="btn" id="btnExport">Exportar CSV</button>
     <button class="btn btn-primary" id="btnNew">+ Paciente</button>
@@ -2669,6 +2670,7 @@ $("#btnNew").addEventListener("click",()=>abrirDrawer(null));
 $("#btnImport").addEventListener("click",abrirImport);
 $("#btnRecados").addEventListener("click",rcAbrirPainel);
 $("#btnVoucher").addEventListener("click",()=>window.open("voucher.html","_blank"));
+$("#btnOrient").addEventListener("click",()=>window.open("orientacoes.html","_blank"));
 $("#btnExport").addEventListener("click",exportar);
 $("#viewBoard").addEventListener("click",()=>trocarModo("board"));
 $("#viewTable").addEventListener("click",()=>trocarModo("table"));

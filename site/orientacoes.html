@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#17325C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Alinha Face">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icones/favicon-32.png">
+<title>Orientações · Alinha Face</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Bricolage+Grotesque:opsz,wght@12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="base.css">
+<style>
+  .shell{max-width:1240px;margin:0 auto;padding:18px 16px 60px;display:flex;flex-direction:column;gap:16px}
+  .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .top h1{font-size:20px;margin-right:auto}
+  .form{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;padding:16px}
+  .form .c3{grid-column:span 3}.form .c2{grid-column:span 2}.form .c6{grid-column:span 6}
+  @media (max-width:760px){.form{grid-template-columns:1fr 1fr}.form .c3,.form .c6{grid-column:span 2}.form .c2{grid-column:span 1}}
+  .calc{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 20px;background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-size:14px;color:var(--ink)}
+  .acts{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+  .stage{width:100%;overflow:hidden;border-radius:10px;box-shadow:var(--shadow);background:#F7F4EF}
+  .stage-inner{width:1600px;height:1000px;transform-origin:top left}
+  /* ===== o documento (1600 × 1000), cores fixas da marca ===== */
+#doc{position:relative;width:1600px;height:1000px;background:#F7F4EF;font-family:"Poppins",sans-serif;color:#234F64;overflow:hidden}
+#doc .marca{position:absolute;left:90px;top:70px}
+#doc .wm{font-size:50px;line-height:1;letter-spacing:-.01em}
+#doc .wm b{font-weight:700;color:#234F64}
+#doc .wm span{font-weight:400;color:#4F8BA6}
+#doc .marca .sb{font-size:16px;letter-spacing:.24em;color:#6B7B86;margin-top:10px}
+#doc .selo{position:absolute;right:90px;top:78px;background:#234F64;color:#fff;font-size:17px;font-weight:600;letter-spacing:.2em;padding:14px 26px;border-radius:999px}
+#doc .titulo{position:absolute;left:90px;top:200px;font-size:72px;line-height:1.05;letter-spacing:-.02em}
+#doc .titulo b{font-weight:800;color:#234F64}
+#doc .titulo span{font-weight:300;color:#4F8BA6}
+#doc .linha{position:absolute;left:90px;right:90px;top:316px;height:2px;background:linear-gradient(90deg,#CDA45A,#E9CF96 60%,rgba(243,227,190,0))}
+#doc .cols{position:absolute;left:90px;right:90px;top:350px;display:grid;grid-template-columns:1.6fr 1fr .8fr 1.25fr;gap:0}
+#doc .col{padding:0 30px;border-left:2px solid #DCD5C9}
+#doc .col:first-child{padding-left:0;border-left:0}
+#doc .lbl{font-size:15px;font-weight:600;letter-spacing:.2em;color:#8A97A0}
+#doc .val{font-size:30px;font-weight:600;margin-top:8px;line-height:1.2;color:#234F64}
+#doc .val small{display:block;font-size:17px;font-weight:400;color:#6B7B86;margin-top:2px}
+#doc .val.jj{color:#B0842F}
+#doc .lista{position:absolute;left:90px;right:90px;top:500px;display:grid;grid-template-columns:1fr 1fr;gap:22px 56px}
+#doc .it{display:flex;gap:20px;align-items:flex-start}
+#doc .n{flex:none;width:52px;height:52px;border-radius:50%;background:#234F64;color:#fff;font-size:24px;font-weight:700;display:flex;align-items:center;justify-content:center}
+#doc .it:first-child .n{background:#B0842F}
+#doc .tx{font-size:22px;line-height:1.42;color:#2E4552;padding-top:4px}
+#doc .tx b{font-weight:700;color:#234F64}
+#doc .rodape{position:absolute;left:0;right:0;bottom:0;height:186px;background:#234F64;overflow:hidden}
+#doc .rodape::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:linear-gradient(90deg,#CDA45A,#E9CF96 60%,#F3E3BE);z-index:2}
+#doc .curva{position:absolute;right:-330px;top:0;width:900px;height:900px;border-radius:50%;background:#3F6C85}
+#doc .hosp{position:absolute;left:90px;top:48px;width:1000px;color:#EAF0F3}
+#doc .hosp .lbl{color:#9FC0D0}
+#doc .hosp .nm{font-size:30px;font-weight:700;color:#fff;margin-top:6px}
+#doc .hosp .end{font-size:17px;margin-top:4px;color:#D3E0E7}
+#doc .links{position:absolute;right:92px;top:56px;font-weight:700;font-size:20px;line-height:1.5;color:#fff;text-align:left}
+#doc .links .ct{font-weight:500;font-size:18px;color:#D3E0E7}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top">
+    <h1>Orientações pré-operatórias</h1>
+    <a class="btn btn-sm btn-ghost" href="painel.html">Voltar ao painel</a>
+  </div>
+
+  <form class="card form" id="form" autocomplete="off" hidden>
+    <label class="f c3">Nome completo do paciente
+      <input id="fNome" type="text" placeholder="Nome e sobrenome">
+    </label>
+    <label class="f c3">Hospital
+      <input id="fHosp" type="text" value="Hospital Samaritano Paulista">
+    </label>
+    <label class="f c6">Endereço do hospital (opcional)
+      <input id="fEnd" type="text" placeholder="Rua, número, bairro, cidade">
+    </label>
+    <label class="f c2">Data da internação
+      <input id="fData" type="date">
+    </label>
+    <label class="f c2">Horário da internação
+      <input id="fHora" type="time" value="05:00">
+    </label>
+    <label class="f c2">Horas de jejum
+      <input id="fJej" type="number" min="1" max="24" value="8">
+    </label>
+    <label class="f c6">Contato para dúvidas (opcional)
+      <input id="fCont" type="text" placeholder="Ex.: WhatsApp (11) 90000-0000">
+    </label>
+    <div class="calc" id="calc"></div>
+    <div class="acts">
+      <button class="btn btn-primary" id="bImg" type="button">Gerar e baixar imagem</button>
+      <button class="btn" id="bTxt" type="button">Copiar texto para WhatsApp</button>
+    </div>
+  </form>
+  <div id="msg" class="msg info" hidden></div>
+
+  <div class="stage" id="stage" hidden>
+    <div class="stage-inner" id="stageInner">
+      <div id="doc">
+        <div class="marca"><div class="wm"><b>Alinha</b><span>Face</span></div><div class="sb">CIRURGIA ORTOGNÁTICA &amp; ATM</div></div>
+        <div class="selo">ORIENTAÇÕES PRÉ-OPERATÓRIAS</div>
+        <div class="titulo"><b>Sua cirurgia</b> <span id="vTit">está chegando</span></div>
+        <div class="linha"></div>
+        <div class="cols">
+          <div class="col"><div class="lbl">PACIENTE</div><div class="val" id="vNome">—</div></div>
+          <div class="col"><div class="lbl">INTERNAÇÃO</div><div class="val" id="vData">—</div></div>
+          <div class="col"><div class="lbl">HORÁRIO</div><div class="val" id="vHora">—</div></div>
+          <div class="col"><div class="lbl">JEJUM A PARTIR DE</div><div class="val jj" id="vJej">—</div></div>
+        </div>
+        <div class="lista">
+          <div class="it"><div class="n">1</div><div class="tx" id="t1"></div></div>
+          <div class="it"><div class="n">2</div><div class="tx">Levar ao hospital <b>documento com foto</b> e a <b>carteirinha do plano de saúde</b>.</div></div>
+          <div class="it"><div class="n">3</div><div class="tx">Levar os <b>exames pré-operatórios impressos</b>: exames laboratoriais de sangue e eletrocardiograma.</div></div>
+          <div class="it"><div class="n">4</div><div class="tx" id="t4"></div></div>
+        </div>
+        <div class="rodape">
+          <div class="curva"></div>
+          <div class="hosp"><div class="lbl">LOCAL DA INTERNAÇÃO</div><div class="nm" id="vHosp">—</div><div class="end" id="vEnd"></div></div>
+          <div class="links"><div class="ct" id="vCont"></div>@alinhafaceoficial<br>alinhaface.com.br</div>
+        </div>
+      </div>
+      </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const DIAS=["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
+const p2=n=>String(n).padStart(2,"0");
+const fData=d=>`${p2(d.getDate())}/${p2(d.getMonth()+1)}/${d.getFullYear()}`;
+const fHora=d=>`${p2(d.getHours())}:${p2(d.getMinutes())}h`;
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function msg(t,tipo){const m=$("msg");m.hidden=!t;m.className="msg "+(tipo||"info");m.textContent=t||"";}
+
+function dados(){
+  const [y,m,d]=($("fData").value||"").split("-").map(Number);
+  const [h,mi]=($("fHora").value||"").split(":").map(Number);
+  if(!y||isNaN(h)) return null;
+  const intern=new Date(y,m-1,d,h,mi||0);
+  const horas=Math.max(1,Math.min(24,Number($("fJej").value)||8));
+  const jejum=new Date(intern.getTime()-horas*3600e3);
+  return {intern,jejum,horas,nome:$("fNome").value.trim(),
+    hosp:$("fHosp").value.trim()||"Hospital",end:$("fEnd").value.trim(),cont:$("fCont").value.trim()};
+}
+
+function desenhar(){
+  const x=dados(); if(!x){$("calc").textContent="Preencha a data e o horário da internação.";return;}
+  $("vNome").textContent=x.nome||"Nome do paciente";
+  $("vData").innerHTML=`${fData(x.intern)}<small>${DIAS[x.intern.getDay()]}</small>`;
+  $("vHora").textContent=fHora(x.intern);
+  $("vJej").innerHTML=`${fHora(x.jejum)}<small>${fData(x.jejum)} · ${DIAS[x.jejum.getDay()]}</small>`;
+  $("t1").innerHTML=`<b>Jejum absoluto</b> (sólidos e líquidos, inclusive água) a partir das <b>${fHora(x.jejum)} do dia ${fData(x.jejum)}</b>.`;
+  $("t4").innerHTML=`Chegar para a internação no dia <b>${fData(x.intern)} às ${fHora(x.intern)}</b>, no <b>${esc(x.hosp)}</b>.`;
+  $("vHosp").textContent=x.hosp;
+  $("vEnd").textContent=x.end;
+  $("vCont").textContent=x.cont?("Dúvidas: "+x.cont):"";
+  const falta=x.intern.getTime()-Date.now();
+  $("vTit").textContent=falta>0&&falta<36*3600e3?"é amanhã":"está chegando";
+  $("calc").innerHTML=`<span>Internação: <b>${fData(x.intern)} às ${fHora(x.intern)}</b></span><span>Jejum de ${x.horas}h começa: <b>${fData(x.jejum)} às ${fHora(x.jejum)}</b></span>`;
+}
+
+function escalar(){const w=$("stage").clientWidth,s=w/1600;$("stageInner").style.transform=`scale(${s})`;$("stage").style.height=(1000*s)+"px";}
+
+function nomeOk(){const n=$("fNome").value.trim(); if(n.split(/\s+/).length<2){msg("Escreva o nome completo do paciente.","err");$("fNome").focus();return "";} return n;}
+
+async function baixar(){
+  const nome=nomeOk(); if(!nome) return; const x=dados(); if(!x){msg("Preencha a data e o horário.","err");return;}
+  const b=$("bImg"); b.disabled=true; b.textContent="Gerando…"; msg("");
+  try{
+    await document.fonts.ready;
+    const holder=document.createElement("div"); holder.style.cssText="position:fixed;left:-99999px;top:0";
+    const clone=$("doc").cloneNode(true); holder.appendChild(clone); document.body.appendChild(holder);
+    const c=await html2canvas(clone,{scale:1,width:1600,height:1000,backgroundColor:"#F7F4EF"});
+    holder.remove();
+    const a=document.createElement("a"); a.href=c.toDataURL("image/png");
+    a.download="Orientacoes - "+nome.replace(/[\\/:*?"<>|]/g,"")+".png";
+    document.body.appendChild(a); a.click(); a.remove();
+    msg("Imagem baixada. É só enviar ao paciente.","ok");
+  }catch(e){ msg("Não consegui gerar a imagem. Recarregue a página e tente de novo.","err"); }
+  b.disabled=false; b.textContent="Gerar e baixar imagem";
+}
+
+function copiar(){
+  const x=dados(); if(!x){msg("Preencha a data e o horário.","err");return;}
+  const t=`*Orientações pré-operatórias — Alinha Face*\n${x.nome?"Paciente: "+x.nome+"\n":""}\n1- Jejum absoluto (sólidos e líquidos, inclusive água) a partir das ${fHora(x.jejum)} do dia ${fData(x.jejum)}.\n2- Levar ao hospital documento com foto e carteirinha do plano de saúde.\n3- Levar ao hospital os exames pré-operatórios impressos (exames laboratoriais de sangue e eletrocardiograma).\n4- Internação dia ${fData(x.intern)} às ${fHora(x.intern)}, no ${x.hosp}.${x.end?"\nEndereço: "+x.end:""}${x.cont?"\n\nDúvidas: "+x.cont:""}`;
+  const ok=()=>msg("Texto copiado. É só colar no WhatsApp.","ok");
+  const alt=()=>{const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");ok();}catch(e){msg("Não deu para copiar.","err");}ta.remove();};
+  try{navigator.clipboard.writeText(t).then(ok).catch(alt);}catch(e){alt();}
+}
+
+(async()=>{
+  await FUNIL.exigir(["admin"]);
+  const am=new Date(Date.now()+864e5);
+  $("fData").value=`${am.getFullYear()}-${p2(am.getMonth()+1)}-${p2(am.getDate())}`;
+  $("form").hidden=false; $("stage").hidden=false;
+  escalar(); desenhar(); await document.fonts.ready; desenhar(); escalar();
+  $("form").addEventListener("input",desenhar);
+  $("form").addEventListener("submit",e=>e.preventDefault());
+  $("bImg").addEventListener("click",baixar);
+  $("bTxt").addEventListener("click",copiar);
+  addEventListener("resize",escalar);
+  $("fNome").focus();
+})();
+</script>
+<script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
+</body>
+</html>
