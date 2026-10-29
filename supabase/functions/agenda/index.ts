@@ -19,7 +19,8 @@
 // Regra de distribuição (decidida pelo Claudemir, out/2026):
 //   - Bahia e todo o Nordeste -> Dr. Victor (online ou presencial em Salvador)
 //   - São Paulo presencial    -> Dr. Afonso, sempre
-//   - Online de SP, RS e demais estados -> Dr. Gustavo (agenda do Google, como já é feito)
+//   - SP (online e presencial)  -> Dr. Afonso, nesta agenda
+//   - Online de RS e demais estados -> Dr. Gustavo (agenda do Google, como já é feito)
 //   - Presencial no RS        -> segue com a Ana Clara, como já é feito
 //   - Presencial em outros estados -> só existe em SP e Salvador; a Bia oferece online
 
@@ -94,7 +95,8 @@ function rota(estado: string, mod: string) {
     }
     return { tipo: "funil", medico: "victor" };
   }
-  if (estado === "SP" && mod === "Presencial") return { tipo: "funil", medico: "afonso" };
+  // São Paulo: online e presencial com o Dr. Afonso (presencial em Moema é com o Dr. Gustavo, via Ana Clara)
+  if (estado === "SP") return { tipo: "funil", medico: "afonso" };
   if (mod === "Online") {
     return { tipo: "gustavo", instrucao: "Siga como sempre: ofereça os horários online da agenda do Dr. Gustavo (Google Agenda). Não use esta consulta para esse paciente." };
   }
