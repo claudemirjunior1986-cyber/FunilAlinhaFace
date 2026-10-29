@@ -186,6 +186,24 @@ Deno.serve(async (req) => {
   const corpoTxt = await req.text();
   let p: any = {};
   try { p = corpoTxt ? JSON.parse(corpoTxt) : {}; } catch { /* corpo vazio */ }
+  if (p.acao === "sincronizar") {
+    // chamado pelo agendador a cada 2 min: traz as conversas recentes do GPT Maker para o site
+    // (o gatilho do banco cria a ficha das conversas novas). Não recebe dados de fora.
+    try {
+      const SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+      const lista = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=50`);
+      const arr = (Array.isArray(lista) ? lista : []).filter((c: any) => !c.isGroup && c.channelId && c.agentId !== AGENTE_RESUMO).map(linhaDoChat);
+      if (arr.length) {
+        const r = await fetch(SB_URL + "/rest/v1/funil_whats?on_conflict=chat_id", {
+          method: "POST",
+          headers: { apikey: SR, Authorization: "Bearer " + SR, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
+          body: JSON.stringify(arr),
+        });
+        if (!r.ok) return json({ erro: "banco: " + (await r.text()).slice(0, 200) }, 500);
+      }
+      return json({ ok: true, conversas: arr.length });
+    } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
+  }
   if (p.acao === "processar_avisos") {
     try { return json(await processarAvisos()); } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
   }
