@@ -84,3 +84,10 @@ Outros ajustes feitos na Bia:
 - Manual da Bia corrigido (MANUALFAQBIA-27.10.2026.md) entregue para substituir o documento antigo no GPT Maker.
 - Modelo da Bia trocado de GPT-4.1 Mini para GPT-6 Luna (mesmo custo, 1 crédito por mensagem).
 - Manual antigo (documento) removido; o conteúdo corrigido entrou como 5 treinamentos em texto: Sobre a Alinha Face, ATM/DTM, Tratamento de DTM, Cirurgia ortognática, Plano de saúde/pagamento.
+
+## Ajuste de 29/10/2026 — São Paulo
+- On-line de SP passa a ser só do **Dr. Afonso** (mesmos dias e horários da agenda dele: ter/qui/sex 9h–17h, qua 14h–18h).
+- Presencial SP: Mooca e Vila Mariana com o Dr. Afonso, marcado pela Bia; Moema (qua) continua com o Dr. Gustavo, via Ana Clara.
+- Dr. Gustavo on-line fica para fora de SP e do Nordeste (ex.: Porto Alegre e demais estados).
+- GPT Maker → Integrações → Google Calendar: agendas renomeadas para "Dr. Afonso - SP (on-line e presencial Mooca/Vila Mariana)" e "Dr. Gustavo - on-line (fora de SP e do Nordeste)".
+- Comportamento, seção 5: "SP (on-line e presencial) = Dr. Afonso; on-line dos demais = Gustavo".
