@@ -96,3 +96,11 @@ Outros ajustes feitos na Bia:
 - On-line de todos os médicos: seg–sex 08:00–20:00 e sáb 08:00–14:00 (Config. Horários das três agendas no GPT Maker).
 - Presencial continua restrito, escrito no nome da agenda (a Bia lê): Dr. Afonso Mooca ter/qui/sex 9h–17h, Vila Mariana qua 14h–18h; Dr. Victor Salvador seg/ter 8h–20h, qui 14h–19h, sex 8h–12h e 14h–18h.
 - Testado: presencial Mooca na segunda 19h → Bia ofereceu ter/qui/sex 9h–17h; on-line sábado de manhã → 9h, 10h30, 11h30.
+
+## Mudança de 29/10/2026 (fim da tarde) — Afonso e Victor 100% no funil
+- Agendas Google do Dr. Afonso e do Dr. Victor **removidas** da integração Google Calendar da Bia (os calendários continuam existindo na conta alinhaface@gmail.com, só não são mais usados).
+- Intenções "Consultar horários livres de consulta" e "Agendar consulta no horário escolhido" **reativadas**.
+- Função `agenda`: SP (online e presencial) → Dr. Afonso; Bahia/Nordeste → Dr. Victor; demais online → Dr. Gustavo (Google). Oferece 2 horários por dia (manhã/tarde/noite) em até 3 dias.
+- Grade (arquivo 015): online seg–sex 8h–20h, sáb 8h–14h; presencial Afonso Mooca ter/qui/sex 9h–17h e Vila Mariana qua 14h–18h; Victor Salvador qui 14h–19h, sex 8h–12h e 14h–18h.
+- Comportamento seção 5: "SP e Bahia/Nordeste: use a intenção Consultar horários e, escolhido, Agendar consulta (nunca o Google). On-line dos demais: agenda do Gustavo."
+- A consulta marcada pela intenção vai direto para a ficha (cirurgião, data, hora, modalidade) e dispara o aviso de WhatsApp ao médico.
