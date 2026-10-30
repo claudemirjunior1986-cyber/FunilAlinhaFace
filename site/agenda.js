@@ -48,24 +48,25 @@ function agLinkNovo(k, info){
 
 /* ---------- aba "Agendas": Dr. Gustavo (Google) + Dr. Afonso e Dr. Victor (funil) ---------- */
 const AG = { k: null, semana: null, medicos: [], grade: [], bloq: [], carregado: false, carregando: null };
-try{ AG.k = localStorage.getItem("funil_ag") || "gus"; }catch(e){ AG.k = "gus"; }
+AG.k = "todos";   // a aba sempre abre em "Todos os cirurgiões"
 
 function renderAgendaMed(k){
   if(k) AG.k = k;
   const box = $("#agview");
-  if(!AGENDAS[AG.k]) AG.k = "gus";
+  if(AG.k !== "todos" && !AGENDAS[AG.k]) AG.k = "todos";
   // só a agenda do Google não é redesenhada à toa; a do funil precisa redesenhar (troca de semana, bloqueios)
   if(AG.k === "gus" && box.dataset.ag === "gus" && box.childElementCount) return;
   box.dataset.ag = AG.k;
   box.textContent = "";
   const abas = el("div","ag-tabs");
-  [["gus","Dr. Gustavo"],["afonso","Dr. Afonso"],["victor","Dr. Victor"]].forEach(([c,n])=>{
+  [["todos","Todos os cirurgiões"],["gus","Dr. Gustavo"],["afonso","Dr. Afonso"],["victor","Dr. Victor"]].forEach(([c,n])=>{
     const b = el("button",null,n); b.type = "button"; b.setAttribute("aria-pressed", String(AG.k===c));
     b.addEventListener("click",()=>{ try{ localStorage.setItem("funil_ag", c); }catch(e){} renderAgendaMed(c); });
     abas.appendChild(b);
   });
   box.appendChild(abas);
-  if(AG.k === "gus") renderAgendaGoogle(box, "gus"); else renderAgendaFunil(box, AG.k);
+  if(AG.k === "todos") renderAgendaTodos(box);
+  else if(AG.k === "gus") renderAgendaGoogle(box, "gus"); else renderAgendaFunil(box, AG.k);
 }
 
 function renderAgendaGoogle(box, k){
@@ -328,4 +329,71 @@ function agBotaoFicha(p){
     toast("No Google, confira e clique em Salvar. Depois clique em Salvar aqui na ficha.");
   });
   return b;
+}
+
+
+/* ---------- "Todos os cirurgiões": as consultas da semana de todos, numa tela só ---------- */
+const AG_CORES = ["#2C5A93","#B4913F","#3F8F6B","#9A4F8C","#C0603A","#4F7FA8"];
+function agCorMedico(email){
+  const l = (typeof CIRURGIOES !== "undefined" ? CIRURGIOES : []).map(c=>c.email);
+  const i = Math.max(0, l.indexOf(email));
+  return email ? AG_CORES[i % AG_CORES.length] : "#8B93A3";
+}
+function agNomeMedico(email){
+  const c = (typeof CIRURGIOES !== "undefined" ? CIRURGIOES : []).find(c=>c.email===email);
+  return c ? c.nome : (email ? email.split("@")[0] : "Sem cirurgião");
+}
+function renderAgendaTodos(box){
+  if(!AG.semana) AG.semana = agSegunda(hoje());
+  const head = el("div","hoje-head");
+  const hl = el("div");
+  hl.append(el("h2",null,"Agenda de todos os cirurgiões"),
+            el("div","dt","Todas as consultas marcadas nas fichas, de todos os cirurgiões. Clique na consulta para abrir a ficha. Para ver horários livres de um cirurgião, use a aba dele."));
+  const acts = el("div","acts");
+  const bAnt = el("button","btn btn-sm","‹ Semana anterior"), bHoje = el("button","btn btn-sm","Esta semana"), bProx = el("button","btn btn-sm","Próxima semana ›");
+  bAnt.addEventListener("click",()=>{ AG.semana = agMaisDias(AG.semana,-7); renderAgendaMed(); });
+  bHoje.addEventListener("click",()=>{ AG.semana = agSegunda(hoje()); renderAgendaMed(); });
+  bProx.addEventListener("click",()=>{ AG.semana = agMaisDias(AG.semana,7); renderAgendaMed(); });
+  acts.append(bAnt, bHoje, bProx);
+  head.append(hl, acts); box.appendChild(head);
+
+  const fim = agMaisDias(AG.semana, 6);
+  const cons = [...pacientes.values()].filter(p => p.dataConsulta && p.dataConsulta >= AG.semana && p.dataConsulta <= fim
+      && /^\d{2}:\d{2}$/.test(p.horaConsulta||"") && !["perdido"].includes(p.etapa));
+  // legenda e totais por cirurgião
+  const porMed = {};
+  cons.forEach(p => { const k = p.cirurgiao || ""; porMed[k] = (porMed[k]||0) + 1; });
+  const leg = el("div","ag-leg");
+  Object.keys(porMed).sort((a,b)=>agNomeMedico(a).localeCompare(agNomeMedico(b))).forEach(k=>{
+    const i = el("span","ag-leg-i"); const b = el("i"); b.style.background = agCorMedico(k);
+    i.append(b, document.createTextNode(agNomeMedico(k) + " · " + porMed[k])); leg.appendChild(i);
+  });
+  if(cons.length) box.appendChild(leg);
+
+  const sem = el("div","ag-sem");
+  const nomesDia = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+  const hj = hoje();
+  for(let i=0;i<7;i++){
+    const iso = agMaisDias(AG.semana, i);
+    const dow = new Date(iso+"T12:00:00").getDay();
+    const doDia = cons.filter(p=>p.dataConsulta===iso).sort((a,b)=>a.horaConsulta.localeCompare(b.horaConsulta));
+    if(!doDia.length && (dow===0)) continue;
+    const card = el("div","ag-dia" + (iso===hj ? " hoje" : ""));
+    const h3 = el("h3",null, nomesDia[dow] + " " + dataBR(iso)); h3.appendChild(el("span","ag-n", doDia.length ? " · " + doDia.length : ""));
+    card.appendChild(h3);
+    if(!doDia.length) card.appendChild(el("div","ag-vazio","Nenhuma consulta."));
+    doDia.forEach(p=>{
+      const bt = el("button","ag-cons ag-cons-todos"); bt.type = "button";
+      bt.style.borderLeft = "4px solid " + agCorMedico(p.cirurgiao||"");
+      const txt = el("span");
+      txt.append(el("span",null,(p.modalidade==="Presencial"?"🏥 ":"💻 ") + (p.nome||"Sem nome")),
+                 el("small",null, agNomeMedico(p.cirurgiao||"") + (p.etapa==="noshow" ? " · faltou" : (p.etapa!=="agendou" ? " · atendido" : ""))));
+      bt.append(el("b",null,p.horaConsulta), txt);
+      bt.title = (p.modalidade||"") + (p.local && p.modalidade==="Presencial" ? " · " + p.local : "") + " — abrir ficha";
+      bt.addEventListener("click",()=>abrirDrawer(p.id));
+      card.appendChild(bt);
+    });
+    sem.appendChild(card);
+  }
+  box.appendChild(sem);
 }
