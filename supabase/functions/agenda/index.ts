@@ -161,17 +161,32 @@ Deno.serve(async (req) => {
 
     if (acao === "horarios") {
       const de = data(p.data || p.data_preferida || "") || null;
-      const slots = await rpc("agenda_slots", { p_chave: r.medico, p_modalidade: mod, p_de: de });
-      const opcoes = escolher(slots || []);
-      const local = mod === "Presencial" && slots?.[0] ? slots[0].endereco : null;
+      const slots: { data: string; hora: string; endereco: string }[] = (await rpc("agenda_slots", { p_chave: r.medico, p_modalidade: mod, p_de: de })) || [];
+      const ord = [...slots].sort((x, y) => (x.data + x.hora).localeCompare(y.data + y.hora));
+      const opcoes = escolher(ord);
+      const local = mod === "Presencial" && ord[0] ? ord[0].endereco : null;
+      // TODOS os horários livres dos 3 primeiros dias: se a pessoa pedir um horário que está aqui, ele serve
+      const porDia = new Map<string, string[]>();
+      for (const s of ord) {
+        if (!porDia.has(s.data)) { if (porDia.size >= 3) continue; porDia.set(s.data, []); }
+        porDia.get(s.data)!.push(s.hora);
+      }
+      const livres = [...porDia].map(([d, hs]) => ({ data: d, dia: quando(d, "").replace(/ às $/, ""), horas: hs.join(", ") }));
+      // a pessoa já disse um horário? confere esse horário exato
+      const hp = String(p.hora || p.hora_preferida || "").replace(/h$/i, ":00").replace(/^(\d{1,2})$/, "$1:00").replace(/^(\d):/, "0$1:");
+      const diaPedido = de || (ord[0] ? ord[0].data : "");
+      const pedidoLivre = /^\d{2}:\d{2}$/.test(hp) ? ord.some((s) => s.data === diaPedido && s.hora === hp) : null;
       return json({
         ok: true, medico: r.medico === "afonso" ? "Dr. Afonso" : "Dr. Victor", modalidade: mod, estado: est,
-        horarios: opcoes, endereco: local,
-        instrucao: opcoes.length
-          ? "Ofereça estes horários (no máximo 3 de cada vez) e confirme com a pessoa qual serve antes de marcar. "
+        horarios: opcoes, livres, endereco: local,
+        horario_pedido: pedidoLivre === null ? undefined : { data: diaPedido, hora: hp, livre: pedidoLivre },
+        instrucao: !ord.length
+          ? "Não há horário livre nas próximas duas semanas. Avise que a equipe vai entrar em contato para encaixar e transfira para a Ana Clara."
+          : "Se a pessoa pediu um dia/horário, procure em 'livres' (todos os horários livres de cada dia): se estiver lá, ESTÁ DISPONÍVEL — confirme esse horário. "
+            + "Nunca diga que um horário não existe se ele aparece em 'livres'. Se não pediu nada, ofereça as opções de 'horarios' (no máximo 3). "
+            + "Confirme com a pessoa antes de marcar. "
             + (mod === "Online" ? "Consulta online por vídeo, 15 minutos." : "Consulta presencial no endereço informado.")
-            + (r.aviso ? " " + r.aviso : "")
-          : "Não há horário livre nas próximas duas semanas. Avise que a equipe vai entrar em contato para encaixar e transfira para a Ana Clara.",
+            + (r.aviso ? " " + r.aviso : ""),
       });
     }
 
