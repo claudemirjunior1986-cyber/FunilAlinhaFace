@@ -117,6 +117,21 @@ async function rpc(fn: string, body: unknown) {
   return t ? JSON.parse(t) : null;
 }
 
+function min(h: string) { const [a, b] = h.split(":").map(Number); return a * 60 + (b || 0); }
+function hm(m: number) { const h = Math.floor(m / 60), x = m % 60; return x ? `${h}h${String(x).padStart(2, "0")}` : `${h}h`; }
+// faixas contínuas do dia: ["08:00","08:15",...,"13:45"] -> "das 8h às 14h"
+function faixas(hs: string[]) {
+  const ms = hs.map(min).sort((a, b) => a - b);
+  let passo = 60;
+  for (let i = 1; i < ms.length; i++) if (ms[i] - ms[i - 1] > 0) passo = Math.min(passo, ms[i] - ms[i - 1]);
+  const blocos: [number, number][] = [];
+  for (const m of ms) {
+    const u = blocos[blocos.length - 1];
+    if (u && m - u[1] <= passo) u[1] = m; else blocos.push([m, m]);
+  }
+  return blocos.map(([a, b]) => a === b ? `às ${hm(a)}` : `das ${hm(a)} às ${hm(b + passo)}`).join(" e ");
+}
+
 // até 6 horários em até 3 dias, espalhados ao longo do dia (manhã, tarde, noite) para a Bia oferecer
 function escolher(slots: { data: string; hora: string }[]) {
   const porDia = new Map<string, string[]>();
@@ -129,9 +144,12 @@ function escolher(slots: { data: string; hora: string }[]) {
   const out: { data: string; hora: string; texto: string }[] = [];
   for (const [d, hs] of porDia) {
     const pega: string[] = [];
-    for (const [de, ate] of [["00:00", "12:00"], ["12:00", "17:00"], ["17:00", "24:00"]]) {
-      const h = hs.find((x) => x >= de && x < ate && !pega.includes(x));
-      if (h) pega.push(h);
+    // em cada período pega o horário mais perto de um "bom horário" (não o primeiro, que dava sempre 8h e 12h)
+    for (const [de, ate, alvo] of [["00:00", "12:00", "10:00"], ["12:00", "17:00", "14:30"], ["17:00", "24:00", "18:30"]]) {
+      const cand = hs.filter((x) => x >= de && x < ate && !pega.includes(x));
+      if (!cand.length) continue;
+      cand.sort((a, b) => Math.abs(min(a) - min(alvo)) - Math.abs(min(b) - min(alvo)));
+      pega.push(cand[0]);
     }
     for (const h of pega.slice(0, 2)) out.push({ data: d, hora: h, texto: quando(d, h) });
   }
@@ -171,7 +189,7 @@ Deno.serve(async (req) => {
         if (!porDia.has(s.data)) { if (porDia.size >= 3) continue; porDia.set(s.data, []); }
         porDia.get(s.data)!.push(s.hora);
       }
-      const livres = [...porDia].map(([d, hs]) => ({ data: d, dia: quando(d, "").replace(/ às $/, ""), horas: hs.join(", ") }));
+      const livres = [...porDia].map(([d, hs]) => ({ data: d, dia: quando(d, "").replace(/ às $/, ""), faixa: faixas(hs), horas: hs.join(", ") }));
       // a pessoa já disse um horário? confere esse horário exato
       const hp = String(p.hora || p.hora_preferida || "").replace(/h$/i, ":00").replace(/^(\d{1,2})$/, "$1:00").replace(/^(\d):/, "0$1:");
       const diaPedido = de || (ord[0] ? ord[0].data : "");
@@ -182,8 +200,10 @@ Deno.serve(async (req) => {
         horario_pedido: pedidoLivre === null ? undefined : { data: diaPedido, hora: hp, livre: pedidoLivre },
         instrucao: !ord.length
           ? "Não há horário livre nas próximas duas semanas. Avise que a equipe vai entrar em contato para encaixar e transfira para a Ana Clara."
-          : "Se a pessoa pediu um dia/horário, procure em 'livres' (todos os horários livres de cada dia): se estiver lá, ESTÁ DISPONÍVEL — confirme esse horário. "
-            + "Nunca diga que um horário não existe se ele aparece em 'livres'. Se não pediu nada, ofereça as opções de 'horarios' (no máximo 3). "
+          : "Ofereça pela FAIXA do dia (campo 'faixa' em 'livres'), não só 2 horários soltos. Ex.: 'Amanhã, sábado, tenho horários das 8h às 14h. Qual horário fica melhor para você?'. "
+            + "Se a pessoa pediu um dia/horário, procure em 'livres' (campo 'horas' tem todos os horários livres): se estiver lá, ESTÁ DISPONÍVEL — confirme esse horário. "
+            + "Nunca diga que um horário não existe se ele aparece em 'livres'. Se a pessoa pedir OUTRO horário, nunca repita os que já ofereceu: diga a faixa inteira do dia ou outros horários de 'horas'. "
+            + "Os exemplos em 'horarios' são só sugestões. "
             + "Confirme com a pessoa antes de marcar. "
             + (mod === "Online" ? "Consulta online por vídeo, 15 minutos." : "Consulta presencial no endereço informado.")
             + (r.aviso ? " " + r.aviso : ""),
