@@ -120,7 +120,8 @@ async function processarAvisos() {
   if (!fila.length) return { ok: true, enviados: 0 };
   // por paciente + cirurgião, só vale o aviso mais recente
   const ultimo = new Map<string, any>();
-  for (const a of fila) ultimo.set(a.paciente_id + "|" + a.email + "|" + (a.tipo === "cancelada" ? "c" : "m"), a);
+  const classe = (a: any) => String(a.tipo || "").startsWith("lembrete") ? a.tipo : (a.tipo === "cancelada" ? "c" : "m");
+  for (const a of fila) ultimo.set(a.paciente_id + "|" + a.email + "|" + classe(a), a);
   let enviados = 0;
   const canalDe = async () => {
     const lista = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=5`);
@@ -128,14 +129,16 @@ async function processarAvisos() {
   };
   let canal: string | undefined;
   for (const a of fila) {
-    const chave = a.paciente_id + "|" + a.email + "|" + (a.tipo === "cancelada" ? "c" : "m");
+    const lembrete = String(a.tipo || "").startsWith("lembrete");
+    const doPaciente = a.tipo === "lembrete_paciente";
+    const chave = a.paciente_id + "|" + a.email + "|" + classe(a);
     if (ultimo.get(chave) !== a) {
       await db("funil_avisos_medico?id=eq." + a.id, { method: "PATCH", body: JSON.stringify({ situacao: "substituido" }) });
       continue;
     }
-    if (a.criado_em > limite) continue;            // ainda dentro do minuto de espera
+    if (!lembrete && a.criado_em > limite) continue;   // aviso de agenda: ainda dentro do minuto de espera
     // aviso de remarcação/nova anula um cancelamento pendente do mesmo paciente e cirurgião, e vice-versa
-    const oposto = ultimo.get(a.paciente_id + "|" + a.email + "|" + (a.tipo === "cancelada" ? "m" : "c"));
+    const oposto = lembrete ? null : ultimo.get(a.paciente_id + "|" + a.email + "|" + (a.tipo === "cancelada" ? "m" : "c"));
     if (oposto && oposto.criado_em > a.criado_em) {
       await db("funil_avisos_medico?id=eq." + a.id, { method: "PATCH", body: JSON.stringify({ situacao: "substituido" }) });
       continue;
@@ -147,7 +150,8 @@ async function processarAvisos() {
       const cw = await db("funil_whats?select=chat_id&tel8=eq." + t8 + "&limit=1");
       let chatId: string | null = cw.ok ? ((await cw.json())[0]?.chat_id || null) : null;
       if (chatId) {
-        try { await gm(`/chat/${encodeURIComponent(chatId)}/start-human`, { method: "PUT" }); } catch { /* já estava com a equipe */ }
+        // lembrete ao paciente: a Bia continua atendendo a conversa
+        if (!doPaciente) { try { await gm(`/chat/${encodeURIComponent(chatId)}/start-human`, { method: "PUT" }); } catch { /* já estava com a equipe */ } }
         await gm(`/chat/${encodeURIComponent(chatId)}/send-message`, { method: "POST", body: JSON.stringify({ message: a.texto }) });
       } else {
         canal = canal || await canalDe();
@@ -159,12 +163,12 @@ async function processarAvisos() {
           const novos = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=20`);
           chatId = (Array.isArray(novos) ? novos : []).find((c: any) => so8(c.whatsappPhone) === t8)?.id || null;
         }
-        if (chatId) { try { await gm(`/chat/${encodeURIComponent(chatId)}/start-human`, { method: "PUT" }); } catch { /* ok */ } }
+        if (chatId && !doPaciente) { try { await gm(`/chat/${encodeURIComponent(chatId)}/start-human`, { method: "PUT" }); } catch { /* ok */ } }
       }
       if (chatId) {
         await db("funil_whats_envios", { method: "POST", headers: { Prefer: "return=minimal" },
-          body: JSON.stringify({ chat_id: chatId, texto: a.texto.slice(0, 2000), por: "avisos@alinhaface", por_nome: "Aviso automático" }) });
-        await db("funil_whats?chat_id=eq." + encodeURIComponent(chatId), { method: "PATCH", body: JSON.stringify({ humano: true }) });
+          body: JSON.stringify({ chat_id: chatId, texto: a.texto.slice(0, 2000), por: "avisos@alinhaface", por_nome: lembrete ? "Lembrete automático" : "Aviso automático" }) });
+        if (!doPaciente) await db("funil_whats?chat_id=eq." + encodeURIComponent(chatId), { method: "PATCH", body: JSON.stringify({ humano: true }) });
       }
       await db("funil_avisos_medico?id=eq." + a.id, { method: "PATCH", body: JSON.stringify({ situacao: "enviado", enviado_em: new Date().toISOString() }) });
       enviados++;
