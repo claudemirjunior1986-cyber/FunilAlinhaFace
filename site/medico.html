@@ -129,6 +129,7 @@
   .ret-top{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px}
   .ret-top b{font-size:15px}
   .ret-info{font-size:12.5px;color:var(--ink-3)}
+  .ret-resumo{font-size:13.5px;line-height:1.45;border-left:3px solid var(--accent, #c9a35b);padding:2px 0 2px 10px;color:var(--ink-2, #333)}
   .ret-perg{font-size:13.5px;background:var(--surface-2, #f4f5f7);border-radius:8px;padding:8px 10px}
   .ret-chips{display:flex;flex-wrap:wrap;gap:6px}
   .ret-chips .chip{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 10px;cursor:pointer}
@@ -363,14 +364,29 @@ function perguntaDaEquipe(p){
   return t && !/^\(lista enviada/i.test(t) ? t : "";
 }
 const RESPOSTAS_RAPIDAS = ["Não é meu paciente (foi atendido por outro cirurgião)","Atendi e pedi exames","Paciente não compareceu","Aguardando o paciente mandar os exames","Indiquei cirurgia","Sem indicação cirúrgica","Preciso de um retorno com o paciente","Ainda não consegui ver o caso"];
+// resumo curto do caso para o cirurgião: o escrito pela equipe ou, sem ele, as observações (se dizem algo)
+function resumoDoCaso(p){
+  if(String(p.resumoCaso||"").trim()) return String(p.resumoCaso).trim();
+  const o = String(p.observacoes||"").replace(/\s+/g," ").trim();
+  if(o.length < 15) return [p.tratamento].filter(Boolean).join("");
+  return o.length > 260 ? o.slice(0,257) + "…" : o;
+}
 function cartaoRetorno(p, naFicha){
   const box = el("div","card ret-card");
   if(!naFicha){
     const top = el("button","ret-top"); top.type = "button";
     top.append(el("b",null,p.nome||"Paciente"),
-      el("span","ret-info",[p.dataConsulta ? "consulta "+dataBR(p.dataConsulta) : "", p.tratamento, p.convenio==="Sim" ? (p.nomeConvenio||"convênio") : ""].filter(Boolean).join(" · ")));
+      el("span","ret-info",[
+        p.cidade ? "📍 " + p.cidade : "",
+        p.modalidade ? (p.modalidade==="Presencial" ? "🏥 Presencial" : "💻 Online") : "",
+        p.convenio==="Sim" ? (p.nomeConvenio||"convênio") : (p.convenio==="Não" ? "particular" : ""),
+        p.dataConsulta ? "consulta " + dataBR(p.dataConsulta) + (p.horaConsulta ? " às " + String(p.horaConsulta).slice(0,5) : "") : "sem data de consulta",
+        p.telefone ? "📱 " + p.telefone : ""
+      ].filter(Boolean).join(" · ")));
     top.title = "Abrir a ficha"; top.addEventListener("click", ()=>abrir(p.id));
     box.appendChild(top);
+    const res = resumoDoCaso(p);
+    if(res) box.appendChild(el("div","ret-resumo", res));
   }
   const perg = perguntaDaEquipe(p);
   box.appendChild(el("div","ret-perg", perg ? "A equipe pergunta: " + perg : "A equipe quer saber como ficou este paciente."));
@@ -508,6 +524,7 @@ function abrir(id){
   campo("Cidade", p.cidade);
   campo("WhatsApp", p.telefone);
   campo("Etapa", ETAPAS[p.etapa]);
+  campo("Resumo do caso", p.resumoCaso, true);
   campo("Observações da equipe", p.observacoes, true);
   if(esperandoRetorno().some(x => x.id === p.id)){
     const br = el("div","bloco ret-ficha");

@@ -2437,7 +2437,9 @@ function abrirDrawer(id, pre){
   });
   g4.append(campo("Próxima ação", selAcao), campo("Quando", inp("f_dpacao","date",p.dataProximaAcao||"")));
   const obs = el("textarea"); obs.id="f_obs"; obs.value = p.observacoes||""; obs.placeholder="Queixa principal, o que o Dr. Gustavo pediu, objeções…";
-  fs4.append(g4, campoOutro, campo("Observações", obs)); b.appendChild(fs4);
+  const resumo = el("textarea"); resumo.id="f_resumo"; resumo.value = p.resumoCaso||""; resumo.rows = 2;
+  resumo.placeholder="Ex.: Dor na mandíbula há 2 anos, já usou placa. Unimed, Porto Alegre. Quer resolver logo.";
+  fs4.append(g4, campoOutro, campo("Observações", obs), campo("Resumo do caso (aparece para o cirurgião)", resumo)); b.appendChild(fs4);
 
   const fs5 = el("fieldset"); fs5.append(el("div","legend","Voucher de ressonância · Blume"));
   const g5 = el("div","grid3");
@@ -2519,6 +2521,7 @@ function abrirDrawer(id, pre){
       dataProposta:$("#f_dprop").value, convenio:$("#f_conv").value, nomeConvenio:$("#f_nconv").value.trim(),
       pagamento:$("#f_pag").value, valorProposta:Number($("#f_valor").value)||0, opme:Number($("#f_opme").value)||0,
       proximaAcao:(function(){ const v=$("#f_pacao").value; return v==="Outro (escrever)" ? $("#f_pacao_txt").value.trim() : v; })(), dataProximaAcao:$("#f_dpacao").value, observacoes:$("#f_obs").value.trim(),
+      resumoCaso:$("#f_resumo").value.trim(),
       voucherEmitido:$("#f_vemit").value, voucherStatus:$("#f_vemit").value ? $("#f_vstat").value : "",
       cirurgiao:$("#f_cir").value,
       dataCirurgia:$("#f_dcir").value, hospital:$("#f_hosp").value.trim()
