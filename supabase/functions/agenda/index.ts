@@ -224,7 +224,7 @@ async function googleSync(p: any) {
         if (!todosNomes) { const r = await dbg("funil_pacientes?select=id,nome:dados->>nome&limit=5000"); todosNomes = r.ok ? await r.json() : []; }
         const t = semAc2(titulo);
         const cands = todosNomes!.filter((x) => {
-          const pal = semAc2(x.nome).split(/\s+/).filter((w: string) => w.length >= 3);
+          const pal = semAc2(x.nome).split(/\s+/).map((w: string) => w.replace(/[^a-z0-9]/g, "")).filter((w: string) => w.length >= 3);
           return pal.length >= 2 && pal.slice(0, 2).every((w: string) => new RegExp(`\\b${w}\\b`).test(t));
         });
         if (cands.length === 1) { const r = await dbg(`funil_pacientes?select=id,dados,cirurgiao_email&id=eq.${encodeURIComponent(cands[0].id)}`); f = r.ok ? (await r.json())[0] : null; }
