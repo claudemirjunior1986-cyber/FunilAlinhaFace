@@ -21,8 +21,10 @@
 //   - São Paulo presencial    -> Dr. Afonso, sempre
 //   - SP (online e presencial)  -> Dr. Afonso, nesta agenda
 //   - Online de RS e demais estados -> Dr. Gustavo (agenda do Google, como já é feito)
-//   - Presencial no RS        -> segue com a Ana Clara, como já é feito
-//   - Presencial em outros estados -> só existe em SP e Salvador; a Bia oferece online
+//   - PRESENCIAL (nov/2026): a Bia não marca. acao=presencial manda o caso por WhatsApp ao cirurgião
+//     (Nordeste -> Victor; SP -> Afonso, ou Gustavo se Moema; RS -> Gustavo) e a secretária dele marca.
+//     Campos: estado, local (unidade), nome, preferencia (dias/períodos), resumo, telefone, chat_id
+//   - Presencial em outros estados -> não existe; a Bia oferece online
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -85,10 +87,67 @@ const quando = (d: string, h: string) => {
   return `${DIAS[dt.getUTCDay()]}, ${d.slice(8, 10)}/${d.slice(5, 7)} às ${h}`;
 };
 
+// presencial: a Bia não marca; o caso vai por WhatsApp para o cirurgião, que passa à secretária
+const MEDICOS: Record<string, { nome: string; email: string; unidades: string }> = {
+  victor: { nome: "Dr. Victor", email: "admvictorssa@gmail.com", unidades: "Salvador" },
+  afonso: { nome: "Dr. Afonso", email: "dr.aptrindadefilho@gmail.com", unidades: "Mooca ou Vila Mariana" },
+  gustavo: { nome: "Dr. Gustavo", email: "gu.martins00@gmail.com", unidades: "Porto Alegre ou Moema (SP)" },
+};
+function medicoPresencial(estado: string, local: string): string | null {
+  if (NORDESTE.includes(estado)) return "victor";
+  if (estado === "SP") return /moema/.test(semAcento(local)) ? "gustavo" : "afonso";
+  if (estado === "RS") return "gustavo";
+  return null;
+}
+function unidadesDe(estado: string) {
+  if (NORDESTE.includes(estado)) return "Salvador";
+  if (estado === "SP") return "Mooca, Vila Mariana (Dr. Afonso) ou Moema (Dr. Gustavo)";
+  if (estado === "RS") return "Porto Alegre";
+  return "";
+}
+// mensagem de avaliação do site ("*Principal incômodo:* ... *Há quanto tempo...:* ...") -> linhas "• campo: valor"
+function quizDe(textos: string[]): string {
+  const t = textos.find((x) => /avalia[cç][aã]o no site|avalia[cç][aã]o do site|site da alinha face/i.test(x));
+  if (!t) return "";
+  const linhas: string[] = [];
+  for (const m of t.matchAll(/\*([^*:]{2,60}):\*\s*([^*]+)/g)) {
+    const campo = m[1].trim(), valor = m[2].replace(/\s+/g, " ").trim();
+    if (!valor || /^nome$/i.test(campo)) continue;
+    linhas.push("• " + campo + ": " + valor.replace(/\s*(Gostaria de|Olá|Oi)\b.*$/i, "").trim());
+  }
+  if (linhas.length) return linhas.join("\n");
+  return t.replace(/\s+/g, " ").slice(0, 500);
+}
+async function textosDoPaciente(chatId: string): Promise<string[]> {
+  const tk = Deno.env.get("GPTMAKER_TOKEN");
+  if (!tk || !chatId) return [];
+  try {
+    const r = await fetch(`https://api.gptmaker.ai/v2/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=50`,
+      { headers: { Authorization: "Bearer " + tk } });
+    const l = r.ok ? await r.json() : [];
+    return (Array.isArray(l) ? l : []).filter((m: any) => m.role === "user" && m.text).map((m: any) => String(m.text));
+  } catch { return []; }
+}
+async function chatPorTelefone(tel: string): Promise<string> {
+  const t8 = String(tel || "").replace(/\D/g, "").slice(-8);
+  if (t8.length < 8) return "";
+  const r = await fetch(`${SB_URL}/rest/v1/funil_whats?select=chat_id&tel8=eq.${t8}&limit=1`,
+    { headers: { apikey: SR, Authorization: `Bearer ${SR}` } });
+  return r.ok ? ((await r.json())[0]?.chat_id || "") : "";
+}
+
 // quem atende este paciente
 function rota(estado: string, mod: string) {
   if (!estado) return { tipo: "perguntar", instrucao: "Mande no campo estado a SIGLA do estado (UF) da cidade que a pessoa disse (ex.: Ilhéus = BA, Campinas = SP, Caxias do Sul = RS) e use esta intenção de novo, sem perguntar nada à pessoa. Só pergunte o estado se a cidade não foi dita." };
   if (!mod) return { tipo: "perguntar", instrucao: "Pergunte se a pessoa prefere a consulta online (por vídeo) ou presencial." };
+  if (mod === "Presencial") {
+    if (!medicoPresencial(estado, "")) return { tipo: "perguntar", instrucao: "Consulta presencial existe em São Paulo, Salvador e Porto Alegre. Pergunte se a pessoa prefere a consulta online (sem sair de casa) ou se consegue ir a uma dessas cidades." };
+    return { tipo: "presencial", instrucao:
+      "Consulta presencial NÃO é marcada por você e não tem horário para oferecer. "
+      + `Unidades para esta pessoa: ${unidadesDe(estado)}. Se ainda não souber, pergunte qual unidade e quais dias e períodos ela prefere. `
+      + "Depois use a intenção \"Encaminhar consulta presencial ao cirurgião\" com nome, unidade, preferência e um resumo curto da conversa. "
+      + "Não envie link da Ana Clara e não transfira." };
+  }
   if (NORDESTE.includes(estado)) {
     if (mod === "Presencial" && estado !== "BA") {
       return { tipo: "funil", medico: "victor", aviso: "A consulta presencial do Nordeste é em Salvador (BA). Confirme se a pessoa consegue ir até Salvador; se não, ofereça a consulta online." };
@@ -175,6 +234,25 @@ Deno.serve(async (req) => {
   const r: any = rota(est, mod);
 
   try {
+    if (acao === "presencial") {
+      const local = p.local || p.unidade || "";
+      const chave = medicoPresencial(est, local);
+      if (!chave) return json({ ok: false, instrucao: rota(est, "Presencial").instrucao });
+      const med = MEDICOS[chave];
+      const tel = p.telefone || p.contact_phone || p.phone || "";
+      if (!tel) return json({ ok: false, instrucao: "Faltou o telefone do contato na configuração da intenção. Transfira para a Ana Clara." });
+      const chatId = p.chat_id || await chatPorTelefone(tel);
+      const quiz = quizDe(await textosDoPaciente(chatId));
+      const res = await rpc("encaminhar_presencial", {
+        p_email: med.email, p_medico: med.nome, p_nome: p.nome || "", p_telefone: tel, p_chat_id: chatId || null,
+        p_local: local, p_preferencia: p.preferencia || p.preferencia_horario || "", p_resumo: p.resumo || p.observacao || "", p_quiz: quiz,
+      });
+      if (!res?.ok) return json({ ok: false, motivo: res?.motivo, instrucao: "Não consegui encaminhar agora. Transfira para a Ana Clara." });
+      return json({ ok: true, medico: med.nome,
+        instrucao: `Pronto, o caso foi enviado ao ${med.nome}. Diga à pessoa: "Passei seu caso para o ${med.nome}. `
+          + "A secretária dele vai entrar em contato para marcar o melhor dia e horário da sua consulta presencial.\" "
+          + "Não ofereça horários nem envie link da Ana Clara." });
+    }
     if (r.tipo !== "funil") return json({ ok: false, encaminhar: r.tipo, instrucao: r.instrucao, estado: est, modalidade: mod });
 
     if (acao === "horarios") {

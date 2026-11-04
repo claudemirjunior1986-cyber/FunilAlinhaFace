@@ -104,3 +104,15 @@ Outros ajustes feitos na Bia:
 - Grade (arquivo 015): online seg–sex 8h–20h, sáb 8h–14h; presencial Afonso Mooca ter/qui/sex 9h–17h e Vila Mariana qua 14h–18h; Victor Salvador qui 14h–19h, sex 8h–12h e 14h–18h.
 - Comportamento seção 5: "SP e Bahia/Nordeste: use a intenção Consultar horários e, escolhido, Agendar consulta (nunca o Google). On-line dos demais: agenda do Gustavo."
 - A consulta marcada pela intenção vai direto para a ficha (cirurgião, data, hora, modalidade) e dispara o aviso de WhatsApp ao médico.
+
+## Mudança de 03/11/2026 — presencial vai para o cirurgião (secretária marca)
+- A Bia **não marca mais consulta presencial** (nenhum médico). Ana Clara deixa de receber presencial.
+- `acao=horarios` / `acao=agendar` com modalidade presencial devolvem `encaminhar: "presencial"` e a instrução de perguntar unidade e preferência.
+- Nova `acao=presencial` (intenção "Encaminhar consulta presencial ao cirurgião"):
+  campos `estado`, `local` (unidade), `nome`, `preferencia` (dias/períodos), `resumo` (resumo curto da conversa, escrito pela Bia);
+  Params `acao=presencial`, `telefone` = Telefone do Contato, `chat_id` = Identificador do Chat.
+- Quem recebe: Nordeste → Dr. Victor; SP → Dr. Afonso (Moema → Dr. Gustavo); RS → Dr. Gustavo.
+- A função lê a avaliação do site na conversa (GPT Maker), atualiza/cria a ficha (`supabase/018_presencial_para_cirurgiao.sql`:
+  cirurgião, modalidade Presencial, unidade, resumoCaso, próxima ação "Secretária do Dr. X marca") e põe na fila o WhatsApp ao cirurgião
+  (tipo `presencial`): paciente, wa.me, cidade, unidade, convênio, preferência, avaliação do site, resumo e link da ficha.
+- Não repete o envio para o mesmo paciente e cirurgião em 12 horas.

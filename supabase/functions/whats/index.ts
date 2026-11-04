@@ -120,7 +120,7 @@ async function processarAvisos() {
   if (!fila.length) return { ok: true, enviados: 0 };
   // por paciente + cirurgião, só vale o aviso mais recente
   const ultimo = new Map<string, any>();
-  const classe = (a: any) => String(a.tipo || "").startsWith("lembrete") ? a.tipo : (a.tipo === "cancelada" ? "c" : "m");
+  const classe = (a: any) => String(a.tipo || "").startsWith("lembrete") || a.tipo === "presencial" ? a.tipo : (a.tipo === "cancelada" ? "c" : "m");
   for (const a of fila) ultimo.set(a.paciente_id + "|" + a.email + "|" + classe(a), a);
   let enviados = 0;
   const canalDe = async () => {
@@ -129,7 +129,7 @@ async function processarAvisos() {
   };
   let canal: string | undefined;
   for (const a of fila) {
-    const lembrete = String(a.tipo || "").startsWith("lembrete");
+    const lembrete = String(a.tipo || "").startsWith("lembrete") || a.tipo === "presencial";   // sem minuto de espera
     const doPaciente = a.tipo === "lembrete_paciente";
     const chave = a.paciente_id + "|" + a.email + "|" + classe(a);
     if (ultimo.get(chave) !== a) {
@@ -167,7 +167,7 @@ async function processarAvisos() {
       }
       if (chatId) {
         await db("funil_whats_envios", { method: "POST", headers: { Prefer: "return=minimal" },
-          body: JSON.stringify({ chat_id: chatId, texto: a.texto.slice(0, 2000), por: "avisos@alinhaface", por_nome: lembrete ? "Lembrete automático" : "Aviso automático" }) });
+          body: JSON.stringify({ chat_id: chatId, texto: a.texto.slice(0, 2000), por: "avisos@alinhaface", por_nome: String(a.tipo || "").startsWith("lembrete") ? "Lembrete automático" : "Aviso automático" }) });
         if (!doPaciente) await db("funil_whats?chat_id=eq." + encodeURIComponent(chatId), { method: "PATCH", body: JSON.stringify({ humano: true }) });
       }
       await db("funil_avisos_medico?id=eq." + a.id, { method: "PATCH", body: JSON.stringify({ situacao: "enviado", enviado_em: new Date().toISOString() }) });
