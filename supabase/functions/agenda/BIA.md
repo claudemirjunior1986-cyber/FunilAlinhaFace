@@ -116,3 +116,8 @@ Outros ajustes feitos na Bia:
   cirurgião, modalidade Presencial, unidade, resumoCaso, próxima ação "Secretária do Dr. X marca") e põe na fila o WhatsApp ao cirurgião
   (tipo `presencial`): paciente, wa.me, cidade, unidade, convênio, preferência, avaliação do site, resumo e link da ficha.
 - Não repete o envio para o mesmo paciente e cirurgião em 12 horas.
+
+## Ajuste de 04/11/2026 — opções abertas
+- Comportamento: a Bia oferece SEMPRE por faixa do dia ("Amanhã temos agenda das 8h às 12h e das 13h às 20h. Qual o melhor horário para você?"). A regra antiga "nunca dê faixa / 4 opções em 3 dias" saiu.
+- Dr. Gustavo: só horário quebrado (:15 ou :45); hora cheia pedida vira o quebrado mais próximo.
+- Grade on-line Afonso/Victor (`019_almoco_online.sql`): seg–sex 8h–12h e 13h–20h; sáb 8h–14h.
