@@ -136,6 +136,208 @@ async function chatPorTelefone(tel: string): Promise<string> {
   return r.ok ? ((await r.json())[0]?.chat_id || "") : "";
 }
 
+// ================= Agenda do Google do Dr. Gustavo <-> funil (só casos Alinha Face) =================
+// Um Apps Script na conta Google que edita a agenda do Gustavo chama acao=google a cada 5 minutos com os
+// eventos da Alinha Face (título = id da conversa da Bia, ou título com "Alinha Face"). Aqui:
+//  - evento novo da Bia/equipe -> ficha ganha data, hora e cirurgião (cria a ficha se não existir);
+//  - evento mudou de horário no Google -> ficha acompanha; ficha mudou no funil -> evento é movido;
+//  - consulta do Gustavo lançada no funil sem evento -> o script cria o evento no Google;
+//  - evento apagado no Google -> a ficha perde a data (e fica avisado na próxima ação);
+//  - ficha perdeu a data / foi para "perdido" / trocou de cirurgião -> o evento é apagado.
+const GUSTAVO = "gu.martins00@gmail.com";
+const PREFIXO_CHAT = "3F6791F13320F0B1D9489ADC800E9477-";
+function quandoSP(iso: string) {
+  const f = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit",
+    day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(iso));
+  const g = (t: string) => f.find((x) => x.type === t)!.value;
+  return { data: `${g("year")}-${g("month")}-${g("day")}`, hora: `${g("hour")}:${g("minute")}` };
+}
+// "2026-11-05" + "10:15" (hora de Brasília) -> ISO em UTC
+function isoSP(d: string, h: string, somaMin = 0) {
+  const x = new Date(`${d}T${(h || "09:00").slice(0, 5)}:00-03:00`);
+  return new Date(x.getTime() + somaMin * 60000).toISOString();
+}
+const dbg = (path: string, init: RequestInit = {}) => fetch(`${SB_URL}/rest/v1/${path}`, {
+  ...init, headers: { apikey: SR, Authorization: `Bearer ${SR}`, "Content-Type": "application/json", ...(init.headers || {}) },
+});
+const semAc2 = (s: string) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+function histAdd(d: any, texto: string) {
+  const h = Array.isArray(d.historico) ? d.historico : [];
+  h.push({ data: new Date().toISOString().slice(0, 10), texto });
+  d.historico = h.slice(-40);
+}
+function eventoDaFicha(p: any) {
+  const d = p.dados, online = (d.modalidade || "Online") !== "Presencial";
+  const conv = d.convenio === "Sim" ? (d.nomeConvenio || "sim") : d.convenio === "Não" ? "particular" : "a confirmar";
+  return {
+    paciente_id: p.id,
+    titulo: `Alinha Face — ${d.nome || "Paciente"} (${online ? "on-line" : "presencial"})`,
+    inicio: isoSP(d.dataConsulta, d.horaConsulta), fim: isoSP(d.dataConsulta, d.horaConsulta, online ? 15 : 30),
+    local: online ? "Online" : (d.local || "Presencial"),
+    desc: [`Paciente: ${d.nome || ""}`, d.telefone ? `WhatsApp: ${d.telefone}` : "", `Convênio: ${conv}`,
+      d.tratamento ? `Queixa/tratamento: ${d.tratamento}` : "", d.resumoCaso ? `Resumo: ${d.resumoCaso}` : "",
+      "", `Ficha: ${p.id}`, "Lançado pelo funil Alinha Face (sincronizado)."].filter((x) => x !== null).join("\n"),
+  };
+}
+let SIMULAR = false;   // acao=google com simular=true: só diz o que faria, não grava
+async function salvarFicha(id: string, dados: any) {
+  if (SIMULAR) return;
+  dados.atualizadoEm = new Date().toISOString();
+  const r = await dbg(`funil_pacientes?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ dados }) });
+  if (!r.ok) throw new Error("salvar ficha " + id + ": " + (await r.text()).slice(0, 200));
+}
+async function googleSync(p: any) {
+  const eventos: any[] = Array.isArray(p.eventos) ? p.eventos : [];
+  const hoje = quandoSP(new Date().toISOString()).data;
+  const de = quandoSP(p.de).data, ate = quandoSP(p.ate).data;
+  const out = { criar: [] as any[], mover: [] as any[], apagar: [] as string[], fichas_atualizadas: 0, fichas_novas: 0, avisos: [] as string[] };
+
+  // fichas do Gustavo + todas que já têm evento ligado
+  const rf = await dbg(`funil_pacientes?select=id,dados,cirurgiao_email&or=(cirurgiao_email.eq."${GUSTAVO}",dados->>googleEventId.not.is.null)`);
+  const fichas: any[] = rf.ok ? await rf.json() : [];
+  const porEvento = new Map<string, any>();
+  for (const f of fichas) if (f.dados.googleEventId) porEvento.set(f.dados.googleEventId, f);
+  let todosNomes: any[] | null = null;
+  const vistos = new Set<string>();
+  const ligados = new Set<string>();
+  SIMULAR = String(p.simular || "") === "true";
+
+  for (const ev of eventos) {
+    vistos.add(ev.id);
+    const q = quandoSP(ev.inicio);
+    const titulo = String(ev.titulo || ""), desc = String(ev.desc || "");
+    const online = !/presencial/i.test(titulo + " " + (ev.local || "")) ;
+    let f = porEvento.get(ev.id);
+    let nova = false;
+    if (!f) {
+      // 1) evento criado pelo funil: "Ficha: ID" na descrição
+      const mf = desc.match(/Ficha:\s*([\w-]+)/);
+      if (mf) { const r = await dbg(`funil_pacientes?select=id,dados,cirurgiao_email&id=eq.${encodeURIComponent(mf[1])}`); f = r.ok ? (await r.json())[0] : null; }
+      // 2) evento da Bia: título = id da conversa, que termina no telefone
+      const tel = titulo.startsWith(PREFIXO_CHAT) ? titulo.slice(PREFIXO_CHAT.length).replace(/\D/g, "") : (desc.match(/(?:whats\w*|tel\w*)\D{0,3}([\d ()+-]{10,})/i)?.[1] || "").replace(/\D/g, "");
+      if (!f && tel.length >= 8) {
+        const r = await dbg(`funil_pacientes?select=id,dados,cirurgiao_email&dados->>telefone=like.*${tel.slice(-8)}&order=atualizado_em.desc&limit=1`);
+        f = r.ok ? (await r.json())[0] : null;
+      }
+      // 3) lançado à mão com "Alinha Face" no título: procura pelo nome (só se for único)
+      if (!f && !titulo.startsWith(PREFIXO_CHAT)) {
+        if (!todosNomes) { const r = await dbg("funil_pacientes?select=id,nome:dados->>nome&limit=5000"); todosNomes = r.ok ? await r.json() : []; }
+        const t = semAc2(titulo);
+        const cands = todosNomes!.filter((x) => {
+          const pal = semAc2(x.nome).split(/\s+/).filter((w: string) => w.length >= 3);
+          return pal.length >= 2 && pal.slice(0, 2).every((w: string) => new RegExp(`\\b${w}\\b`).test(t));
+        });
+        if (cands.length === 1) { const r = await dbg(`funil_pacientes?select=id,dados,cirurgiao_email&id=eq.${encodeURIComponent(cands[0].id)}`); f = r.ok ? (await r.json())[0] : null; }
+      }
+      // ligado a outro evento? não mexe (evita duas consultas brigando pela mesma ficha)
+      if (f && f.dados.googleEventId && f.dados.googleEventId !== ev.id && vistosOuFuturo(f)) { out.avisos.push(`ficha ${f.id} já ligada a outro evento`); continue; }
+      if (!f) {
+        if (q.data < hoje) continue;                    // não importa o passado
+        const t8 = tel.slice(-8);
+        const nome = titulo.startsWith(PREFIXO_CHAT)
+          ? ((desc.match(/nome[^:\n]*:\s*([^\n]+)/i)?.[1] || desc.split("\n")[0] || "Paciente").trim())
+          : titulo.replace(/alinha\s*face/ig, "").replace(/\b(1a|1º|1°|c|online|on-line|consulta|sem custo|dd)\b/ig, "").replace(/[-–—|]+/g, " ").replace(/\s+/g, " ").trim();
+        const id = "gc" + q.data.replace(/-/g, "") + "-" + (t8 || Math.random().toString(36).slice(2, 10));
+        f = { id, dados: { nome: nome || "Paciente", telefone: tel || "", etapa: "lead", tratamento: "A definir", convenio: "Não sabe",
+          pagamento: "A definir", origem: "Outro", fonte: "Agenda Google (Dr. Gustavo)", opme: 0, valorProposta: 0, historico: [],
+          observacoes: "⚠ ficha criada pela agenda do Google do Dr. Gustavo; conferir nome e telefone" + (desc ? "\n" + desc.slice(0, 400) : ""),
+          criadoEm: new Date().toISOString() } };
+        nova = true;
+      }
+      // liga e copia o horário do Google
+      const d = f.dados;
+      d.googleEventId = ev.id; d.googleQuando = `${q.data} ${q.hora}`; delete d.googleApagado;
+      if (d.dataConsulta !== q.data || (d.horaConsulta || "").slice(0, 5) !== q.hora) histAdd(d, `Consulta na agenda do Google do Dr. Gustavo: ${q.data.split("-").reverse().join("/")} às ${q.hora}`);
+      d.dataConsulta = q.data; d.horaConsulta = q.hora; d.cirurgiao = GUSTAVO;
+      if (!d.modalidade || d.modalidade === "Online" || online) d.modalidade = online ? "Online" : "Presencial";
+      if (online) d.local = "Online";
+      if (["triagem", "lead", "noshow", "perdido", undefined, ""].includes(d.etapa) && q.data >= hoje) d.etapa = "agendou";
+      ligados.add(f.id);
+      if (nova && SIMULAR) { out.fichas_novas++; out.avisos.push("nova ficha: " + d.nome + " " + q.data + " " + q.hora); }
+      else if (nova) {
+        const r = await dbg("funil_pacientes", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ id: f.id, dados: d }) });
+        if (!r.ok) { out.avisos.push("criar ficha: " + (await r.text()).slice(0, 150)); continue; }
+        out.fichas_novas++;
+      } else { await salvarFicha(f.id, d); out.fichas_atualizadas++; }
+      porEvento.set(ev.id, f);
+      continue;
+    }
+
+    // já ligado: quem mudou?
+    ligados.add(f.id);
+    const d = f.dados;
+    const doGoogle = `${q.data} ${q.hora}`;
+    const doFunil = d.dataConsulta && d.horaConsulta ? `${d.dataConsulta} ${String(d.horaConsulta).slice(0, 5)}` : "";
+    const ultimo = d.googleQuando || "";
+    const valida = doFunil && f.cirurgiao_email === GUSTAVO && d.etapa !== "perdido";
+    if (!valida) {
+      // o funil desmarcou (sem data, perdido ou outro cirurgião): apaga o evento futuro
+      if (q.data >= hoje) out.apagar.push(ev.id);
+      delete d.googleEventId; delete d.googleQuando;
+      histAdd(d, "Consulta tirada da agenda do Google do Dr. Gustavo (desmarcada no funil)");
+      await salvarFicha(f.id, d); out.fichas_atualizadas++;
+      continue;
+    }
+    if (doGoogle !== ultimo && (doFunil === ultimo || doFunil === doGoogle)) {
+      // mudou no Google
+      d.dataConsulta = q.data; d.horaConsulta = q.hora; d.googleQuando = doGoogle;
+      histAdd(d, `Consulta remarcada na agenda do Google: ${q.data.split("-").reverse().join("/")} às ${q.hora}`);
+      await salvarFicha(f.id, d); out.fichas_atualizadas++;
+    } else if (doFunil !== ultimo && doGoogle === ultimo) {
+      // mudou no funil: move o evento
+      const e = eventoDaFicha(f);
+      out.mover.push({ evento_id: ev.id, paciente_id: f.id, inicio: e.inicio, fim: e.fim, titulo: e.titulo });
+      d.googleQuando = doFunil;
+      await salvarFicha(f.id, d); out.fichas_atualizadas++;
+    } else if (doGoogle !== doFunil) {
+      // os dois mudaram: vale o Google
+      d.dataConsulta = q.data; d.horaConsulta = q.hora; d.googleQuando = doGoogle;
+      histAdd(d, `Consulta ajustada pela agenda do Google: ${q.data.split("-").reverse().join("/")} às ${q.hora}`);
+      await salvarFicha(f.id, d); out.fichas_atualizadas++;
+    }
+  }
+
+  // fichas ligadas cujo evento sumiu do Google (apagado lá) e fichas do Gustavo sem evento (criar no Google)
+  for (const f of fichas) {
+    if (ligados.has(f.id)) continue;
+    const d = f.dados;
+    const temData = d.dataConsulta && d.horaConsulta && d.dataConsulta >= hoje && d.dataConsulta <= ate;
+    if (d.googleEventId && !vistos.has(d.googleEventId)) {
+      const [gd] = String(d.googleQuando || "").split(" ");
+      if (eventos.length && gd && gd >= hoje && gd >= de && gd <= ate) {
+        histAdd(d, `Consulta apagada da agenda do Google do Dr. Gustavo (era ${gd.split("-").reverse().join("/")} ${String(d.googleQuando).split(" ")[1] || ""})`);
+        delete d.googleEventId; delete d.googleQuando;
+        if (d.dataConsulta === gd) { d.dataConsulta = ""; d.horaConsulta = ""; }
+        d.googleApagado = true;
+        d.proximaAcao = "Consulta apagada da agenda do Google do Dr. Gustavo — confirmar com o paciente / remarcar";
+        d.dataProximaAcao = hoje;
+        await salvarFicha(f.id, d); out.fichas_atualizadas++;
+      }
+      continue;
+    }
+    if (!d.googleEventId && !d.googleApagado && f.cirurgiao_email === GUSTAVO && temData && !["perdido", "noshow"].includes(d.etapa)) {
+      out.criar.push(eventoDaFicha(f));
+    }
+  }
+  return { ...out, simulado: SIMULAR };
+}
+function vistosOuFuturo(f: any) { return !!f.dados.googleQuando; }
+async function googleVincular(p: any) {
+  SIMULAR = false;
+  const lista: any[] = Array.isArray(p.vinculos) ? p.vinculos : [];
+  let n = 0;
+  for (const v of lista) {
+    const r = await dbg(`funil_pacientes?select=id,dados&id=eq.${encodeURIComponent(v.paciente_id)}`);
+    const f = r.ok ? (await r.json())[0] : null;
+    if (!f) continue;
+    const q = quandoSP(v.inicio);
+    f.dados.googleEventId = v.evento_id; f.dados.googleQuando = `${q.data} ${q.hora}`;
+    histAdd(f.dados, `Consulta lançada na agenda do Google do Dr. Gustavo: ${q.data.split("-").reverse().join("/")} às ${q.hora}`);
+    await salvarFicha(f.id, f.dados); n++;
+  }
+  return { ok: true, ligados: n };
+}
+
 // quem atende este paciente
 function rota(estado: string, mod: string) {
   if (!estado) return { tipo: "perguntar", instrucao: "Mande no campo estado a SIGLA do estado (UF) da cidade que a pessoa disse (ex.: Ilhéus = BA, Campinas = SP, Caxias do Sul = RS) e use esta intenção de novo, sem perguntar nada à pessoa. Só pergunte o estado se a cidade não foi dita." };
@@ -217,11 +419,11 @@ function escolher(slots: { data: string; hora: string }[]) {
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
-  let p: Record<string, string> = Object.fromEntries(url.searchParams.entries());
+  let p: Record<string, any> = Object.fromEntries(url.searchParams.entries());
   if (req.method === "POST") {
     try {
       const b = await req.json();
-      if (b && typeof b === "object") p = { ...p, ...Object.fromEntries(Object.entries(b).map(([k, v]) => [k, v == null ? "" : String(v)])) };
+      if (b && typeof b === "object") p = { ...p, ...Object.fromEntries(Object.entries(b).map(([k, v]) => [k, v == null ? "" : (typeof v === "object" ? v : String(v))])) } as any;
     } catch { /* corpo vazio */ }
   } else if (req.method !== "GET") return json({ erro: "use GET ou POST" }, 405);
 
@@ -236,6 +438,8 @@ Deno.serve(async (req) => {
   const r: any = rota(est, mod);
 
   try {
+    if (acao === "google") return json({ ok: true, ...(await googleSync(p)) });
+    if (acao === "google_vincular") return json(await googleVincular(p));
     if (acao === "presencial") {
       const local = p.local || p.unidade || "";
       const chave = medicoPresencial(est, local);

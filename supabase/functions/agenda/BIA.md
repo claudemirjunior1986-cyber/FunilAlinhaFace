@@ -121,3 +121,11 @@ Outros ajustes feitos na Bia:
 - Comportamento: a Bia oferece SEMPRE por faixa do dia ("Amanhã temos agenda das 8h às 12h e das 13h às 20h. Qual o melhor horário para você?"). A regra antiga "nunca dê faixa / 4 opções em 3 dias" saiu.
 - Dr. Gustavo: só horário quebrado (:15 ou :45); hora cheia pedida vira o quebrado mais próximo.
 - Grade on-line Afonso/Victor (`019_almoco_online.sql`): seg–sex 8h–12h e 13h–20h; sáb 8h–14h.
+
+## 04/11/2026 — agenda do Google do Dr. Gustavo casada com o funil
+- Script `supabase/google-apps-script/agenda-gustavo.gs` (Apps Script na conta alinhaface@gmail.com, que edita gu.martins00@gmail.com), a cada 5 min.
+- Só eventos da Alinha Face: título = id da conversa da Bia (`3F6791F1…-55…`) ou título com "Alinha Face". O resto da agenda não é lido.
+- Função `agenda`, `acao=google` (e `google_vincular`): liga evento ↔ ficha (`dados.googleEventId`, `dados.googleQuando`).
+  Google → funil: evento novo/movido atualiza a ficha (cria ficha se não existir, só para datas futuras); evento apagado tira a data e põe próxima ação.
+  Funil → Google: consulta do Gustavo sem evento é criada ("Alinha Face — Nome (on-line)"); mudou no funil, o evento é movido; desmarcada/perdido/outro cirurgião, o evento é apagado.
+  Se os dois mudaram, vale o Google. `simular=true` só mostra o que faria.
