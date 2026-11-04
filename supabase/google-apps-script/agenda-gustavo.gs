@@ -1,6 +1,6 @@
 /**
  * Alinha Face — agenda do Google do Dr. Gustavo <-> funil (só casos Alinha Face).
- * Roda no Google Apps Script (script.google.com) de uma conta que EDITA a agenda gu.martins00@gmail.com.
+ * Roda no Google Apps Script (script.google.com) na conta do Dr. Gustavo (gu.martins00@gmail.com).
  *
  * Instalação (uma vez):
  *  1. Cole este código num projeto novo do Apps Script.

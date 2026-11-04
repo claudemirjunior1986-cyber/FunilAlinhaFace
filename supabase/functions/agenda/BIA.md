@@ -123,7 +123,7 @@ Outros ajustes feitos na Bia:
 - Grade on-line Afonso/Victor (`019_almoco_online.sql`): seg–sex 8h–12h e 13h–20h; sáb 8h–14h.
 
 ## 04/11/2026 — agenda do Google do Dr. Gustavo casada com o funil
-- Script `supabase/google-apps-script/agenda-gustavo.gs` (Apps Script na conta alinhaface@gmail.com, que edita gu.martins00@gmail.com), a cada 5 min.
+- Script `supabase/google-apps-script/agenda-gustavo.gs` (Apps Script na própria conta do Dr. Gustavo, gu.martins00@gmail.com — a alinhaface@gmail.com não enxerga essa agenda), a cada 5 min.
 - Só eventos da Alinha Face: título = id da conversa da Bia (`3F6791F1…-55…`) ou título com "Alinha Face". O resto da agenda não é lido.
 - Função `agenda`, `acao=google` (e `google_vincular`): liga evento ↔ ficha (`dados.googleEventId`, `dados.googleQuando`).
   Google → funil: evento novo/movido atualiza a ficha (cria ficha se não existir, só para datas futuras); evento apagado tira a data e põe próxima ação.
