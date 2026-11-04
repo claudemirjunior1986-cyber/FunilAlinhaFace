@@ -236,7 +236,7 @@ async function googleSync(p: any) {
         const t8 = tel.slice(-8);
         const nome = titulo.startsWith(PREFIXO_CHAT)
           ? ((desc.match(/nome[^:\n]*:\s*([^\n]+)/i)?.[1] || desc.split("\n")[0] || "Paciente").trim())
-          : titulo.replace(/alinha\s*face/ig, "").replace(/\b(1a|1º|1°|c|online|on-line|consulta|sem custo|dd)\b/ig, "").replace(/[-–—|]+/g, " ").replace(/\s+/g, " ").trim();
+          : titulo.replace(/alinha\s*face/ig, "").replace(/(^|\s)(1a|1º|1°|1ª|c|r|retorno|online|on-line|consulta|sem custo|dd)(?=\s|$)/ig, " ").replace(/[-–—|]+/g, " ").replace(/\s+/g, " ").trim();
         const id = "gc" + q.data.replace(/-/g, "") + "-" + (t8 || Math.random().toString(36).slice(2, 10));
         f = { id, dados: { nome: nome || "Paciente", telefone: tel || "", etapa: "lead", tratamento: "A definir", convenio: "Não sabe",
           pagamento: "A definir", origem: "Outro", fonte: "Agenda Google (Dr. Gustavo)", opme: 0, valorProposta: 0, historico: [],
