@@ -108,7 +108,7 @@ Outros ajustes feitos na Bia:
 ## Mudança de 03/11/2026 — presencial vai para o cirurgião (secretária marca)
 - A Bia **não marca mais consulta presencial** (nenhum médico). Ana Clara deixa de receber presencial.
 - `acao=horarios` / `acao=agendar` com modalidade presencial devolvem `encaminhar: "presencial"` e a instrução de perguntar unidade e preferência.
-- Nova `acao=presencial` (intenção "Encaminhar consulta presencial ao cirurgião"):
+- Nova `acao=presencial` (intenção "Agendar consulta on-line ou encaminhar presencial ao cirurgião", modalidade presencial sem data/hora; resumo vai em observacao):
   campos `estado`, `local` (unidade), `nome`, `preferencia` (dias/períodos), `resumo` (resumo curto da conversa, escrito pela Bia);
   Params `acao=presencial`, `telefone` = Telefone do Contato, `chat_id` = Identificador do Chat.
 - Quem recebe: Nordeste → Dr. Victor; SP → Dr. Afonso (Moema → Dr. Gustavo); RS → Dr. Gustavo.

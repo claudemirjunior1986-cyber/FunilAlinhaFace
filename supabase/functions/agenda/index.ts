@@ -145,7 +145,7 @@ function rota(estado: string, mod: string) {
     return { tipo: "presencial", instrucao:
       "Consulta presencial NÃO é marcada por você e não tem horário para oferecer. "
       + `Unidades para esta pessoa: ${unidadesDe(estado)}. Se ainda não souber, pergunte qual unidade e quais dias e períodos ela prefere. `
-      + "Depois use a intenção \"Encaminhar consulta presencial ao cirurgião\" com nome, unidade, preferência e um resumo curto da conversa. "
+      + "Depois use a intenção \"Agendar consulta on-line ou encaminhar presencial ao cirurgião\" com modalidade presencial, SEM data e hora, nome, local (unidade), preferencia e em observacao um resumo curto da conversa. "
       + "Não envie link da Ana Clara e não transfira." };
   }
   if (NORDESTE.includes(estado)) {
@@ -228,9 +228,11 @@ Deno.serve(async (req) => {
   const tk = req.headers.get("x-agenda-token") || p.token || "";
   if (!TOKEN || tk !== TOKEN) return json({ erro: "acesso negado" }, 401);
 
-  const acao = semAcento(p.acao || (p.hora ? "agendar" : "horarios"));
+  let acao = semAcento(p.acao || (p.hora ? "agendar" : "horarios"));
   const est = uf(p.estado || p.uf || p.cidade || "");
   const mod = modalidade(p.modalidade || "");
+  // a intenção de agendar também serve para o presencial (sem data e hora): vira encaminhamento ao cirurgião
+  if (acao === "agendar" && mod === "Presencial") acao = "presencial";
   const r: any = rota(est, mod);
 
   try {
