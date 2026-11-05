@@ -62,6 +62,58 @@ async function registrarEnvio(auth: string, chatId: string, texto: string, email
   } catch { /* só para mostrar o nome; não impede o envio */ }
 }
 
+const AGENTE_BIA = "3F666308EBFC10E017FACE855605F1BA";
+// A conversa voltou para a Bia: ela lê as últimas mensagens e responde o que ficou pendente.
+// O GPT Maker só faz a Bia falar quando chega mensagem nova; aqui pedimos a resposta ao agente
+// numa conversa à parte (com o histórico) e enviamos o texto na conversa do paciente.
+async function biaRetoma(chatId: string, quem = "Bia") {
+  const brutas = await gm(`/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=40`);
+  const ms = (Array.isArray(brutas) ? brutas : []).map(mensagem).filter(Boolean)
+    .filter((m: any) => m.de !== "sistema" && (m.texto || m.transcricao))
+    .sort((a: any, b: any) => String(a.em).localeCompare(String(b.em)));
+  if (!ms.length || ms[ms.length - 1].de !== "paciente") return { ok: false, motivo: "nada_pendente" };
+  const linhas = ms.slice(-24).map((m: any) => (m.de === "paciente" ? "Paciente" : m.de === "equipe" ? `Equipe (${m.quem || "humano"})` : "Bia")
+    + ": " + String(m.texto || m.transcricao || "").replace(/\s+/g, " ").slice(0, 600));
+  const ctx = "RT" + chatId.slice(-10) + Date.now();
+  const prompt = "[RETOMADA DE CONVERSA DO WHATSAPP]\nEsta conversa estava com a equipe humana e voltou para você agora. "
+    + "Leia o histórico abaixo (do mais antigo para o mais novo) e responda, como a Bia e seguindo todas as suas regras, "
+    + "à(s) última(s) mensagem(ns) do paciente que ainda não foram respondidas. Continue a conversa de onde parou, sem se apresentar de novo "
+    + "e sem repetir o que a equipe já disse. Escreva SOMENTE o texto da mensagem que será enviada ao paciente.\n\nHistórico:\n" + linhas.join("\n");
+  const r = await gm(`/agent/${AGENTE_BIA}/conversation`, { method: "POST", body: JSON.stringify({ contextId: ctx, chatName: ctx, prompt }) });
+  let texto = String(r?.message || "").trim();
+  let tmp: string | null = null;
+  for (let t = 0; t < 15 && !texto; t++) {
+    await espera(3000);
+    try {
+      const cs = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=3&query=${ctx}`);
+      const c = (Array.isArray(cs) ? cs : []).find((x: any) => x.name === ctx);
+      if (!c) continue;
+      tmp = c.id;
+      const rs = await gm(`/chat/${c.id}/messages?page=1&pageSize=5`);
+      const a = (Array.isArray(rs) ? rs : []).find((m: any) => m.role === "assistant" && String(m.text || "").trim());
+      if (a) texto = String(a.text).trim();
+    } catch { /* tenta de novo */ }
+  }
+  // apaga a conversa auxiliar
+  try {
+    if (!tmp) { const cs = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=3&query=${ctx}`); tmp = (Array.isArray(cs) ? cs : []).find((x: any) => x.name === ctx)?.id || null; }
+    if (tmp) await gm(`/chat/${tmp}`, { method: "DELETE" });
+  } catch { /* ok */ }
+  if (!texto) return { ok: false, motivo: "sem_resposta" };
+  await gm(`/chat/${encodeURIComponent(chatId)}/send-message`, { method: "POST", body: JSON.stringify({ message: texto.slice(0, 3000) }) });
+  try {
+    const SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    await fetch(SB_URL + "/rest/v1/funil_whats_envios", { method: "POST",
+      headers: { apikey: SR, Authorization: "Bearer " + SR, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ chat_id: chatId, texto: texto.slice(0, 2000), por: "bia@alinhaface", por_nome: quem }) });
+  } catch { /* só para o histórico */ }
+  return { ok: true, texto };
+}
+const emSegundoPlano = (p: Promise<unknown>) => {
+  const er = (globalThis as any).EdgeRuntime;
+  if (er?.waitUntil) er.waitUntil(p.catch(() => {})); else p.catch(() => {});
+};
+
 // Ana Clara atende de terça a sexta, das 14h às 18h (horário de Brasília); fora disso a Bia cuida das conversas
 function horarioDaEquipe(d = new Date()) {
   const f = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", weekday: "short", hour: "2-digit", hourCycle: "h23" }).formatToParts(d);
@@ -216,7 +268,12 @@ Deno.serve(async (req) => {
         for (const c of arr) {
           if (!c.humano || !c.tel8 || fora.has(c.tel8)) continue;               // cirurgiões e contatos ignorados ficam com a equipe
           if (c.ultima_de === "assistant" && c.ultima_em && Date.parse(c.ultima_em) > recente) continue;   // alguém da equipe acabou de escrever
-          try { await gm(`/chat/${encodeURIComponent(c.chat_id)}/stop-human`, { method: "PUT" }); c.humano = false; devolvidas++; } catch { /* tenta na próxima */ }
+          try {
+            await gm(`/chat/${encodeURIComponent(c.chat_id)}/stop-human`, { method: "PUT" }); c.humano = false; devolvidas++;
+            // paciente esperando resposta (últimas 6 h): a Bia responde agora
+            if (c.ultima_de === "user" && c.ultima_em && Date.parse(c.ultima_em) > Date.now() - 6 * 3600000 && devolvidas <= 5)
+              emSegundoPlano(biaRetoma(c.chat_id, "Bia (fora do horário)"));
+          } catch { /* tenta na próxima */ }
           if (devolvidas >= 20) break;
         }
       }
@@ -464,6 +521,8 @@ Deno.serve(async (req) => {
         await rest(auth, "funil_whats?chat_id=eq." + id, {
           method: "PATCH", body: JSON.stringify({ humano: p.acao === "assumir" }),
         });
+        // devolveu para a Bia: ela lê o que ficou sem resposta e responde
+        if (p.acao === "devolver") emSegundoPlano(biaRetoma(p.chatId, "Bia (retomou)"));
         return json({ ok: true });
       }
       default:
