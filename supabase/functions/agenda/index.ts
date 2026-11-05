@@ -200,6 +200,7 @@ async function googleSync(p: any) {
   let todosNomes: any[] | null = null;
   const vistos = new Set<string>();
   const ligados = new Set<string>();
+  const idsRecebidos = new Set<string>(eventos.map((e: any) => e.id));
   SIMULAR = String(p.simular || "") === "true";
 
   for (const ev of eventos) {
@@ -230,7 +231,8 @@ async function googleSync(p: any) {
         if (cands.length === 1) { const r = await dbg(`funil_pacientes?select=id,dados,cirurgiao_email&id=eq.${encodeURIComponent(cands[0].id)}`); f = r.ok ? (await r.json())[0] : null; }
       }
       // ligado a outro evento? não mexe (evita duas consultas brigando pela mesma ficha)
-      if (f && f.dados.googleEventId && f.dados.googleEventId !== ev.id && vistosOuFuturo(f)) { out.avisos.push(`ficha ${f.id} já ligada a outro evento`); continue; }
+      // ligada a outro evento que ainda existe? não mexe. Se o outro sumiu, foi remarcação: liga neste.
+      if (f && f.dados.googleEventId && f.dados.googleEventId !== ev.id && idsRecebidos.has(f.dados.googleEventId)) { out.avisos.push(`ficha ${f.id} já ligada a outro evento`); continue; }
       if (!f) {
         if (q.data < hoje) continue;                    // não importa o passado
         const t8 = tel.slice(-8);
@@ -247,6 +249,7 @@ async function googleSync(p: any) {
       // liga e copia o horário do Google
       const d = f.dados;
       d.googleEventId = ev.id; d.googleQuando = `${q.data} ${q.hora}`; delete d.googleApagado;
+      if (/^(Consulta apagada|Paciente desmarcou)/.test(String(d.proximaAcao || ""))) { d.proximaAcao = ""; d.dataProximaAcao = ""; }
       if (d.dataConsulta !== q.data || (d.horaConsulta || "").slice(0, 5) !== q.hora) histAdd(d, `Consulta na agenda do Google do Dr. Gustavo: ${q.data.split("-").reverse().join("/")} às ${q.hora}`);
       d.dataConsulta = q.data; d.horaConsulta = q.hora; d.cirurgiao = GUSTAVO;
       if (!d.modalidade || d.modalidade === "Online" || online) d.modalidade = online ? "Online" : "Presencial";
@@ -433,6 +436,15 @@ Deno.serve(async (req) => {
   let acao = semAcento(p.acao || (p.hora ? "agendar" : "horarios"));
   const est = uf(p.estado || p.uf || p.cidade || "");
   const mod = modalidade(p.modalidade || "");
+  // a intenção de agendar também serve para DESMARCAR (cancelar = "sim")
+  if (/^s/i.test(String(p.cancelar || "").trim()) || acao === "cancelar") {
+    const tel = p.telefone || p.contact_phone || p.phone || "";
+    const res = await rpc("cancelar_consulta", { p_telefone: tel, p_motivo: p.observacao || p.motivo || "" });
+    if (!res?.ok) return json({ ok: false, motivo: res?.motivo,
+      instrucao: res?.motivo === "sem_consulta_marcada" ? "Não encontrei consulta futura marcada para esse número. Pergunte o nome completo e a data da consulta e diga que a equipe vai conferir." : "Não consegui desmarcar agora. Diga que a equipe vai confirmar o cancelamento." });
+    return json({ ok: true, desmarcada: res.era, medico: res.medico,
+      instrucao: `Consulta de ${res.era} desmarcada no sistema (o cirurgião é avisado automaticamente). Confirme o cancelamento com gentileza e pergunte se a pessoa quer remarcar agora. Se quiser, use "Consultar horários livres de consulta" e depois esta intenção com a nova data e hora.` });
+  }
   // a intenção de agendar também serve para o presencial (sem data e hora): vira encaminhamento ao cirurgião
   if (acao === "agendar" && mod === "Presencial") acao = "presencial";
   const r: any = rota(est, mod);

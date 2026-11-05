@@ -62,6 +62,12 @@ async function registrarEnvio(auth: string, chatId: string, texto: string, email
   } catch { /* só para mostrar o nome; não impede o envio */ }
 }
 
+// Ana Clara atende de terça a sexta, das 14h às 18h (horário de Brasília); fora disso a Bia cuida das conversas
+function horarioDaEquipe(d = new Date()) {
+  const f = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", weekday: "short", hour: "2-digit", hourCycle: "h23" }).formatToParts(d);
+  const dia = f.find((x) => x.type === "weekday")!.value, h = Number(f.find((x) => x.type === "hour")!.value);
+  return ["Tue", "Wed", "Thu", "Fri"].includes(dia) && h >= 14 && h < 18;
+}
 const iso = (ms: unknown) => (typeof ms === "number" && ms > 0 ? new Date(ms).toISOString() : null);
 const so8 = (t: unknown) => String(t || "").replace(/\D/g, "").slice(-8);
 
@@ -197,6 +203,23 @@ Deno.serve(async (req) => {
       const SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
       const lista = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=50`);
       const arr = (Array.isArray(lista) ? lista : []).filter((c: any) => !c.isGroup && c.channelId && c.agentId !== AGENTE_RESUMO).map(linhaDoChat);
+      // fora do horário da Ana (ter a sex, 14h às 18h) as conversas voltam para a Bia, que atende sozinha
+      let devolvidas = 0;
+      if (!horarioDaEquipe() && arr.some((c: any) => c.humano)) {
+        const hdr = { apikey: SR, Authorization: "Bearer " + SR };
+        const [pf, ig] = await Promise.all([
+          fetch(SB_URL + "/rest/v1/perfis?select=whatsapp&whatsapp=not.is.null", { headers: hdr }).then((r) => r.ok ? r.json() : []),
+          fetch(SB_URL + "/rest/v1/funil_ignorados?select=id", { headers: hdr }).then((r) => r.ok ? r.json() : []),
+        ]);
+        const fora = new Set<string>([...pf.map((x: any) => so8(x.whatsapp)), ...ig.map((x: any) => String(x.id).replace(/^k/, ""))]);
+        const recente = Date.now() - 20 * 60000;
+        for (const c of arr) {
+          if (!c.humano || !c.tel8 || fora.has(c.tel8)) continue;               // cirurgiões e contatos ignorados ficam com a equipe
+          if (c.ultima_de === "assistant" && c.ultima_em && Date.parse(c.ultima_em) > recente) continue;   // alguém da equipe acabou de escrever
+          try { await gm(`/chat/${encodeURIComponent(c.chat_id)}/stop-human`, { method: "PUT" }); c.humano = false; devolvidas++; } catch { /* tenta na próxima */ }
+          if (devolvidas >= 20) break;
+        }
+      }
       if (arr.length) {
         const r = await fetch(SB_URL + "/rest/v1/funil_whats?on_conflict=chat_id", {
           method: "POST",
@@ -205,7 +228,7 @@ Deno.serve(async (req) => {
         });
         if (!r.ok) return json({ erro: "banco: " + (await r.text()).slice(0, 200) }, 500);
       }
-      return json({ ok: true, conversas: arr.length });
+      return json({ ok: true, conversas: arr.length, devolvidas_para_bia: devolvidas });
     } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
   }
   if (p.acao === "processar_avisos") {

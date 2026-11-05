@@ -129,3 +129,8 @@ Outros ajustes feitos na Bia:
   Google → funil: evento novo/movido atualiza a ficha (cria ficha se não existir, só para datas futuras); evento apagado tira a data e põe próxima ação.
   Funil → Google: consulta do Gustavo sem evento é criada ("Alinha Face — Nome (on-line)"); mudou no funil, o evento é movido; desmarcada/perdido/outro cirurgião, o evento é apagado.
   Se os dois mudaram, vale o Google. `simular=true` só mostra o que faria.
+
+## 05/11/2026 — Bia remarca e desmarca; fora do horário da Ana a conversa volta para a Bia
+- Intenção "Agendar…": campo novo `cancelar` ("sim" = desmarcar). Função `cancelar_consulta` (021): tira data/hora, volta para lead, próxima ação "Paciente desmarcou… oferecer nova data"; o cirurgião recebe "desmarcada"; o Google do Gustavo perde o evento na sincronização.
+- Remarcar = agendar de novo (a função já troca a data da ficha). Dr. Gustavo: a Bia remarca no Google e a sincronização liga o novo evento à ficha.
+- `whats` acao=sincronizar (a cada 2 min): fora de ter–sex 14h–18h devolve para a Bia (stop-human) as conversas que estão com a equipe — menos as dos cirurgiões e dos contatos ignorados, e menos se alguém da equipe escreveu nos últimos 20 min.
