@@ -220,6 +220,27 @@ Deno.serve(async (req) => {
           if (devolvidas >= 20) break;
         }
       }
+      // rede de segurança do presencial: a Bia disse "a secretária vai entrar em contato" e não acionou a intenção
+      let presenciais = 0;
+      const AT = Deno.env.get("AGENDA_TOKEN") || "";
+      const dezMin = Date.now() - 10 * 60000;
+      for (const c of arr) {
+        if (!AT || c.ultima_de !== "assistant" || !c.ultima_em || Date.parse(c.ultima_em) < dezMin) continue;
+        if (!/secret[aá]ria/i.test(c.ultima) || !/(contato|chamar|ligar|falar com voc)/i.test(c.ultima)) continue;
+        const hdr = { apikey: SR, Authorization: "Bearer " + SR };
+        const fichas = await fetch(SB_URL + `/rest/v1/funil_pacientes?select=id&dados->>telefone=like.*${c.tel8}`, { headers: hdr }).then((r) => r.ok ? r.json() : []);
+        const ids = fichas.map((x: any) => x.id);
+        if (ids.length) {
+          const desde = new Date(Date.now() - 24 * 3600000).toISOString();
+          const ja = await fetch(SB_URL + `/rest/v1/funil_avisos_medico?select=id&tipo=eq.presencial&criado_em=gte.${desde}&paciente_id=in.(${ids.map((i: string) => '"' + i + '"').join(",")})`, { headers: hdr }).then((r) => r.ok ? r.json() : []);
+          if (ja.length) continue;
+        }
+        try {
+          await fetch(SB_URL + "/functions/v1/agenda", { method: "POST", headers: { "Content-Type": "application/json", "x-agenda-token": AT },
+            body: JSON.stringify({ acao: "presencial_auto", chat_id: c.chat_id, telefone: c.telefone }) });
+          presenciais++;
+        } catch { /* tenta de novo na próxima rodada */ }
+      }
       if (arr.length) {
         const r = await fetch(SB_URL + "/rest/v1/funil_whats?on_conflict=chat_id", {
           method: "POST",
@@ -228,7 +249,7 @@ Deno.serve(async (req) => {
         });
         if (!r.ok) return json({ erro: "banco: " + (await r.text()).slice(0, 200) }, 500);
       }
-      return json({ ok: true, conversas: arr.length, devolvidas_para_bia: devolvidas });
+      return json({ ok: true, conversas: arr.length, devolvidas_para_bia: devolvidas, presenciais_automaticos: presenciais });
     } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
   }
   if (p.acao === "processar_avisos") {

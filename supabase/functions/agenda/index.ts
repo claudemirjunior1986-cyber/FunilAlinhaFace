@@ -128,6 +128,28 @@ async function textosDoPaciente(chatId: string): Promise<string[]> {
     return (Array.isArray(l) ? l : []).filter((m: any) => m.role === "user" && m.text).map((m: any) => String(m.text));
   } catch { return []; }
 }
+async function mensagensDoChat(chatId: string): Promise<{ de: string; texto: string }[]> {
+  const tk = Deno.env.get("GPTMAKER_TOKEN");
+  if (!tk || !chatId) return [];
+  try {
+    const r = await fetch(`https://api.gptmaker.ai/v2/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=100`,
+      { headers: { Authorization: "Bearer " + tk } });
+    const l = r.ok ? await r.json() : [];
+    return (Array.isArray(l) ? l : []).filter((m: any) => m.text && m.type !== "TOOL_CALLS")
+      .sort((a: any, b: any) => (a.time || 0) - (b.time || 0))
+      .map((m: any) => ({ de: m.role === "user" ? "p" : "b", texto: String(m.text) }));
+  } catch { return []; }
+}
+// resposta do paciente logo depois de uma pergunta da Bia que case com o padrão
+function respostaA(ms: { de: string; texto: string }[], pergunta: RegExp) {
+  for (let i = ms.length - 1; i >= 0; i--) {
+    if (ms[i].de === "b" && pergunta.test(ms[i].texto)) {
+      const r = ms.slice(i + 1).find((m) => m.de === "p");
+      if (r) return r.texto;
+    }
+  }
+  return "";
+}
 async function chatPorTelefone(tel: string): Promise<string> {
   const t8 = String(tel || "").replace(/\D/g, "").slice(-8);
   if (t8.length < 8) return "";
@@ -452,6 +474,32 @@ Deno.serve(async (req) => {
   try {
     if (acao === "google") return json({ ok: true, ...(await googleSync(p)) });
     if (acao === "google_vincular") return json(await googleVincular(p));
+    // rede de segurança: a Bia disse que a secretária vai chamar mas não acionou a intenção.
+    // A função "whats" percebe e chama isto; aqui o caso é montado a partir da conversa.
+    if (acao === "presencial_auto") {
+      const chatId = p.chat_id || await chatPorTelefone(p.telefone || "");
+      const ms = await mensagensDoChat(chatId);
+      if (!ms.length) return json({ ok: false, motivo: "sem_conversa" });
+      const pac = ms.filter((m) => m.de === "p").map((m) => m.texto);
+      const cidade = respostaA(ms, /cidade|estado|onde (voc[eê] )?mora/i);
+      const est2 = uf(cidade) || uf(p.estado || "");
+      const tudo = pac.join(" ");
+      const local = /moema/i.test(tudo) ? "Moema" : /mooca/i.test(tudo) ? "Mooca" : /vila mariana/i.test(tudo) ? "Vila Mariana" : "";
+      const chave = medicoPresencial(est2, local);
+      if (!chave) return json({ ok: false, motivo: "sem_estado", cidade });
+      const med = MEDICOS[chave];
+      const pref = respostaA(ms, /dias|per[ií]odo|hor[áa]rio/i);
+      const quiz = quizDe(pac);
+      const nome = (pac.join(" ").match(/\*Nome:\*\s*([^*\n]+)/)?.[1] || p.nome || "").trim();
+      const res = await rpc("encaminhar_presencial", {
+        p_email: med.email, p_medico: med.nome, p_nome: nome, p_telefone: p.telefone || "", p_chat_id: chatId,
+        p_local: local || (chave === "gustavo" ? "Porto Alegre" : chave === "victor" ? "Salvador" : ""),
+        p_preferencia: pref.slice(0, 200),
+        p_resumo: `Pediu consulta presencial${cidade ? ". Mora em " + cidade.slice(0, 60) : ""}. (Enviado automaticamente: a Bia confirmou o presencial pelo WhatsApp.)`,
+        p_quiz: quiz,
+      });
+      return json({ ok: !!res?.ok, medico: med.nome, ...res });
+    }
     if (acao === "presencial") {
       const local = p.local || p.unidade || "";
       const chave = medicoPresencial(est, local);

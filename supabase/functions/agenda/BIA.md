@@ -134,3 +134,8 @@ Outros ajustes feitos na Bia:
 - Intenção "Agendar…": campo novo `cancelar` ("sim" = desmarcar). Função `cancelar_consulta` (021): tira data/hora, volta para lead, próxima ação "Paciente desmarcou… oferecer nova data"; o cirurgião recebe "desmarcada"; o Google do Gustavo perde o evento na sincronização.
 - Remarcar = agendar de novo (a função já troca a data da ficha). Dr. Gustavo: a Bia remarca no Google e a sincronização liga o novo evento à ficha.
 - `whats` acao=sincronizar (a cada 2 min): fora de ter–sex 14h–18h devolve para a Bia (stop-human) as conversas que estão com a equipe — menos as dos cirurgiões e dos contatos ignorados, e menos se alguém da equipe escreveu nos últimos 20 min.
+
+## 05/11/2026 — rede de segurança do presencial
+- Houve caso em que a Bia disse "a secretária do Dr. vai entrar em contato" sem acionar a intenção, e o resumo não foi ao cirurgião.
+- `whats` acao=sincronizar: se a última mensagem da Bia (últimos 10 min) fala de secretária/contato e não há aviso `presencial` do paciente em 24 h, chama `agenda` acao=presencial_auto, que monta o caso pela conversa (estado = resposta à pergunta da cidade; unidade; preferência; avaliação do site) e envia ao cirurgião.
+- Comportamento: a frase da secretária só depois de usar a intenção.
