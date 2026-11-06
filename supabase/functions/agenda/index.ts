@@ -455,6 +455,17 @@ Deno.serve(async (req) => {
   const tk = req.headers.get("x-agenda-token") || p.token || "";
   if (!TOKEN || tk !== TOKEN) return json({ erro: "acesso negado" }, 401);
 
+  // contato "@lid" (o WhatsApp esconde o número): o telefone vem vazio ou como código; pega o número real pela conversa
+  const telOk = (t: string) => /^\+?[\d\s()-]{10,}$/.test(String(t || "").trim());
+  if (!telOk(p.telefone) && (p.chat_id || /@lid/.test(String(p.telefone || "")))) {
+    try {
+      const cid = p.chat_id || "";
+      const r0 = await fetch(`${SB_URL}/rest/v1/funil_whats?select=telefone&chat_id=eq.${encodeURIComponent(cid)}&limit=1`,
+        { headers: { apikey: SR, Authorization: `Bearer ${SR}` } });
+      const t0 = r0.ok ? (await r0.json())[0]?.telefone : "";
+      if (telOk(t0)) p.telefone = t0;
+    } catch { /* segue sem */ }
+  }
   let acao = semAcento(p.acao || (p.hora ? "agendar" : "horarios"));
   const est = uf(p.estado || p.uf || p.cidade || "");
   const mod = modalidade(p.modalidade || "");
