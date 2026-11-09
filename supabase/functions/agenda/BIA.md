@@ -139,3 +139,16 @@ Outros ajustes feitos na Bia:
 - Houve caso em que a Bia disse "a secretária do Dr. vai entrar em contato" sem acionar a intenção, e o resumo não foi ao cirurgião.
 - `whats` acao=sincronizar: se a última mensagem da Bia (últimos 10 min) fala de secretária/contato e não há aviso `presencial` do paciente em 24 h, chama `agenda` acao=presencial_auto, que monta o caso pela conversa (estado = resposta à pergunta da cidade; unidade; preferência; avaliação do site) e envia ao cirurgião.
 - Comportamento: a frase da secretária só depois de usar a intenção.
+
+## Vigia do WhatsApp e da Bia (022 + função whats)
+- A cada 2 minutos a sincronização confere:
+  1. Se o canal do WhatsApp da Bia está conectado no GPT Maker. Se não for possível perguntar ao GPT Maker, usa um sinal: nenhuma mensagem de paciente há 3 horas entre 11h e 22h. Abre o alerta "canal" (faixa vermelha no topo do painel). Quando o canal volta, fecha o alerta e manda WhatsApp aos administradores com número no perfil e avisos ligados.
+  2. Paciente sem resposta da Bia há 15 minutos a 6 horas, em conversa que está com a Bia: abre o alerta e a Bia tenta responder de novo (até 3 por rodada).
+  3. Frases da Bia de 10 a 30 minutos atrás: "consulta marcada" sem consulta no funil, valor em reais, afirmação sobre cobertura do convênio. Abre alerta; o caso da consulta inexistente também vai por WhatsApp aos administradores.
+- Os alertas ficam em funil_alertas e aparecem na Rotina do dia (bloco "Bia · conferir"), com os botões Ver conversa e Resolvido.
+- Ação "situacao_canal" (só administradores) mostra o que o GPT Maker responde sobre o canal.
+
+## Presencial: cobrar o cirurgião (022)
+- encaminhar_presencial marca a ficha com presencialEncaminhado (data) e a próxima ação "Cobrar o Dr. X: a secretária já marcou a consulta presencial?" para dali a 2 dias.
+- A Rotina do dia mostra o bloco vermelho "Presencial · cobrar o cirurgião" até a ficha ganhar data de consulta, com o botão "Cobrar o Dr. no WhatsApp" (abre o WhatsApp de quem está usando, com o texto pronto) e "Já tem data".
+- Ao salvar a ficha com data de consulta, o caso sai da lista e o histórico registra que a secretária marcou.

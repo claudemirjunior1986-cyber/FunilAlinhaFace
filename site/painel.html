@@ -304,6 +304,16 @@
   .step{font-family:var(--font-mono);font-size:10.5px;padding:1px 6px;border-radius:5px;background:var(--accent-soft);color:var(--accent);margin-right:6px;font-weight:500}
   .step.v{background:var(--warn-bg);color:var(--warn)}
   .step.p{background:var(--crit-bg);color:var(--crit)}
+  #alertaTopo{display:flex;flex-direction:column;gap:6px;margin:0 0 12px}
+  #alertaTopo:empty{display:none}
+  .al-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 14px;border-radius:var(--radius);background:var(--crit-bg);color:var(--crit);border:1px solid color-mix(in srgb,var(--crit) 35%,transparent);font-size:13.5px}
+  .al-top b{font-weight:700}
+  .al-top .sp{margin-left:auto}
+  .pres-cob{border-color:color-mix(in srgb,var(--crit) 40%,var(--line));margin-bottom:14px}
+  .pres-cob .panel-head{background:var(--crit-bg)}
+  .pres-cob .panel-head h3{color:var(--crit)}
+  .al-bia{margin-bottom:14px}
+  .task .ops a.btn{text-decoration:none}
   .done-empty{padding:26px 16px;text-align:center;color:var(--ink-3);font-size:13px}
   .done-empty strong{display:block;color:var(--ok);font-family:var(--font-display);font-size:16px;margin-bottom:3px}
   .enc{padding:10px 14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:5px}
@@ -585,6 +595,7 @@
   </div>
 
   <div class="statusline"><span class="dot" id="statusDot"></span><span id="statusText">Conectando à base…</span><span id="quem" style="margin-left:auto"></span><button class="btn btn-sm btn-ghost" id="btnSenha" type="button">Trocar senha</button><button class="btn btn-sm btn-ghost" id="btnSair" type="button">Sair</button></div>
+  <div id="alertaTopo" role="status" aria-live="polite"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -747,7 +758,7 @@ async function conectar(){
   $("#btnSair").addEventListener("click", FUNIL.sair);
   $("#btnSenha").addEventListener("click", FUNIL.trocarSenha);
   try{
-    const { data } = await FUNIL.sb.from("perfis").select("email,nome").eq("papel","cirurgiao").order("nome");
+    const { data } = await FUNIL.sb.from("perfis").select("email,nome,whatsapp").eq("papel","cirurgiao").order("nome");
     CIRURGIOES = data || [];
   }catch(e){ CIRURGIOES = []; }
   DB = criarDB(FUNIL.sb);
@@ -756,6 +767,7 @@ async function conectar(){
   $("#statusDot").classList.remove("off");
   waIniciar();
   rcIniciar(eu);
+  alIniciar();
   DB.collection("encaminhamentos").onSnapshot(snap=>{
     encaminhamentos = new Map(snap.docs.map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
     render();
@@ -832,6 +844,8 @@ function render(){
   if(bx){ const n = examesPendentes().length; bx.textContent = n ? "Exames pedidos · "+n : "Exames pedidos"; bx.classList.toggle("alerta", n>0); }
   const bc = document.getElementById("viewCir");
   if(bc){ const n = cirGrupo("aut").length; bc.textContent = n ? "Cirurgias · "+n+" aguardando" : "Cirurgias"; }
+  const bh = document.getElementById("viewHoje");
+  if(bh){ const n = presAguardando().length + alertas.filter(a=>a.tipo!=="canal").length; bh.textContent = n ? "Rotina do dia · "+n : "Rotina do dia"; bh.classList.toggle("alerta", n>0); }
   waBadge();
   if(modo==="whats"){ if(!$("#whatsview").dataset.montado) renderWhats(); else waRenderLista(); return; }
   if(modo==="exames"){ renderExames(); return; }
@@ -1820,6 +1834,105 @@ function marcarPerdido(p, depois){
   document.body.append(scrim,m);
 }
 
+/* ============ alertas do sistema (canal do WhatsApp, Bia sem responder, frases da Bia) ============ */
+let alertas = [];
+async function alLer(){
+  try{
+    const { data, error } = await FUNIL.sb.from("funil_alertas").select("*").is("resolvido_em",null).order("criado_em",{ascending:false}).limit(60);
+    if(error) return;
+    const antes = JSON.stringify(alertas.map(a=>a.id)); alertas = data || [];
+    alTopo();
+    if(antes !== JSON.stringify(alertas.map(a=>a.id)) && modo==="hoje") renderHoje();
+  }catch(e){ /* tenta de novo no próximo minuto */ }
+}
+function alIniciar(){ alLer(); setInterval(alLer, 60*1000); }
+function alTopo(){
+  const box = $("#alertaTopo"); if(!box) return; box.textContent = "";
+  const canal = alertas.filter(a=>a.tipo==="canal");
+  const semResp = alertas.filter(a=>a.tipo==="bia_sem_resposta");
+  const frases = alertas.filter(a=>a.tipo==="bia_frase");
+  for(const a of canal){
+    const d = el("div","al-top"); d.append(el("b",null,"⚠ "+a.titulo), el("span",null,(a.detalhe||"")+" · desde "+horaCurta(a.criado_em)));
+    box.appendChild(d);
+  }
+  if(semResp.length || frases.length){
+    const d = el("div","al-top");
+    const partes = [];
+    if(semResp.length) partes.push(semResp.length+" paciente"+(semResp.length===1?"":"s")+" sem resposta da Bia");
+    if(frases.length) partes.push(frases.length+" fala"+(frases.length===1?"":"s")+" da Bia para conferir");
+    d.append(el("b",null,"⚠ "+partes.join(" · ")));
+    const b = el("button","btn btn-sm sp","Ver na Rotina do dia"); b.type="button"; b.addEventListener("click",()=>trocarModo("hoje"));
+    d.appendChild(b); box.appendChild(d);
+  }
+}
+function horaCurta(iso){ try{ const d = new Date(iso); return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); }catch(e){ return ""; } }
+async function alResolver(a){
+  const { error } = await FUNIL.sb.from("funil_alertas").update({ resolvido_em: new Date().toISOString(), resolvido_por: FUNIL._email }).eq("id", a.id);
+  if(error){ toast("Não consegui marcar como resolvido."); return; }
+  alertas = alertas.filter(x=>x.id!==a.id); alTopo(); renderHoje(); toast("Alerta resolvido.");
+}
+function abrirConversaDoAlerta(a){
+  if(a.chat_id && typeof waAbrir === "function"){ trocarModo("whats"); setTimeout(()=>waAbrir(a.chat_id), 400); return; }
+  if(a.paciente_id && pacientes.get(a.paciente_id)){ abrirDrawer(a.paciente_id); return; }
+  trocarModo("whats");
+}
+function painelAlertasBia(){
+  const l = alertas.filter(a=>a.tipo==="bia_sem_resposta" || a.tipo==="bia_frase");
+  if(!l.length) return null;
+  const sec = el("section","panel pres-cob al-bia");
+  const h = el("div","panel-head"); h.append(el("h3",null,"Bia · conferir"), el("span","n",String(l.length))); sec.appendChild(h);
+  sec.appendChild(el("div","hint","O sistema confere sozinho as conversas da Bia. Aqui aparece paciente que ficou sem resposta (a Bia já tenta responder de novo) e frase da Bia que pode estar errada. Confira a conversa, corrija com o paciente se precisar e clique em Resolvido."));
+  for(const a of l){
+    const row = el("div","task late"); row.appendChild(el("span","sev"));
+    const mid = el("div"); const t1 = el("div","t1");
+    t1.append(el("span","step p", a.tipo==="bia_frase" ? "Frase" : "Sem resposta"), document.createTextNode(a.titulo));
+    const t2 = el("div","t2"); t2.textContent = horaCurta(a.criado_em)+(a.detalhe ? " · “"+String(a.detalhe).slice(0,220)+"”" : "");
+    mid.append(t1,t2); row.appendChild(mid);
+    const ops = el("div","ops");
+    const bV = el("button","btn btn-sm","Ver conversa"); bV.type="button"; bV.addEventListener("click",()=>abrirConversaDoAlerta(a));
+    const bR = el("button","btn btn-sm btn-primary","Resolvido"); bR.type="button"; bR.addEventListener("click",()=>alResolver(a));
+    ops.append(bV,bR); row.appendChild(ops); sec.appendChild(row);
+  }
+  return sec;
+}
+
+/* ============ presencial: cobrar o cirurgião até a secretária marcar ============ */
+const presAguardando = () => [...pacientes.values()].filter(p=>p.presencialEncaminhado && !p.dataConsulta && !["perdido","noshow"].includes(p.etapa));
+function linkCobrarCirurgiao(p){
+  const m = CIRURGIOES.find(c=>c.email===p.cirurgiao) || {};
+  const num = String(m.whatsapp||"").replace(/\D/g,"");
+  const txt = (m.nome||"Doutor")+", tudo bem? A secretária já conseguiu marcar a consulta presencial de "+(p.nome||"paciente")
+    +(p.local?" ("+p.local+")":"")+"? A Bia encaminhou o caso em "+dataBR(p.presencialEncaminhado)+". Obrigada!";
+  return num ? "https://wa.me/"+num+"?text="+encodeURIComponent(txt) : "";
+}
+function painelPresencial(){
+  const l = presAguardando().sort((a,b)=>String(a.presencialEncaminhado).localeCompare(String(b.presencialEncaminhado)));
+  if(!l.length) return null;
+  const sec = el("section","panel pres-cob");
+  const h = el("div","panel-head"); h.append(el("h3",null,"Presencial · cobrar o cirurgião"), el("span","n",String(l.length))); sec.appendChild(h);
+  sec.appendChild(el("div","hint","A Bia passou estes pacientes ao cirurgião para a secretária marcar a consulta presencial. Cobre o Dr. até a consulta ter data. Quando a secretária marcar, clique em “Já tem data”, coloque o dia e o horário na ficha e salve: o paciente sai desta lista."));
+  for(const p of l){
+    const d = diasDesde(p.presencialEncaminhado) || 0;
+    const row = el("div","task"+(d>=2?" late":" warn")); row.appendChild(el("span","sev"));
+    const mid = el("div"); const t1 = el("div","t1");
+    const nm = el("button",null,p.nome||"Sem nome"); nm.title="Abrir ficha"; nm.addEventListener("click",()=>abrirDrawer(p.id));
+    t1.append(el("span","step p","Presencial"), nm);
+    const t2 = el("div","t2");
+    t2.append(document.createTextNode([nomeCirurgiao(p.cirurgiao), p.local||"", "encaminhado em "+dataBR(p.presencialEncaminhado)].filter(Boolean).join(" · ")+" · "));
+    t2.append(el("span", d>=2?"late-txt":null, d===0 ? "hoje" : "há "+d+" dia"+(d===1?"":"s")));
+    if(p.presencialPreferencia) t2.append(document.createTextNode(" · prefere: "+p.presencialPreferencia));
+    mid.append(t1,t2); row.appendChild(mid);
+    const ops = el("div","ops");
+    const url = linkCobrarCirurgiao(p);
+    if(url){ const a = el("a","btn btn-sm","Cobrar o Dr. no WhatsApp"); a.href = url; a.target = "_blank"; a.rel = "noopener";
+      a.addEventListener("click",()=>{ const q = Object.assign({}, pacientes.get(p.id)); registrarHistorico(q,"Cobrou o "+nomeCirurgiao(q.cirurgiao)+" sobre a consulta presencial"); q.dataProximaAcao = somaDias(hoje(),2); salvar(q); });
+      ops.appendChild(a); }
+    const bD = el("button","btn btn-sm btn-primary","Já tem data"); bD.type="button"; bD.addEventListener("click",()=>abrirDrawer(p.id));
+    ops.appendChild(bD); row.appendChild(ops); sec.appendChild(row);
+  }
+  return sec;
+}
+
 function renderHoje(){
   const box = $("#hojeview"); box.textContent = "";
   const todos = [...pacientes.values()];
@@ -1851,6 +1964,9 @@ function renderHoje(){
   ];
   for(const t of tiles){ const d = el("div","kpi"+(t.c?" "+t.c:"")); d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",t.h)); k.appendChild(d); }
   box.appendChild(k);
+
+  const pAl = painelAlertasBia(); if(pAl) box.appendChild(pAl);
+  const pPres = painelPresencial(); if(pPres) box.appendChild(pPres);
 
   // pendências com os cirurgiões: eles respondem pela área deles; a resposta volta para cá
   const comMed = Object.entries(MEDICOS).map(([k,m])=>{
@@ -2553,6 +2669,11 @@ function abrirDrawer(id, pre){
       cirurgiao:$("#f_cir").value,
       dataCirurgia:$("#f_dcir").value, hospital:$("#f_hosp").value.trim()
     });
+    if(p.presencialEncaminhado && p.dataConsulta){
+      registrarHistorico(p, "Secretária marcou a consulta presencial: "+dataBR(p.dataConsulta)+(p.horaConsulta?" às "+p.horaConsulta:""));
+      p.presencialEncaminhado = "";
+      if(/^Cobrar o /.test(p.proximaAcao||"")){ p.proximaAcao = ""; p.dataProximaAcao = ""; }
+    }
     if(empNova !== empAntes && empNova) registrarHistorico(p, ehOutra ? "Cirurgia com "+textoOutra(p).replace(/^Outra/,"outra") : "Material OPME por "+empNova);
     if(["Usado","Venceu"].includes(p.voucherStatus) && !p.voucherBaixa) p.voucherBaixa = hoje();
     if(p.voucherStatus==="Aguardando uso") p.voucherBaixa = "";

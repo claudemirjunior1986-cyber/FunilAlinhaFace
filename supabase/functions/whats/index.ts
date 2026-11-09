@@ -11,6 +11,7 @@
 //   iniciar   {telefone, texto} -> começa conversa nova com um número que ainda não falou com a Bia
 //   transcrever {sala, caminho} -> transcreve um trecho de áudio da teleconsulta (agente "Resumo de Consultas")
 //   resumir     {sala}          -> gera o resumo da consulta a partir da transcrição
+//   situacao_canal              -> diz se o WhatsApp da Bia está conectado no GPT Maker
 //   arquivo   {chatId, url, tipo:'imagem'|'documento', legenda?, nome?, mime?}
 //             -> envia imagem/PDF já guardado no Storage (bucket "envios", link assinado)
 
@@ -178,7 +179,8 @@ async function processarAvisos() {
   if (!fila.length) return { ok: true, enviados: 0 };
   // por paciente + cirurgião, só vale o aviso mais recente
   const ultimo = new Map<string, any>();
-  const classe = (a: any) => String(a.tipo || "").startsWith("lembrete") || a.tipo === "presencial" || a.tipo === "confirmacao_paciente" ? a.tipo : (a.tipo === "cancelada" ? "c" : "m");
+  const classe = (a: any) => a.tipo === "alerta" ? "alerta" + a.id
+    : String(a.tipo || "").startsWith("lembrete") || a.tipo === "presencial" || a.tipo === "confirmacao_paciente" ? a.tipo : (a.tipo === "cancelada" ? "c" : "m");
   for (const a of fila) ultimo.set(a.paciente_id + "|" + a.email + "|" + classe(a), a);
   let enviados = 0;
   const canalDe = async () => {
@@ -187,7 +189,7 @@ async function processarAvisos() {
   };
   let canal: string | undefined;
   for (const a of fila) {
-    const lembrete = String(a.tipo || "").startsWith("lembrete") || a.tipo === "presencial";   // sem minuto de espera
+    const lembrete = String(a.tipo || "").startsWith("lembrete") || a.tipo === "presencial" || a.tipo === "alerta";   // sem minuto de espera
     const doPaciente = a.tipo === "lembrete_paciente" || a.tipo === "confirmacao_paciente";   // não tira a conversa da Bia
     const chave = a.paciente_id + "|" + a.email + "|" + classe(a);
     if (ultimo.get(chave) !== a) {
@@ -239,6 +241,145 @@ async function processarAvisos() {
   return { ok: true, enviados };
 }
 
+// ---------- vigia: canal do WhatsApp, Bia sem responder, frases da Bia que podem estar erradas ----------
+const SRK = () => Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const dbs = (path: string, init: RequestInit = {}) => fetch(SB_URL + "/rest/v1/" + path, {
+  ...init, headers: { apikey: SRK(), Authorization: "Bearer " + SRK(), "Content-Type": "application/json", ...(init.headers || {}) },
+});
+async function rpc(nome: string, args: Record<string, unknown>) {
+  const r = await dbs("rpc/" + nome, { method: "POST", body: JSON.stringify(args) });
+  if (!r.ok) return null;
+  const t = await r.text();
+  try { return t ? JSON.parse(t) : null; } catch { return null; }
+}
+const horaBR = (d: Date) => new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(d);
+const horaLocal = (d = new Date()) => Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", hour: "2-digit", hourCycle: "h23" }).format(d));
+const hojeBR = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+
+// WhatsApp para os administradores que têm número no perfil e avisos ligados (vai pela fila)
+async function avisarEquipe(texto: string) {
+  const adms = await dbs("perfis?select=email,whatsapp&papel=eq.admin&whatsapp=not.is.null&avisos_whats=is.true").then((r) => r.ok ? r.json() : []);
+  if (!adms.length) return 0;
+  await dbs("funil_avisos_medico", { method: "POST", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify(adms.map((a: any) => ({ email: a.email, telefone: a.whatsapp, tipo: "alerta", texto }))) });
+  return adms.length;
+}
+
+// situação do canal no GPT Maker: true conectado, false desconectado, null se não deu para saber
+function lerSituacao(c: any): boolean | null {
+  if (!c || typeof c !== "object") return null;
+  for (const k of ["connected", "isConnected", "conectado", "online"]) if (typeof c[k] === "boolean") return c[k];
+  const s = String(c.status ?? c.connectionStatus ?? c.state ?? c.situation ?? "").toUpperCase();
+  if (!s) return null;
+  if (/DISCONNECT|DESCONECT|OFFLINE|CLOSE|LOGOUT|QRCODE|QR_CODE|ERROR|FAIL|PENDING/.test(s)) return false;
+  if (/CONNECT|CONECTAD|ONLINE|OPEN|READY|ACTIVE|ATIVO/.test(s)) return true;
+  return null;
+}
+async function situacaoDoCanal(canal: string) {
+  const bruto: Record<string, unknown> = {};
+  for (const caminho of [`/workspace/${WORKSPACE}/channels`, `/channel/${canal}`, `/agent/${AGENTE_BIA}/channels`, `/channel/${canal}/status`]) {
+    try {
+      const r = await gm(caminho);
+      bruto[caminho] = r;
+      const lista = Array.isArray(r) ? r : Array.isArray(r?.data) ? r.data : Array.isArray(r?.channels) ? r.channels : [r];
+      const c = lista.find((x: any) => x && (x.id === canal || x.channelId === canal)) || (lista.length === 1 && !Array.isArray(r) ? lista[0] : null);
+      const v = lerSituacao(c);
+      if (v !== null) return { conectado: v, fonte: caminho, bruto };
+    } catch (e) { bruto[caminho] = String((e as Error).message || e).slice(0, 200); }
+  }
+  return { conectado: null as boolean | null, fonte: null as string | null, bruto };
+}
+
+// frases da Bia que pedem conferência
+const FRASES: { re: RegExp; titulo: string; consulta?: boolean }[] = [
+  { re: /(j[aá] (tem|possui) (uma )?(consulta|avalia[cç][aã]o)|(consulta|avalia[cç][aã]o)[^.!?\n]{0,50}(ficou|est[aá]|foi) (agendad|marcad|confirmad)|agendad[oa] com sucesso|^\s*agendad[oa]\s*!?\s*$)/im,
+    titulo: "Bia disse que há consulta marcada, mas não há consulta no funil", consulta: true },
+  { re: /(R\$\s?\d|\b\d{1,3}(\.\d{3})+,\d{2}\b|\bcusta\b|valor (da|do) (cirurgia|tratamento|procedimento|placa) (é|fica|sai))/i,
+    titulo: "Bia falou de valor" },
+  { re: /(n[aã]o (é|ser[aá]|vai ser) cobrad|(seu|o) (plano|conv[eê]nio) (cobre|vai cobrir|paga|cobrir[aá])|cobertura (garantida|total))/i,
+    titulo: "Bia afirmou o que o convênio cobre ou cobra" },
+];
+
+async function vigiar(arr: any[], fora: Set<string>) {
+  const res: Record<string, unknown> = {};
+  const agora = Date.now();
+  // 1) canal do WhatsApp
+  const canal = arr.map((c: any) => c.canal).find(Boolean);
+  if (canal) {
+    const st = await situacaoDoCanal(canal);
+    let caiu = st.conectado === false, detalhe = "Os pacientes não estão recebendo resposta. Reconecte o WhatsApp no GPT Maker (Canais) lendo o QR code com o celular da Bia.";
+    if (st.conectado === null) {
+      // sem como perguntar ao GPT Maker: nenhuma mensagem de paciente há 3 h, entre 8h e 22h, é sinal de canal fora
+      const ultimaEntrada = Math.max(0, ...arr.filter((c: any) => c.ultima_de === "user" && c.ultima_em).map((c: any) => Date.parse(c.ultima_em)));
+      const h = horaLocal();
+      if (h >= 11 && h < 22 && ultimaEntrada && agora - ultimaEntrada > 3 * 3600000) {
+        caiu = true;
+        detalhe = "Nenhuma mensagem de paciente chegou nas últimas 3 horas. Confira no GPT Maker (Canais) se o WhatsApp da Bia está conectado.";
+      }
+    }
+    res.canal = st.conectado === null ? (caiu ? "suspeito" : "sem_dado") : (st.conectado ? "conectado" : "desconectado");
+    if (caiu) {
+      await rpc("abrir_alerta", { p_tipo: "canal", p_chave: "canal", p_titulo: "WhatsApp da Bia parece desconectado", p_detalhe: detalhe });
+    } else {
+      const desde = await rpc("fechar_alerta", { p_chave: "canal" });
+      if (desde) await avisarEquipe("✅ *WhatsApp da Bia voltou a funcionar.*\nEle estava fora desde " + horaBR(new Date(desde))
+        + ".\nMensagens que pacientes mandaram nesse período podem não ter chegado à Bia — vale olhar o celular do canal.");
+    }
+  }
+  if (res.canal === "desconectado" || res.canal === "suspeito") return res;   // com o canal fora, o resto não faz sentido
+
+  // 2) paciente sem resposta da Bia (conversa com a Bia, última mensagem do paciente entre 15 min e 6 h atrás)
+  const abertos: any[] = await dbs("funil_alertas?select=id,chave,chat_id&tipo=eq.bia_sem_resposta&resolvido_em=is.null").then((r) => r.ok ? r.json() : []);
+  const porChat = new Map(arr.map((c: any) => [c.chat_id, c]));
+  for (const a of abertos) {   // já respondeu ou a equipe assumiu: fecha
+    const c: any = porChat.get(a.chat_id);
+    if (!c || c.humano || c.ultima_de !== "user") await rpc("fechar_alerta", { p_chave: a.chave });
+  }
+  let semResposta = 0, retomadas = 0;
+  for (const c of arr) {
+    if (c.humano || c.ultima_de !== "user" || !c.ultima_em || !c.tel8 || fora.has(c.tel8)) continue;
+    const idade = agora - Date.parse(c.ultima_em);
+    if (idade < 15 * 60000 || idade > 6 * 3600000) continue;
+    semResposta++;
+    const novo = await rpc("abrir_alerta", { p_tipo: "bia_sem_resposta", p_chave: "semresp:" + c.chat_id,
+      p_titulo: (c.nome || "Paciente") + " está sem resposta da Bia desde " + horaBR(new Date(c.ultima_em)).slice(-5),
+      p_detalhe: c.ultima || null, p_chat: c.chat_id });
+    if (novo && retomadas < 3) { retomadas++; emSegundoPlano(biaRetoma(c.chat_id, "Bia (estava sem resposta)")); }
+  }
+  res.sem_resposta = semResposta; res.retomadas = retomadas;
+
+  // 3) frases da Bia: confere as mensagens da Bia de 10 a 30 min atrás (dá tempo de a agenda sincronizar)
+  let conferidas = 0, frases = 0;
+  const recentes = arr.filter((c: any) => c.ultima_em && agora - Date.parse(c.ultima_em) < 30 * 60000 && c.tel8 && !fora.has(c.tel8)).slice(0, 15);
+  for (const c of recentes) {
+    let msgs: any[] = [];
+    try { msgs = (await gm(`/chat/${encodeURIComponent(c.chat_id)}/messages?page=1&pageSize=12`) || []).map(mensagem).filter(Boolean); } catch { continue; }
+    const daBia = msgs.filter((m: any) => m.de === "bia" && m.texto && m.em && agora - Date.parse(m.em) >= 10 * 60000 && agora - Date.parse(m.em) <= 30 * 60000);
+    for (const m of daBia) {
+      conferidas++;
+      for (const f of FRASES) {
+        if (!f.re.test(m.texto)) continue;
+        let fichaId: string | null = null;
+        if (f.consulta) {
+          const fichas: any[] = await dbs(`funil_pacientes?select=id,dados->>dataConsulta&dados->>telefone=like.*${c.tel8}`).then((r) => r.ok ? r.json() : []);
+          if (fichas.some((x: any) => String(x.dataConsulta || "") >= hojeBR())) continue;   // tem consulta mesmo: está certo
+          fichaId = fichas[0]?.id || null;
+        }
+        const novo = await rpc("abrir_alerta", { p_tipo: "bia_frase", p_chave: "frase:" + m.id + ":" + f.titulo.slice(0, 20),
+          p_titulo: f.titulo + " — " + (c.nome || "paciente"), p_detalhe: String(m.texto).replace(/\s+/g, " ").slice(0, 400), p_chat: c.chat_id, p_paciente: fichaId });
+        if (novo) {
+          frases++;
+          if (f.consulta) await avisarEquipe("⚠️ *Confira a conversa de " + (c.nome || "um paciente") + "*\n" + f.titulo + ".\nA Bia escreveu: “"
+            + String(m.texto).replace(/\s+/g, " ").slice(0, 300) + "”\nAbra o funil > Rotina do dia > Bia · conferir.");
+        }
+        break;
+      }
+    }
+  }
+  res.frases_conferidas = conferidas; res.frases_alertadas = frases;
+  return res;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ erro: "use POST" }, 405);
@@ -254,7 +395,15 @@ Deno.serve(async (req) => {
     try {
       const SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
       const lista = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=50`);
-      const arr = (Array.isArray(lista) ? lista : []).filter((c: any) => !c.isGroup && c.channelId && c.agentId !== AGENTE_RESUMO).map(linhaDoChat);
+      const brutos = (Array.isArray(lista) ? lista : []).filter((c: any) => !c.isGroup && c.channelId && c.agentId !== AGENTE_RESUMO);
+      const arr = brutos.map(linhaDoChat);
+      const canalDaBia = brutos.find((c: any) => c.agentId === AGENTE_BIA)?.channelId || brutos[0]?.channelId || null;
+      const hdrS = { apikey: SR, Authorization: "Bearer " + SR };
+      const [pfS, igS] = await Promise.all([
+        fetch(SB_URL + "/rest/v1/perfis?select=whatsapp&whatsapp=not.is.null", { headers: hdrS }).then((r) => r.ok ? r.json() : []),
+        fetch(SB_URL + "/rest/v1/funil_ignorados?select=id", { headers: hdrS }).then((r) => r.ok ? r.json() : []),
+      ]);
+      const foraS = new Set<string>([...pfS.map((x: any) => so8(x.whatsapp)), ...igS.map((x: any) => String(x.id).replace(/^k/, ""))]);
       // fora do horário da Ana (ter a sex, 14h às 18h) as conversas voltam para a Bia, que atende sozinha
       let devolvidas = 0;
       if (!horarioDaEquipe() && arr.some((c: any) => c.humano)) {
@@ -306,7 +455,9 @@ Deno.serve(async (req) => {
         });
         if (!r.ok) return json({ erro: "banco: " + (await r.text()).slice(0, 200) }, 500);
       }
-      return json({ ok: true, conversas: arr.length, devolvidas_para_bia: devolvidas, presenciais_automaticos: presenciais });
+      let vigia: unknown = null;
+      try { vigia = await vigiar(arr.map((c: any, i: number) => (i === 0 ? { ...c, canal: canalDaBia } : c)), foraS); } catch (e) { vigia = { erro: String((e as Error).message || e).slice(0, 200) }; }
+      return json({ ok: true, conversas: arr.length, devolvidas_para_bia: devolvidas, presenciais_automaticos: presenciais, vigia });
     } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
   }
   if (p.acao === "processar_avisos") {
@@ -512,6 +663,12 @@ Deno.serve(async (req) => {
           }
         }
         return json({ ok: true, apagadas });
+      }
+      case "situacao_canal": {
+        const lista = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=5`);
+        const canal = (Array.isArray(lista) ? lista : []).map((c: any) => c.channelId).find(Boolean);
+        if (!canal) return json({ erro: "não achei o canal da Bia" }, 502);
+        return json({ ok: true, canal, ...(await situacaoDoCanal(canal)) });
       }
       case "assumir":
       case "devolver": {
