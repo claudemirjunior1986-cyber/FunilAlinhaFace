@@ -2307,6 +2307,77 @@ function barras(lista, vazio){
   return w;
 }
 
+/* ============ relatórios: conversão por origem/cirurgião, perdas e investimento no Meta ============ */
+const GASTOS_CACHE = {};
+async function lerGastos(ini, fim){
+  const k = ini+"|"+fim;
+  if(GASTOS_CACHE[k] && Date.now()-GASTOS_CACHE[k].em < 10*60*1000) return GASTOS_CACHE[k].linhas;
+  const { data, error } = await FUNIL.sb.from("funil_gastos").select("data,campanha,valor,cliques,conversas,leads").gte("data",ini).lte("data",fim).limit(5000);
+  if(error) throw error;
+  GASTOS_CACHE[k] = { em: Date.now(), linhas: data || [] };
+  return data || [];
+}
+function coorteDe(lista){
+  const agendou = p => !!p.dataConsulta || p.etapa==="agendou" || DEPOIS_CONSULTA.includes(p.etapa) || p.etapa==="noshow";
+  const consultou = p => DEPOIS_CONSULTA.includes(p.etapa) || p.consultaCompareceu===true;
+  const proposta = p => !!p.dataProposta || ["proposta","docs_conv","autorizacao","autorizado","cir_marcada","cir_feita","posop"].includes(p.etapa);
+  const operou = p => FEITAS.includes(p.etapa) || p.etapa==="cir_marcada" || !!p.dataCirurgiaRealizada;
+  return { leads:lista.length, agendou:lista.filter(agendou).length, consultou:lista.filter(consultou).length,
+           proposta:lista.filter(proposta).length, operou:lista.filter(operou).length,
+           perdido:lista.filter(p=>p.etapa==="perdido").length, outra:lista.filter(p=>p.etapa==="perdido" && outraEmpresa(p)).length };
+}
+const pct = (a,b) => b ? Math.round(a/b*100)+"%" : "—";
+function tabelaCoorte(grupos, rotulo){
+  const tw = el("div","tablewrap"); const tb = el("table"); tb.style.minWidth="0";
+  tb.innerHTML = "<thead><tr><th>"+rotulo+"</th><th class='num'>Leads</th><th class='num'>Agendaram</th><th class='num'>Consultaram</th><th class='num'>Proposta</th><th class='num'>Cirurgia</th><th class='num'>Perdidos</th></tr></thead>";
+  const body = el("tbody");
+  for(const [nome, c] of grupos){
+    const tr = el("tr"); tr.style.cursor="default";
+    const cel = (v,base) => el("td","num", base===undefined ? String(v) : v+" ("+pct(v,base)+")");
+    tr.append(el("td",null,nome), cel(c.leads), cel(c.agendou,c.leads), cel(c.consultou,c.leads), cel(c.proposta,c.leads), cel(c.operou,c.leads), cel(c.perdido,c.leads));
+    body.appendChild(tr);
+  }
+  tb.appendChild(body); tw.appendChild(tb); return tw;
+}
+function relConversao(ini, fim){
+  const noPer = d => !!d && d.slice(0,10)>=ini && d.slice(0,10)<=fim;
+  const coorte = [...pacientes.values()].filter(p=>noPer(p.criadoEm) && p.etapa!=="triagem");
+  const porChave = f => { const m = {}; coorte.forEach(p=>{ const k = f(p)||"Não informado"; (m[k]=m[k]||[]).push(p); }); return Object.entries(m).map(([k,l])=>[k,coorteDe(l)]).sort((a,b)=>b[1].leads-a[1].leads); };
+  const tot = coorteDe(coorte);
+  const perdas = {}; coorte.filter(p=>p.etapa==="perdido").forEach(p=>{ const m = String(p.motivoPerda||"Sem motivo").split(/ — |:/)[0].trim(); perdas[m]=(perdas[m]||0)+1; });
+  return { coorte, tot, origem:porChave(p=>p.origem), cirurgiao:porChave(p=>p.cirurgiao?nomeCirurgiao(p.cirurgiao):"Sem cirurgião"),
+           perdas:Object.entries(perdas).sort((a,b)=>b[1]-a[1]) };
+}
+function painelInvestimento(box, ini, fim, R, C){
+  const s = el("section","panel"); const h = el("div","panel-head"); h.appendChild(el("h3",null,"Investimento em anúncios · Meta")); s.appendChild(h);
+  const c = el("div","panel-body"); c.appendChild(el("div","hint","Carregando o gasto do Meta…")); s.appendChild(c); box.appendChild(s);
+  lerGastos(ini, fim).then(linhas=>{
+    c.textContent = "";
+    if(!linhas.length){ c.appendChild(el("div","hint","Ainda não há gasto do Meta gravado para este período. Assim que a conta de anúncios for ligada ao funil, os números aparecem aqui sozinhos.")); return; }
+    const gasto = linhas.reduce((a,x)=>a+Number(x.valor||0),0);
+    const conversas = linhas.reduce((a,x)=>a+Number(x.conversas||0),0);
+    const noPer = d => !!d && d.slice(0,10)>=ini && d.slice(0,10)<=fim;
+    const cirFeitas = [...pacientes.values()].filter(p=>noPer(p.dataCirurgiaRealizada)).length;
+    const cada = (n) => n ? brl(gasto/n) : "—";
+    const ms = el("div","mini-stats");
+    [[brl(gasto),"gasto no período"],[String(conversas),"conversas iniciadas pelo anúncio · "+cada(conversas)+" cada"],
+     [cada(R.leads),"por lead novo ("+R.leads+")"],[cada(R.agendados),"por consulta agendada ("+R.agendados+")"],
+     [cada(R.compareceu),"por consulta realizada ("+R.compareceu+")"],[cada(cirFeitas),"por cirurgia realizada ("+cirFeitas+")"]]
+      .forEach(([v,l])=>{ const d=el("div"); d.append(el("b",null,v), el("span",null,l)); ms.appendChild(d); });
+    c.appendChild(ms);
+    const camp = {}; linhas.forEach(x=>{ const k = x.campanha||"Sem nome"; camp[k] = camp[k]||{v:0,c:0}; camp[k].v += Number(x.valor||0); camp[k].c += Number(x.conversas||0); });
+    const lista = Object.entries(camp).filter(([,x])=>x.v>0).sort((a,b)=>b[1].v-a[1].v);
+    if(lista.length){
+      const tw = el("div","tablewrap"); tw.style.marginTop="10px"; const tb = el("table"); tb.style.minWidth="0";
+      tb.innerHTML = "<thead><tr><th>Campanha</th><th class='num'>Gasto</th><th class='num'>Conversas</th><th class='num'>Custo por conversa</th></tr></thead>";
+      const body = el("tbody");
+      lista.forEach(([n,x])=>{ const tr = el("tr"); tr.style.cursor="default"; tr.append(el("td",null,n), el("td","num",brl(x.v)), el("td","num",String(x.c)), el("td","num",x.c?brl(x.v/x.c):"—")); body.appendChild(tr); });
+      tb.appendChild(body); tw.appendChild(tb); c.appendChild(tw);
+    }
+    c.appendChild(el("div","hint","Custo por lead, consulta e cirurgia = gasto do período ÷ o que aconteceu no mesmo período (todas as origens). As cirurgias de hoje costumam vir de anúncios de meses atrás: para decidir, olhe períodos longos (3 a 6 meses)."));
+  }).catch(()=>{ c.textContent = ""; c.appendChild(el("div","hint","Não consegui ler o gasto do Meta agora.")); });
+}
+
 function renderRel(){
   const box = $("#relview"); box.textContent = "";
   const per = periodoRel(); const R = calcRelatorio(per.ini, per.fim);
@@ -2341,11 +2412,21 @@ function renderRel(){
   for(const t of tiles){ const d = el("div","kpi"+(t.money?" money":"")); d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",t.h)); k.appendChild(d); }
   box.appendChild(k);
 
+  const C = relConversao(per.ini, per.fim);
+  const topo = el("div"); topo.style.marginBottom = "14px";
+  painelInvestimento(topo, per.ini, per.fim, R, C);
+  box.appendChild(topo);
+
   const grid = el("div","rel-grid");
   const painel = (titulo, conteudo, nota)=>{ const s = el("section","panel"); const h = el("div","panel-head"); h.appendChild(el("h3",null,titulo)); s.appendChild(h); const c = el("div","panel-body"); c.appendChild(conteudo); if(nota) c.appendChild(el("div","hint",nota)); s.appendChild(c); return s; };
 
   grid.appendChild(painel("Funil do período", barras(R.funil), "Cada etapa conta os eventos que aconteceram dentro do período."));
   grid.appendChild(painel("Origem dos leads", barras(R.origens,"Nenhum lead novo no período.")));
+  const notaCoorte = "Pacientes que entraram no período ("+C.tot.leads+") e até onde chegaram até hoje. Períodos recentes ainda vão evoluir.";
+  grid.appendChild(painel("Conversão por origem", C.coorte.length ? tabelaCoorte([...C.origem, ["Total", C.tot]], "Origem") : el("div","hint","Nenhum lead no período."), notaCoorte));
+  grid.appendChild(painel("Conversão por cirurgião", C.coorte.length ? tabelaCoorte(C.cirurgiao, "Cirurgião") : el("div","hint","Nenhum lead no período."), notaCoorte));
+  grid.appendChild(painel("Motivos de perda", barras(C.perdas,"Nenhum paciente perdido entre os que entraram no período."),
+    C.tot.outra ? C.tot.outra+" operou(aram) com outra empresa." : "Pacientes que entraram no período e hoje estão como perdidos."));
 
   const vs = el("div","mini-stats");
   [[R.voucher.emitidos,"emitidos"],[R.voucher.usados,"usados"],[R.voucher.vencidos,"vencidos"],[R.voucher.abertos,"aguardando uso hoje"]].forEach(([v,l])=>{ const d=el("div"); d.append(el("b",null,String(v)), el("span",null,l)); vs.appendChild(d); });

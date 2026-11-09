@@ -12,6 +12,7 @@
 //   transcrever {sala, caminho} -> transcreve um trecho de áudio da teleconsulta (agente "Resumo de Consultas")
 //   resumir     {sala}          -> gera o resumo da consulta a partir da transcrição
 //   situacao_canal              -> diz se o WhatsApp da Bia está conectado no GPT Maker
+//   gastos_meta {dias}          -> (agendador) grava o gasto do Meta Ads por dia e campanha em funil_gastos
 //   arquivo   {chatId, url, tipo:'imagem'|'documento', legenda?, nome?, mime?}
 //             -> envia imagem/PDF já guardado no Storage (bucket "envios", link assinado)
 
@@ -380,6 +381,46 @@ async function vigiar(arr: any[], fora: Set<string>) {
   return res;
 }
 
+// ---------- gasto com anúncios do Meta (Facebook/Instagram) -> funil_gastos ----------
+// Segredos: META_TOKEN (chave do usuário do sistema, só leitura de anúncios) e META_CONTAS (ex.: "act_123,act_456").
+async function gastosMeta(dias: number) {
+  const token = Deno.env.get("META_TOKEN") || "";
+  const contas = (Deno.env.get("META_CONTAS") || "act_1845412043498364").split(",").map((x) => x.trim()).filter(Boolean);
+  if (!token) return { ok: false, motivo: "falta o segredo META_TOKEN" };
+  const ate = hojeBR();
+  const de = new Date(Date.parse(ate + "T12:00:00Z") - (Math.max(1, Math.min(dias, 400)) - 1) * 864e5).toISOString().slice(0, 10);
+  const acao = (lista: any[], tipos: string[]) => (Array.isArray(lista) ? lista : []).filter((a: any) => tipos.includes(a.action_type)).reduce((s: number, a: any) => s + (Number(a.value) || 0), 0);
+  let linhas = 0;
+  const erros: string[] = [];
+  for (const conta of contas) {
+    let url: string | null = "https://graph.facebook.com/v23.0/" + encodeURIComponent(conta) + "/insights?" + new URLSearchParams({
+      level: "campaign", time_increment: "1", limit: "500",
+      fields: "campaign_id,campaign_name,spend,impressions,inline_link_clicks,actions",
+      time_range: JSON.stringify({ since: de, until: ate }),
+    }).toString();
+    while (url) {
+      const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+      const j: any = await r.json().catch(() => ({}));
+      if (!r.ok) { erros.push(conta + ": " + String(j?.error?.message || r.status).slice(0, 200)); break; }
+      const rows = (j.data || []).map((x: any) => ({
+        data: x.date_start, conta, campanha_id: String(x.campaign_id || "sem-campanha"), campanha: x.campaign_name || null,
+        valor: Number(x.spend) || 0, impressoes: Number(x.impressions) || 0, cliques: Number(x.inline_link_clicks) || 0,
+        conversas: acao(x.actions, ["onsite_conversion.messaging_conversation_started_7d"]),
+        leads: acao(x.actions, ["lead", "onsite_conversion.lead_grouped"]),
+        atualizado_em: new Date().toISOString(),
+      }));
+      if (rows.length) {
+        const w = await dbs("funil_gastos?on_conflict=data,campanha_id", { method: "POST",
+          headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rows) });
+        if (!w.ok) { erros.push("banco: " + (await w.text()).slice(0, 200)); break; }
+        linhas += rows.length;
+      }
+      url = j?.paging?.next || null;
+    }
+  }
+  return { ok: !erros.length, de, ate, linhas, erros };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ erro: "use POST" }, 405);
@@ -459,6 +500,10 @@ Deno.serve(async (req) => {
       try { vigia = await vigiar(arr.map((c: any, i: number) => (i === 0 ? { ...c, canal: canalDaBia } : c)), foraS); } catch (e) { vigia = { erro: String((e as Error).message || e).slice(0, 200) }; }
       return json({ ok: true, conversas: arr.length, devolvidas_para_bia: devolvidas, presenciais_automaticos: presenciais, vigia });
     } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
+  }
+  if (p.acao === "gastos_meta") {
+    // chamado pelo agendador: só lê o gasto no Meta e grava no banco. Não recebe dados de fora além do número de dias.
+    try { return json(await gastosMeta(Number(p.dias) || 3)); } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
   }
   if (p.acao === "processar_avisos") {
     try { return json(await processarAvisos()); } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
