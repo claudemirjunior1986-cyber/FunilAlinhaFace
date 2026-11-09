@@ -100,6 +100,7 @@
   .cir-card .meta{font-size:12.5px;color:var(--ink-2)}
   .cir-card .dias{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3)}
   .cir-card .dias.late{color:var(--crit);font-weight:600}
+  .outra-emp{align-self:flex-start;font-size:12px;font-weight:600;color:var(--crit);background:color-mix(in srgb,var(--crit) 12%,transparent);border:1px solid color-mix(in srgb,var(--crit) 35%,transparent);border-radius:6px;padding:3px 8px}
   .cir-card .acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
   .cir-card input[type=date],.cir-card input[type=text]{font-size:12.5px;padding:5px 8px;border:1px solid var(--line-strong);border-radius:6px;background:var(--surface);min-height:32px}
   .cir-tot{font-size:12.5px;color:var(--ink-2);padding:9px 14px;border-top:1px solid var(--line);background:var(--surface-2)}
@@ -622,6 +623,10 @@ const MODALIDADES = ["Online","Presencial"];
 const LOCAIS = ["Online","SP · Moema (Av. Jandira, 257)","SP · Vila Mariana (R. Francisco Cruz, 131)","SP · Mooca (Av. Paes de Barros, 3399)","Porto Alegre (R. Dr. Florêncio Ygartua, 422)","Salvador · Caminho das Árvores (R. da Alfazema, 761)"];
 const CONVENIOS = ["Sim","Não","Não sabe"];
 const PAGAMENTOS = ["Pelo convênio","Particular à vista","Particular parcelado","A definir"];
+const EMPRESAS_OPME = ["Rimedualc","Moch","Vertrauen","Outra empresa"];
+const MOTIVOS_OUTRA = ["Não temos o material","Hospital sem cadastro com nossas empresas","Convênio sem cadastro com nossas empresas","Escolha do cirurgião","Outro motivo"];
+const outraEmpresa = p => p.empresaOpme === "Outra empresa";
+const textoOutra = p => "Outra empresa" + (p.empresaOutraNome ? ": " + p.empresaOutraNome : "") + (p.empresaOutraMotivo ? " · " + p.empresaOutraMotivo : "");
 const ACOES = [
   "Confirmar presença na consulta",
   "Remarcar consulta",
@@ -966,7 +971,7 @@ function renderCal(){
     const s = situacaoConsulta(p);
     const cls = s==="consultado"?"ok":(s==="faltou"?"crit":(s==="sem registro"?"warn":"neu"));
     const nm = el("span","nm",p.nome||"Sem nome");
-    nm.appendChild(el("span","sub",[p.modalidade, p.cirurgiao?nomeCirurgiao(p.cirurgiao):"", p.tratamento&&p.tratamento!=="A definir"?p.tratamento:""].filter(Boolean).join(" · ")));
+    nm.appendChild(el("span","sub",[p.modalidade, p.cirurgiao?nomeCirurgiao(p.cirurgiao):"", p.tratamento&&p.tratamento!=="A definir"?p.tratamento:"", outraEmpresa(p)?"⚠ outra empresa":""].filter(Boolean).join(" · ")));
     it.append(el("span","h",p.horaConsulta||"—"), nm, el("span","pill "+cls, s.charAt(0).toUpperCase()+s.slice(1)));
     it.addEventListener("click",()=>abrirDrawer(p.id));
     det.appendChild(it);
@@ -1004,7 +1009,8 @@ function cartaoCir(p, g){
   const nm = el("button","nm",p.nome||"Sem nome"); nm.title = "Abrir ficha"; nm.addEventListener("click",()=>abrirDrawer(p.id));
   c.appendChild(nm);
   const conv = p.convenio==="Sim" ? (p.nomeConvenio||"Convênio") : (p.convenio==="Não" ? "Particular" : "");
-  c.appendChild(el("div","meta",[p.tratamento && p.tratamento!=="A definir" ? p.tratamento : "", conv, nomeCir(p), p.opme ? "OPME "+brl(p.opme) : ""].filter(Boolean).join(" · ")));
+  c.appendChild(el("div","meta",[p.tratamento && p.tratamento!=="A definir" ? p.tratamento : "", conv, nomeCir(p), p.opme ? "OPME "+brl(p.opme) : "", p.empresaOpme && !outraEmpresa(p) ? "Material: "+p.empresaOpme : ""].filter(Boolean).join(" · ")));
+  if(outraEmpresa(p)) c.appendChild(el("div","outra-emp","⚠ "+textoOutra(p)));
   const ac = el("div","acts");
   if(g==="aut"){
     if(p.etapa==="docs_conv"){
@@ -1067,7 +1073,9 @@ function renderCir(){
    {l:"Autorizados a realizar", v:ag.length, h:brl(somaOpme(ag))+" em OPME"},
    {l:"Realizadas no mês", v:okMes.length, h:brl(somaOpme(okMes))+" em OPME"},
    {l:"Realizadas no total", v:ok.length, h:brl(somaOpme(ok))+" em OPME"}
-  ].forEach(t=>{ const d = el("div","kpi"+(t.c?" "+t.c:"")); d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",t.h)); k.appendChild(d); });
+  ].forEach((t,i)=>{ const d = el("div","kpi"+(t.c?" "+t.c:""));
+    const nOutra = [aut,ag,okMes,ok][i].filter(outraEmpresa).length;
+    d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",t.h+(nOutra?" · ⚠ "+nOutra+" com outra empresa":""))); k.appendChild(d); });
   box.appendChild(k);
 
   const cols = el("div","cir-cols");
@@ -1078,7 +1086,8 @@ function renderCir(){
     const h = el("div","panel-head"); h.append(el("h3",null,t), el("span","n",String(lista.length))); sec.appendChild(h);
     if(!lista.length){ const e = el("div","done-empty"); e.appendChild(document.createTextNode(vazio)); sec.appendChild(e); }
     lista.forEach(p=>sec.appendChild(cartaoCir(p,g)));
-    if(lista.length) sec.appendChild(el("div","cir-tot","OPME estimado: "+brl(somaOpme(lista))));
+    if(lista.length){ const fora = lista.filter(outraEmpresa);
+      sec.appendChild(el("div","cir-tot","OPME estimado: "+brl(somaOpme(lista))+(fora.length?" · com outra empresa: "+brl(somaOpme(fora)):""))); }
     cols.appendChild(sec);
   });
   box.appendChild(cols);
@@ -2421,7 +2430,14 @@ function abrirDrawer(id, pre){
              campo("OPME estimado (R$)", opmeI));
   const g3c = el("div","grid2");
   g3c.append(campo("Data da cirurgia", inp("f_dcir","date",p.dataCirurgia||"")), campo("Hospital", inp("f_hosp","text",p.hospital||"","Onde será a cirurgia")));
-  fs3.append(g3,g3b,g3c); b.appendChild(fs3);
+  const g3d = el("div","grid3");
+  const selEmp = sel("f_emp",EMPRESAS_OPME,p.empresaOpme||"","— a definir —");
+  const cEmpNome = campo("Qual empresa", inp("f_empnome","text",p.empresaOutraNome||"","Nome da outra empresa"));
+  const cEmpMot = campo("Por quê", sel("f_empmot",MOTIVOS_OUTRA,p.empresaOutraMotivo||"","— escolha —"));
+  const mostraOutra = ()=>{ const o = selEmp.value==="Outra empresa"; cEmpNome.hidden = !o; cEmpMot.hidden = !o; };
+  selEmp.addEventListener("change", mostraOutra); mostraOutra();
+  g3d.append(campo("Material OPME por", selEmp), cEmpNome, cEmpMot);
+  fs3.append(g3,g3b,g3c,g3d); b.appendChild(fs3);
 
   const fs4 = el("fieldset"); fs4.append(el("div","legend","Acompanhamento"));
   const g4 = el("div","grid2");
@@ -2514,7 +2530,12 @@ function abrirDrawer(id, pre){
     const nome = $("#f_nome").value.trim();
     if(!nome){ $("#f_nome").focus(); toast("O nome do paciente é obrigatório."); return; }
     const antes = p.etapa;
+    const empAntes = p.empresaOpme||"";
+    const empNova = $("#f_emp").value, ehOutra = empNova==="Outra empresa";
     Object.assign(p,{
+      empresaOpme: empNova,
+      empresaOutraNome: ehOutra ? $("#f_empnome").value.trim() : "",
+      empresaOutraMotivo: ehOutra ? $("#f_empmot").value : "",
       nome, telefone:$("#f_tel").value.trim(), cidade:$("#f_cidade").value.trim(), origem:$("#f_origem").value,
       tratamento:$("#f_trat").value, dataConsulta:$("#f_data").value, horaConsulta:$("#f_hora").value,
       modalidade:$("#f_mod").value, local:$("#f_local").value, dataExames:$("#f_dexames").value,
@@ -2526,6 +2547,7 @@ function abrirDrawer(id, pre){
       cirurgiao:$("#f_cir").value,
       dataCirurgia:$("#f_dcir").value, hospital:$("#f_hosp").value.trim()
     });
+    if(empNova !== empAntes && empNova) registrarHistorico(p, ehOutra ? "Cirurgia com "+textoOutra(p).replace(/^Outra/,"outra") : "Material OPME por "+empNova);
     if(["Usado","Venceu"].includes(p.voucherStatus) && !p.voucherBaixa) p.voucherBaixa = hoje();
     if(p.voucherStatus==="Aguardando uso") p.voucherBaixa = "";
     const nova = $("#f_etapa").value;
