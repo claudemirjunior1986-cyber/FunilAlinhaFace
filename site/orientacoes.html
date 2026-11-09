@@ -166,7 +166,9 @@ function desenhar(){
   $("vEnd").textContent=x.end;
   $("vCont").textContent=x.cont?("Dúvidas: "+x.cont):"";
   const falta=x.intern.getTime()-Date.now();
-  $("vTit").textContent=falta>0&&falta<36*3600e3?"é amanhã":"está chegando";
+  const dia0=d=>{const z=new Date(d);z.setHours(0,0,0,0);return z.getTime();};
+  const difDias=Math.round((dia0(x.intern)-dia0(new Date()))/864e5);
+  $("vTit").textContent=difDias===0?"é hoje":difDias===1?"é amanhã":"está chegando";
   $("calc").innerHTML=`<span>Internação: <b>${fData(x.intern)} às ${fHora(x.intern)}</b></span><span>Jejum de ${x.horas}h começa: <b>${fData(x.jejum)} às ${fHora(x.jejum)}</b></span>`;
 }
 
