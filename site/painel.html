@@ -804,7 +804,8 @@ function visiveis(){
       if(!achouNome && !achouTel && !achouCidade) return false;
     }
     if(q) return true;   // buscando por nome, cidade ou telefone: ignora os demais filtros
-    if(filtros.etapa && p.etapa !== filtros.etapa) return false;
+    if(filtros.etapa==="perdido_outra"){ if(!(p.etapa==="perdido" && outraEmpresa(p))) return false; }
+    else if(filtros.etapa && p.etapa !== filtros.etapa) return false;
     if(filtros.origem && p.origem !== filtros.origem) return false;
     if(filtros.trat && p.tratamento !== filtros.trat) return false;
     if(filtros.conv && (p.convenio||"") !== filtros.conv) return false;
@@ -1791,7 +1792,7 @@ function baixarVoucher(tk, status){
   toast("Voucher marcado como "+status.toLowerCase()+".");
 }
 
-const MOTIVOS = ["Paciente desistiu","Sem retorno / sumiu","Achou caro","Vai fazer com outro profissional","Convênio negou","Adiou para mais tarde","Outro"];
+const MOTIVOS = ["Paciente desistiu","Sem retorno / sumiu","Achou caro","Vai fazer com outro profissional","Operou com outra empresa","Convênio negou","Adiou para mais tarde","Outro"];
 function marcarPerdido(p, depois){
   fecharOverlays();
   const scrim = el("div","scrim"); scrim.addEventListener("click",fecharOverlays);
@@ -2391,7 +2392,10 @@ function abrirDrawer(id, pre){
 
   const fs2 = el("fieldset"); fs2.append(el("div","legend","Etapa do funil"));
   const stSel = el("select"); stSel.id="f_etapa";
-  for(const s of STAGES){ const o=el("option",null,s.l); o.value=s.k; if(s.k===p.etapa) o.selected=true; stSel.appendChild(o); }
+  const ehPerdOutra = p.etapa==="perdido" && outraEmpresa(p);
+  for(const s of STAGES){ const o=el("option",null,s.l); o.value=s.k; if(s.k===p.etapa && !ehPerdOutra) o.selected=true; stSel.appendChild(o); }
+  { const o=el("option",null,"Perdido — operou com outra empresa"); o.value="perdido_outra"; if(ehPerdOutra) o.selected=true; stSel.appendChild(o); }
+  stSel.addEventListener("change", ()=>{ const e=$("#f_emp"); if(stSel.value==="perdido_outra" && e && e.value!=="Outra empresa"){ e.value="Outra empresa"; e.dispatchEvent(new Event("change")); } });
   const g2 = el("div","grid2");
   g2.append(campo("Etapa atual", stSel), campo("Tratamento", sel("f_trat",TRATAMENTOS,p.tratamento)));
   const g2b = el("div","grid3");
@@ -2436,6 +2440,7 @@ function abrirDrawer(id, pre){
   const cEmpMot = campo("Por quê", sel("f_empmot",MOTIVOS_OUTRA,p.empresaOutraMotivo||"","— escolha —"));
   const mostraOutra = ()=>{ const o = selEmp.value==="Outra empresa"; cEmpNome.hidden = !o; cEmpMot.hidden = !o; };
   selEmp.addEventListener("change", mostraOutra); mostraOutra();
+  selEmp.addEventListener("change", ()=>{ if(selEmp.value==="Outra empresa" && stSel.value!=="perdido_outra"){ stSel.value="perdido_outra"; toast("Etapa mudou para \u201cPerdido — operou com outra empresa\u201d. Salve para confirmar."); } });
   g3d.append(campo("Material OPME por", selEmp), cEmpNome, cEmpMot);
   fs3.append(g3,g3b,g3c,g3d); b.appendChild(fs3);
 
@@ -2531,7 +2536,8 @@ function abrirDrawer(id, pre){
     if(!nome){ $("#f_nome").focus(); toast("O nome do paciente é obrigatório."); return; }
     const antes = p.etapa;
     const empAntes = p.empresaOpme||"";
-    const empNova = $("#f_emp").value, ehOutra = empNova==="Outra empresa";
+    const etapaSel = $("#f_etapa").value, perdOutra = etapaSel==="perdido_outra";
+    const empNova = perdOutra ? "Outra empresa" : $("#f_emp").value, ehOutra = empNova==="Outra empresa";
     Object.assign(p,{
       empresaOpme: empNova,
       empresaOutraNome: ehOutra ? $("#f_empnome").value.trim() : "",
@@ -2550,8 +2556,12 @@ function abrirDrawer(id, pre){
     if(empNova !== empAntes && empNova) registrarHistorico(p, ehOutra ? "Cirurgia com "+textoOutra(p).replace(/^Outra/,"outra") : "Material OPME por "+empNova);
     if(["Usado","Venceu"].includes(p.voucherStatus) && !p.voucherBaixa) p.voucherBaixa = hoje();
     if(p.voucherStatus==="Aguardando uso") p.voucherBaixa = "";
-    const nova = $("#f_etapa").value;
+    const nova = perdOutra ? "perdido" : etapaSel;
     if(nova!==antes) aplicarEtapa(p,nova); else p.etapa = nova;
+    if(perdOutra){
+      const mot = "Operou com outra empresa"+(p.empresaOutraNome?": "+p.empresaOutraNome:"")+(p.empresaOutraMotivo?" · "+p.empresaOutraMotivo:"");
+      if(p.motivoPerda!==mot){ p.motivoPerda = mot; p.proximaAcao = ""; p.dataProximaAcao = ""; registrarHistorico(p, "Perdido · "+mot); }
+    }
     if(typeof agAjustarFicha === "function") agAjustarFicha(p);
     salvar(p); fecharOverlays(); toast(id ? "Ficha atualizada." : "Paciente cadastrado.");
   });
@@ -2676,6 +2686,7 @@ async function exportar(){
 function preencherFiltros(){
   $("#fEtapa").appendChild(el("option",null,"Todas as etapas")).value="";
   STAGES.forEach(s=>{const x=el("option",null,s.l);x.value=s.k;$("#fEtapa").appendChild(x);});
+  { const x=el("option",null,"Perdido — outra empresa"); x.value="perdido_outra"; $("#fEtapa").appendChild(x); }
   $("#fOrigem").appendChild(el("option",null,"Todas")).value="";
   ORIGENS.forEach(o=>{const x=el("option",null,o);x.value=o;$("#fOrigem").appendChild(x);});
   $("#fTrat").appendChild(el("option",null,"Todos")).value="";
