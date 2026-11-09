@@ -549,16 +549,29 @@ Deno.serve(async (req) => {
       const hp = String(p.hora || p.hora_preferida || "").replace(/h$/i, ":00").replace(/^(\d{1,2})$/, "$1:00").replace(/^(\d):/, "0$1:");
       const diaPedido = de || (ord[0] ? ord[0].data : "");
       const pedidoLivre = /^\d{2}:\d{2}$/.test(hp) ? ord.some((s) => s.data === diaPedido && s.hora === hp) : null;
+      // dia pedido apertado (menos de 2 h livres)? oferece também o mesmo dia da semana seguinte
+      let tambem: any = undefined;
+      if (de) {
+        const doDia = ord.filter((s) => s.data === de).map((s) => s.hora);
+        if (doDia.length < 8) {
+          const d7 = new Date(de + "T12:00:00Z"); d7.setUTCDate(d7.getUTCDate() + 7);
+          const prox = d7.toISOString().slice(0, 10);
+          const hs7 = ord.filter((s) => s.data === prox).map((s) => s.hora);
+          if (hs7.length) tambem = { data: prox, dia: quando(prox, "").replace(/ às $/, ""), faixa: faixas(hs7), horas: hs7.join(", ") };
+        }
+      }
       return json({
         ok: true, medico: r.medico === "afonso" ? "Dr. Afonso" : "Dr. Victor", modalidade: mod, estado: est,
         horarios: opcoes, livres, endereco: local,
         horario_pedido: pedidoLivre === null ? undefined : { data: diaPedido, hora: hp, livre: pedidoLivre },
+        tambem,
         instrucao: !ord.length
           ? "Não há horário livre nas próximas duas semanas. Avise que a equipe vai entrar em contato para encaixar e transfira para a Ana Clara."
           : "Ofereça pela FAIXA do dia (campo 'faixa' em 'livres'), não só 2 horários soltos. Ex.: 'Amanhã, sábado, tenho horários das 8h às 14h. Qual horário fica melhor para você?'. "
             + "Se a pessoa pediu um dia/horário, procure em 'livres' (campo 'horas' tem todos os horários livres): se estiver lá, ESTÁ DISPONÍVEL — confirme esse horário. "
             + "Nunca diga que um horário não existe se ele aparece em 'livres'. Se a pessoa pedir OUTRO horário, nunca repita os que já ofereceu: diga a faixa inteira do dia ou outros horários de 'horas'. "
             + "Os exemplos em 'horarios' são só sugestões. "
+            + (tambem ? `O dia pedido tem poucos horários: ofereça também ${tambem.dia}, ${tambem.faixa} (campo 'tambem'). Ex.: 'Na quarta, 11/11, tenho das 18h às 20h. Se preferir mais cedo, na quarta, 18/11, tenho das 13h às 18h.' ` : "")
             + "Confirme com a pessoa antes de marcar. "
             + (mod === "Online" ? "Consulta online por vídeo, 15 minutos." : "Consulta presencial no endereço informado.")
             + (r.aviso ? " " + r.aviso : ""),
