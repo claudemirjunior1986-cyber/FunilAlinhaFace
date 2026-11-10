@@ -156,3 +156,7 @@ Outros ajustes feitos na Bia:
 ## Horários do Dr. Afonso e do Dr. Victor (024)
 - Eles atendem em qualquer minuto livre da grade (10:00, 10:15, 10:25, 10:30, 10:50...). A lista de horários livres segue de 15 em 15 min, mas ao marcar qualquer horário pedido serve se estiver dentro da grade e livre (agenda_livre_em).
 - A resposta de "horarios" lembra a Bia que a regra de só :15/:45 é exclusiva do Dr. Gustavo, que segue pela agenda do Google.
+
+## Rede de segurança quando a intenção do presencial falha
+- Se a última mensagem da Bia (últimos 10 min) diz que não conseguiu encaminhar ("não consegui encaminhar", "falha no sistema"...) e fala de presencial/unidade, a sincronização chama presencial_auto.
+- Deu certo: manda à paciente "Pronto, consegui passar seu caso para o Dr. X; a secretária vai entrar em contato". Não deu: abre alerta "Bia · conferir" para a equipe encaminhar.

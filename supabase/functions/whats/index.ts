@@ -473,7 +473,11 @@ Deno.serve(async (req) => {
       const dezMin = Date.now() - 10 * 60000;
       for (const c of arr) {
         if (!AT || c.ultima_de !== "assistant" || !c.ultima_em || Date.parse(c.ultima_em) < dezMin) continue;
-        if (!/secret[aá]ria/i.test(c.ultima) || !/(contato|chamar|ligar|falar com voc)/i.test(c.ultima)) continue;
+        const disseSecretaria = /secret[aá]ria/i.test(c.ultima) && /(contato|chamar|ligar|falar com voc)/i.test(c.ultima);
+        // a Bia tentou encaminhar o presencial e a intenção falhou ("não consegui encaminhar", "falha no sistema")
+        const falhou = /(n[aã]o consegui (encaminhar|registrar)|falha no sistema|sistema (ainda )?n[aã]o conseguiu|erro no sistema)/i.test(c.ultima)
+          && /(presencial|unidade|secret[aá]ria|encaminh)/i.test(c.ultima);
+        if (!disseSecretaria && !falhou) continue;
         const hdr = { apikey: SR, Authorization: "Bearer " + SR };
         const fichas = await fetch(SB_URL + `/rest/v1/funil_pacientes?select=id&dados->>telefone=like.*${c.tel8}`, { headers: hdr }).then((r) => r.ok ? r.json() : []);
         const ids = fichas.map((x: any) => x.id);
@@ -483,9 +487,24 @@ Deno.serve(async (req) => {
           if (ja.length) continue;
         }
         try {
-          await fetch(SB_URL + "/functions/v1/agenda", { method: "POST", headers: { "Content-Type": "application/json", "x-agenda-token": AT },
+          const rr = await fetch(SB_URL + "/functions/v1/agenda", { method: "POST", headers: { "Content-Type": "application/json", "x-agenda-token": AT },
             body: JSON.stringify({ acao: "presencial_auto", chat_id: c.chat_id, telefone: c.telefone }) });
+          const jr: any = await rr.json().catch(() => ({}));
           presenciais++;
+          if (falhou) {
+            // a paciente ouviu que deu erro: avisa que deu certo (ou deixa para a equipe se não deu)
+            if (jr?.ok && !jr?.ja_enviado && jr?.medico) {
+              const texto = "Pronto, " + (String(c.nome || "").split(/\s+/)[0] || "tudo certo") + "! Consegui passar seu caso para o " + jr.medico
+                + ". A secretária dele vai entrar em contato para marcar o melhor dia e horário da sua consulta presencial. 😊";
+              await gm(`/chat/${encodeURIComponent(c.chat_id)}/send-message`, { method: "POST", body: JSON.stringify({ message: texto }) });
+              await dbs("funil_whats_envios", { method: "POST", headers: { Prefer: "return=minimal" },
+                body: JSON.stringify({ chat_id: c.chat_id, texto, por: "bia@alinhaface", por_nome: "Bia (correção automática)" }) });
+            } else {
+              await rpc("abrir_alerta", { p_tipo: "bia_frase", p_chave: "falha-presencial:" + c.chat_id + ":" + c.ultima_em,
+                p_titulo: "Bia não conseguiu encaminhar o presencial de " + (c.nome || "paciente") + " — encaminhe pelo funil",
+                p_detalhe: c.ultima, p_chat: c.chat_id });
+            }
+          }
         } catch { /* tenta de novo na próxima rodada */ }
       }
       if (arr.length) {
