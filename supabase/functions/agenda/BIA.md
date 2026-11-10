@@ -152,3 +152,8 @@ Outros ajustes feitos na Bia:
 - encaminhar_presencial marca a ficha com presencialEncaminhado (data) e a próxima ação "Cobrar o Dr. X: a secretária já marcou a consulta presencial?" para dali a 2 dias.
 - A Rotina do dia mostra o bloco vermelho "Presencial · cobrar o cirurgião" até a ficha ganhar data de consulta, com o botão "Cobrar o Dr. no WhatsApp" (abre o WhatsApp de quem está usando, com o texto pronto) e "Já tem data".
 - Ao salvar a ficha com data de consulta, o caso sai da lista e o histórico registra que a secretária marcou.
+
+## Horários do Dr. Afonso e do Dr. Victor (024)
+- A agenda do funil oferece de 30 em 30 minutos, sempre em hora cheia ou meia (10:00, 10:30, 14:00). A consulta on-line continua com 15 minutos.
+- A resposta de "horarios" lembra a Bia de nunca oferecer :15/:45 para eles. Isso vale só para o Dr. Gustavo, que segue pela agenda do Google.
+- A tela de Agendas do painel mostra os horários livres do mesmo jeito.

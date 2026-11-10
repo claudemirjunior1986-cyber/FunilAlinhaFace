@@ -572,6 +572,7 @@ Deno.serve(async (req) => {
             + "Nunca diga que um horário não existe se ele aparece em 'livres'. Se a pessoa pedir OUTRO horário, nunca repita os que já ofereceu: diga a faixa inteira do dia ou outros horários de 'horas'. "
             + "Os exemplos em 'horarios' são só sugestões. "
             + (tambem ? `O dia pedido tem poucos horários: ofereça também ${tambem.dia}, ${tambem.faixa} (campo 'tambem'). Ex.: 'Na quarta, 11/11, tenho das 18h às 20h. Se preferir mais cedo, na quarta, 18/11, tenho das 13h às 18h.' ` : "")
+            + "Este médico atende em hora cheia ou meia (ex.: 10:00, 10:30, 14:00). Nunca ofereça :15 nem :45 para ele (isso é só do Dr. Gustavo); se a pessoa pedir 10:15, ofereça 10:00 ou 10:30. "
             + "Confirme com a pessoa antes de marcar. "
             + (mod === "Online" ? "Consulta online por vídeo, 15 minutos." : "Consulta presencial no endereço informado.")
             + (r.aviso ? " " + r.aviso : ""),
