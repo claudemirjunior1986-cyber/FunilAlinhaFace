@@ -24,7 +24,7 @@ begin
       from funil_pacientes p
      where p.dados->>'dataConsulta' = to_char(agora::date, 'YYYY-MM-DD')
        and coalesce(p.dados->>'horaConsulta','') ~ '^\d{2}:\d{2}'
-       and coalesce(p.dados->>'etapa','') not in ('perdido','noshow','triagem')   -- vale também para retorno (exames, proposta...)
+       and coalesce(p.dados->>'etapa','') not in ('perdido','noshow')   -- vale também para retorno (exames, proposta...)
        and (agora::date + left(p.dados->>'horaConsulta',5)::time) > agora
        and (agora::date + left(p.dados->>'horaConsulta',5)::time) <= agora + interval '16 minutes'
   loop
