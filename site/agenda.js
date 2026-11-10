@@ -150,7 +150,7 @@ async function renderAgendaFunil(box, k){
   const head = el("div","hoje-head");
   const hl = el("div");
   hl.append(el("h2",null,"Agenda " + (m.nome||k)),
-            el("div","dt","Agenda dentro do funil: a Bia marca aqui sozinha. Horários de 30 em 30 min (hora cheia ou meia); a consulta on-line dura 15 min. Clique num horário livre para marcar um paciente."));
+            el("div","dt","Agenda dentro do funil: a Bia marca aqui sozinha. Online de 15 em 15 min, presencial de 30 em 30. Clique num horário livre para marcar um paciente."));
   const acts = el("div","acts");
   const bAnt = el("button","btn btn-sm","‹ Semana anterior"), bHoje = el("button","btn btn-sm","Esta semana"), bProx = el("button","btn btn-sm","Próxima semana ›");
   bAnt.addEventListener("click",()=>{ AG.semana = agMaisDias(AG.semana,-7); renderAgendaMed(); });
@@ -194,7 +194,7 @@ async function renderAgendaFunil(box, k){
     const pres = blocos.filter(g=>g.modalidades.includes("Presencial"));
     const inicioDia = blocos.length ? Math.min(...blocos.map(g=>agMin(g.inicio))) : 0;
     const fimDia = blocos.length ? Math.max(...blocos.map(g=>agMin(g.fim))) : 0;
-    for(let t=Math.ceil(inicioDia/30)*30; t + 15 <= fimDia; t += 30){   // só hora cheia ou meia (10:00, 10:30)
+    for(let t=inicioDia; t + 15 <= fimDia; t += 15){
       if(iso < hj || (iso===hj && t < agora + 60)) continue;
       const okOn = onl.some(g=>t >= agMin(g.inicio) && t + 15 <= agMin(g.fim)) && agLivre(k, iso, t, t+15);
       const gp = pres.find(g=>t >= agMin(g.inicio) && t + 30 <= agMin(g.fim) && (t - agMin(g.inicio)) % 30 === 0);

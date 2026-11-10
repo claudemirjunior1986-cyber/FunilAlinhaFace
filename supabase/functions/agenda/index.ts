@@ -548,7 +548,14 @@ Deno.serve(async (req) => {
       // a pessoa já disse um horário? confere esse horário exato
       const hp = String(p.hora || p.hora_preferida || "").replace(/h$/i, ":00").replace(/^(\d{1,2})$/, "$1:00").replace(/^(\d):/, "0$1:");
       const diaPedido = de || (ord[0] ? ord[0].data : "");
-      const pedidoLivre = /^\d{2}:\d{2}$/.test(hp) ? ord.some((s) => s.data === diaPedido && s.hora === hp) : null;
+      // qualquer minuto serve: livre se o bloco de 15 min que começa nesse horário está todo livre
+      let pedidoLivre: boolean | null = null;
+      if (/^\d{2}:\d{2}$/.test(hp)) {
+        const doDiaP = new Set(ord.filter((s) => s.data === diaPedido).map((s) => s.hora));
+        const hhmm = (m: number) => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+        const mm = min(hp), base = mm - (mm % 15);
+        pedidoLivre = doDiaP.has(hhmm(base)) && (mm === base || doDiaP.has(hhmm(base + 15)));
+      }
       // dia pedido apertado (menos de 2 h livres)? oferece também o mesmo dia da semana seguinte
       let tambem: any = undefined;
       if (de) {
@@ -572,7 +579,7 @@ Deno.serve(async (req) => {
             + "Nunca diga que um horário não existe se ele aparece em 'livres'. Se a pessoa pedir OUTRO horário, nunca repita os que já ofereceu: diga a faixa inteira do dia ou outros horários de 'horas'. "
             + "Os exemplos em 'horarios' são só sugestões. "
             + (tambem ? `O dia pedido tem poucos horários: ofereça também ${tambem.dia}, ${tambem.faixa} (campo 'tambem'). Ex.: 'Na quarta, 11/11, tenho das 18h às 20h. Se preferir mais cedo, na quarta, 18/11, tenho das 13h às 18h.' ` : "")
-            + "Este médico atende em hora cheia ou meia (ex.: 10:00, 10:30, 14:00). Nunca ofereça :15 nem :45 para ele (isso é só do Dr. Gustavo); se a pessoa pedir 10:15, ofereça 10:00 ou 10:30. "
+            + "Este médico atende em qualquer horário livre da faixa: hora cheia, meia ou quebrada (10:00, 10:15, 10:25, 10:30, 10:50...). A regra de só :15/:45 é EXCLUSIVA do Dr. Gustavo e não vale aqui. Se a pessoa pedir um horário dentro da faixa livre, aceite e marque esse horário exato. "
             + "Confirme com a pessoa antes de marcar. "
             + (mod === "Online" ? "Consulta online por vídeo, 15 minutos." : "Consulta presencial no endereço informado.")
             + (r.aviso ? " " + r.aviso : ""),

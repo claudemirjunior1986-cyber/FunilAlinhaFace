@@ -154,6 +154,5 @@ Outros ajustes feitos na Bia:
 - Ao salvar a ficha com data de consulta, o caso sai da lista e o histórico registra que a secretária marcou.
 
 ## Horários do Dr. Afonso e do Dr. Victor (024)
-- A agenda do funil oferece de 30 em 30 minutos, sempre em hora cheia ou meia (10:00, 10:30, 14:00). A consulta on-line continua com 15 minutos.
-- A resposta de "horarios" lembra a Bia de nunca oferecer :15/:45 para eles. Isso vale só para o Dr. Gustavo, que segue pela agenda do Google.
-- A tela de Agendas do painel mostra os horários livres do mesmo jeito.
+- Eles atendem em qualquer minuto livre da grade (10:00, 10:15, 10:25, 10:30, 10:50...). A lista de horários livres segue de 15 em 15 min, mas ao marcar qualquer horário pedido serve se estiver dentro da grade e livre (agenda_livre_em).
+- A resposta de "horarios" lembra a Bia que a regra de só :15/:45 é exclusiva do Dr. Gustavo, que segue pela agenda do Google.
