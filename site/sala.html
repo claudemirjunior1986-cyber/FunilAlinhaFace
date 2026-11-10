@@ -246,7 +246,10 @@ async function aoReceber({ payload: m }){
   }else{
     if(m.t === "hello"){
       if(m.nome) nomePaciente = m.nome;
-      if(typeof m.aceite === "boolean" && m.aceite !== aceitePaciente){ aceitePaciente = m.aceite; mostrarAceite(); await registrar({ consentimento: m.aceite, consentimento_em: new Date().toISOString() }); if(pc && pc.connectionState === "connected") gravIniciar(); }
+      if(typeof m.aceite === "boolean" && m.aceite !== aceitePaciente){ aceitePaciente = m.aceite; mostrarAceite(); await registrar({ consentimento: m.aceite, consentimento_em: new Date().toISOString() });
+        // mudou a autorização no meio da chamada: recomeça a gravação no modo certo
+        if(G.ativo && G.soMedico !== (aceitePaciente !== true)){ await gravParar(); G.ativo = false; }
+        if(pc && pc.connectionState === "connected") gravIniciar(); }
       const st = pc ? pc.connectionState : "new";
       const recente = Date.now() - ultimaOferta < 12000;
       if(st === "connected" || ((st === "connecting" || st === "new") && pc && recente)) return;
@@ -265,7 +268,7 @@ async function aoReceber({ payload: m }){
 
 function mostrarAceite(){
   const s = $("#seloAceite"); s.hidden = aceitePaciente === null;
-  s.textContent = aceitePaciente ? "✔ Paciente autorizou gravar o áudio para o resumo" : "Paciente não autorizou gravação — faça o resumo à mão";
+  s.textContent = aceitePaciente ? "✔ Paciente autorizou gravar o áudio para o resumo" : "Paciente não autorizou gravar a voz dele — gravando só a sua voz para o resumo. Repita em voz alta o que ele contar (queixa, plano, histórico).";
 }
 function mostrarPlanoB(){
   const b = $("#planoB"); if(!b.hidden) return;
@@ -281,13 +284,17 @@ function mostrarPlanoB(){
   }
 }
 
-/* ---------- gravação para o resumo (só o lado do médico, só com o aceite do paciente) ---------- */
+/* ---------- gravação para o resumo (no aparelho do médico) ----------
+   Paciente autorizou: grava o médico e o paciente. Não autorizou: grava SÓ a voz do médico (o paciente nunca é gravado). */
 const TRECHO_MS = 5 * 60 * 1000;
-const G = { ctx:null, dest:null, rec:null, n:0, ativo:false, pausado:false, fila:Promise.resolve(), pend:0, feitos:0, erros:0, timer:null, remotoLigado:null };
+const G = { ctx:null, dest:null, destMed:null, soMedico:false, rec:null, n:0, ativo:false, pausado:false, fila:Promise.resolve(), pend:0, feitos:0, erros:0, timer:null, remotoLigado:null };
 function gravPreparar(){            // chamado no clique em "Entrar" (gesto do usuário libera o áudio)
   if(EH_PACIENTE || G.ctx) return;
-  try{ G.ctx = new (window.AudioContext || window.webkitAudioContext)(); G.dest = G.ctx.createMediaStreamDestination(); G.ctx.resume(); }catch(e){ G.ctx = null; }
-  if(G.ctx && local && local.getAudioTracks().length) G.ctx.createMediaStreamSource(new MediaStream(local.getAudioTracks())).connect(G.dest);
+  try{ G.ctx = new (window.AudioContext || window.webkitAudioContext)(); G.dest = G.ctx.createMediaStreamDestination(); G.destMed = G.ctx.createMediaStreamDestination(); G.ctx.resume(); }catch(e){ G.ctx = null; }
+  if(G.ctx && local && local.getAudioTracks().length){
+    const fonte = G.ctx.createMediaStreamSource(new MediaStream(local.getAudioTracks()));
+    fonte.connect(G.dest); fonte.connect(G.destMed);        // a voz do médico vai para as duas gravações; a do paciente só para G.dest
+  }
 }
 function gravLigarRemoto(stream){
   if(!G.ctx || !stream || !stream.getAudioTracks().length || G.remotoLigado === stream) return;
@@ -296,7 +303,8 @@ function gravLigarRemoto(stream){
 }
 function gravTipo(){ return ["audio/webm;codecs=opus","audio/webm","audio/mp4"].find(t=>window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || ""; }
 function gravIniciar(){
-  if(EH_PACIENTE || !G.ctx || G.ativo || aceitePaciente !== true || !window.MediaRecorder) return;
+  if(EH_PACIENTE || !G.ctx || G.ativo || !window.MediaRecorder) return;
+  G.soMedico = aceitePaciente !== true;
   // se o médico entrou de novo na mesma sala, continua a numeração dos trechos
   if(!G.n && linha && linha.transcricao) G.n = (String(linha.transcricao).match(/\[Trecho /g) || []).length;
   G.ativo = true; G.pausado = false; $("#grav").hidden = false; $("#grav").classList.remove("pausa"); $("#bGrav").textContent = "Pausar";
@@ -306,7 +314,7 @@ function gravIniciar(){
 function gravNovoTrecho(){
   if(!G.ativo || G.pausado) return;
   const tipo = gravTipo();
-  const rec = new MediaRecorder(G.dest.stream, tipo ? { mimeType: tipo, audioBitsPerSecond: 32000 } : undefined);
+  const rec = new MediaRecorder((G.soMedico ? G.destMed : G.dest).stream, tipo ? { mimeType: tipo, audioBitsPerSecond: 32000 } : undefined);
   const pedacos = []; const n = ++G.n;
   rec.ondataavailable = e => { if(e.data && e.data.size) pedacos.push(e.data); };
   let terminou; G.parada = new Promise(r => terminou = r);
@@ -328,6 +336,7 @@ async function paraWav(blob){         // Safari grava em mp4: converte para WAV 
 }
 function gravEnviar(blob, n){
   G.pend++; gravStatus();
+  const soMed = G.soMedico;
   G.fila = G.fila.then(async ()=>{
     try{
       let b = blob, ext = "webm";
@@ -335,7 +344,7 @@ function gravEnviar(blob, n){
       const caminho = "tele/" + SALA + "/" + String(n).padStart(3,"0") + "." + ext;
       const up = await sb.storage.from("anexos").upload(caminho, b, { contentType: b.type, upsert: true });
       if(up.error) throw new Error(up.error.message);
-      const { error } = await sb.functions.invoke("whats", { body: { acao:"transcrever", sala: SALA, caminho } });
+      const { error } = await sb.functions.invoke("whats", { body: { acao:"transcrever", sala: SALA, caminho, soMedico: soMed } });
       if(error) throw error;
       G.feitos++;
     }catch(e){ G.erros++; console.warn("trecho", n, e); }
@@ -345,7 +354,7 @@ function gravEnviar(blob, n){
 function gravStatus(){
   const t = $("#gravT"); if(!t) return;
   const extra = G.pend ? " · transcrevendo " + G.pend + "…" : (G.feitos ? " · " + G.feitos + " trecho(s) transcrito(s)" : "");
-  t.textContent = (G.pausado ? "Gravação pausada" : "Gravando áudio para o resumo") + extra + (G.erros ? " · ⚠ " + G.erros + " falhou" : "");
+  t.textContent = (G.pausado ? "Gravação pausada" : (G.soMedico ? "Gravando só a sua voz para o resumo" : "Gravando áudio para o resumo")) + extra + (G.erros ? " · ⚠ " + G.erros + " falhou" : "");
 }
 $("#bGrav").addEventListener("click", ()=>{
   if(!G.ativo) return;
@@ -425,7 +434,7 @@ function sair(){
   if(!EH_PACIENTE){
     $("#fimTexto").textContent = gravou ? "Consulta encerrada. Gerando o resumo a partir do áudio…" : "Consulta encerrada. Registre a consulta na ficha do paciente (compareceu, exames e resumo).";
     if(gravou) gerarResumo();
-    else { $("#blocoResumo").hidden = false; $("#resumoStatus").textContent = "Sem gravação nesta consulta (o paciente não autorizou ou ela não chegou a conectar). Escreva o resumo na ficha."; $("#resumoTxt").hidden = true; $("#bCopiarResumo").hidden = true; }
+    else { $("#blocoResumo").hidden = false; $("#resumoStatus").textContent = "Sem gravação nesta consulta (a chamada não chegou a conectar). Escreva o resumo na ficha."; $("#resumoTxt").hidden = true; $("#bCopiarResumo").hidden = true; }
   }
   $("#bVoltar").hidden = false;
 }

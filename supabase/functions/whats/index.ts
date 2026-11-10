@@ -643,7 +643,9 @@ Deno.serve(async (req) => {
         const rr = await rest(auth, "funil_teleconsultas?select=id,consentimento,transcricao&id=eq." + sala);
         const linha = rr.ok ? (await rr.json())[0] : null;
         if (!linha) return json({ erro: "sala não encontrada" }, 404);
-        if (linha.consentimento !== true) return json({ erro: "paciente não autorizou a gravação" }, 403);
+        // sem a autorização do paciente, só vale o áudio que tem apenas a voz do médico
+        const soMedico = linha.consentimento !== true || /^(true|1|sim)$/i.test(String(p.soMedico || ""));
+        if (linha.consentimento !== true && !/^(true|1|sim)$/i.test(String(p.soMedico || ""))) return json({ erro: "paciente não autorizou a gravação" }, 403);
         // link temporário do áudio, assinado com o login de quem pediu
         const sg = await fetch(SB_URL + "/storage/v1/object/sign/anexos/" + caminho, {
           method: "POST", headers: { apikey: SB_KEY, Authorization: auth, "Content-Type": "application/json" },
@@ -673,7 +675,7 @@ Deno.serve(async (req) => {
         if (!texto) return json({ erro: "a transcrição não ficou pronta" }, 504);
         if (/não foi possível transcrever/i.test(texto)) texto = "[trecho sem fala reconhecível]";
         const n = (caminho.match(/\/(\d+)\.\w+$/) || [])[1] || "?";
-        const nova = ((linha.transcricao || "") + "\n\n[Trecho " + n + "]\n" + texto).trim();
+        const nova = ((linha.transcricao || "") + "\n\n[Trecho " + n + (soMedico ? " · só a voz do médico" : "") + "]\n" + texto).trim();
         await rest(auth, "funil_teleconsultas?id=eq." + sala, { method: "PATCH", body: JSON.stringify({ transcricao: nova }) });
         return json({ ok: true, caracteres: texto.length });
       }
@@ -688,7 +690,7 @@ Deno.serve(async (req) => {
         const nomeRes = "RS" + sala.replace(/-/g, "").slice(0, 12) + Date.now();
         const r = await gm(`/agent/${AGENTE_RESUMO}/conversation`, {
           method: "POST",
-          body: JSON.stringify({ contextId: nomeRes, chatName: nomeRes, prompt: "GERAR RESUMO\n\nObservações: a transcrição é automática e pode errar palavras parecidas (ex.: \"a mil\"/\"a 1000\" = Amil, \"uni med\" = Unimed, \"bradesco saúde\", \"sul américa\", \"hap vida\" = Hapvida, \"notre dame\"/\"intermédica\"). Interprete pelo contexto. Use TUDO o que foi falado, inclusive em perguntas e respostas curtas (ex.: \"Qual seu plano? É a Amil\" = CONVÊNIO: Amil; \"Você tem dor de cabeça? Tenho\" = sintoma). Escreva \"não mencionado\" só quando o assunto realmente não apareceu.\n\nTranscrição da consulta (em trechos, na ordem):\n" + tr.slice(0, 60000) }),
+          body: JSON.stringify({ contextId: nomeRes, chatName: nomeRes, prompt: "GERAR RESUMO\n\n" + (/só a voz do médico/.test(tr) ? "ATENÇÃO: o paciente não autorizou a gravação da voz dele; nos trechos marcados \"só a voz do médico\" só o médico foi gravado. Monte o resumo a partir do que o médico disse (perguntas, o que ele repetiu do paciente, explicações e conduta). Não invente respostas do paciente: o que não dá para saber, escreva \"não mencionado\".\n\n" : "") + "Observações: a transcrição é automática e pode errar palavras parecidas (ex.: \"a mil\"/\"a 1000\" = Amil, \"uni med\" = Unimed, \"bradesco saúde\", \"sul américa\", \"hap vida\" = Hapvida, \"notre dame\"/\"intermédica\"). Interprete pelo contexto. Use TUDO o que foi falado, inclusive em perguntas e respostas curtas (ex.: \"Qual seu plano? É a Amil\" = CONVÊNIO: Amil; \"Você tem dor de cabeça? Tenho\" = sintoma). Escreva \"não mencionado\" só quando o assunto realmente não apareceu.\n\nTranscrição da consulta (em trechos, na ordem):\n" + tr.slice(0, 60000) }),
         });
         let resumo = String(r?.message || "").trim();
         // às vezes a resposta não vem na hora: busca a resposta do agente na conversa

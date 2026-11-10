@@ -160,3 +160,8 @@ Outros ajustes feitos na Bia:
 ## Rede de segurança quando a intenção do presencial falha
 - Se a última mensagem da Bia (últimos 10 min) diz que não conseguiu encaminhar ("não consegui encaminhar", "falha no sistema"...) e fala de presencial/unidade, a sincronização chama presencial_auto.
 - Deu certo: manda à paciente "Pronto, consegui passar seu caso para o Dr. X; a secretária vai entrar em contato". Não deu: abre alerta "Bia · conferir" para a equipe encaminhar.
+
+## Resumo da teleconsulta sem a autorização do paciente
+- Paciente autorizou: grava médico e paciente (como antes). Não autorizou: o aparelho do médico grava SÓ a voz do médico (o áudio do paciente nunca entra nessa gravação).
+- Os trechos vão marcados "só a voz do médico" e o resumo é montado a partir do que o médico falou, sem inventar respostas do paciente.
+- Se a autorização mudar no meio da chamada, a gravação recomeça no modo certo.
