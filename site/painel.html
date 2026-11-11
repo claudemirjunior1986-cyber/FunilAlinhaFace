@@ -767,7 +767,7 @@ async function conectar(){
   $("#btnSenha").addEventListener("click", FUNIL.trocarSenha);
   try{
     const { data } = await FUNIL.sb.from("perfis").select("email,nome,whatsapp").eq("papel","cirurgiao").order("nome");
-    CIRURGIOES = (data || []).filter(c => DEMO || c.email !== "demo@alinhaface.com.br");   // médico de demonstração só no modo demonstração
+    CIRURGIOES = data || [];   // inclui o "Dr. Joaquim (teste)" para casos de demonstração
   }catch(e){ CIRURGIOES = []; }
   DB = criarDB(FUNIL.sb);
   DOWNLOADS = DOWNLOADS_NAVEGADOR;
@@ -792,6 +792,11 @@ async function conectar(){
 async function salvar(p){
   p.atualizadoEm = new Date().toISOString();
   pacientes.set(p.id, p);
+  if(p.cirurgiao === "demo@alinhaface.com.br" && !DEMO){
+    // caso de demonstração: não fica no funil e é apagado sozinho em 60 minutos
+    pacientes.delete(p.id);
+    toast("Caso de teste enviado ao Dr. Joaquim (teste). Ele não aparece no funil e é apagado sozinho em 60 minutos.");
+  }
   render();
   if(!DB) return;
   const body = Object.assign({}, p); delete body.id;
