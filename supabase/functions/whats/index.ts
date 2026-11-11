@@ -12,6 +12,8 @@
 //   transcrever {sala, caminho} -> transcreve um trecho de áudio da teleconsulta (agente "Resumo de Consultas")
 //   resumir     {sala}          -> gera o resumo da consulta a partir da transcrição
 //   situacao_canal              -> diz se o WhatsApp da Bia está conectado no GPT Maker
+//   comercial {k?}              -> relatório comercial (admin logado, ou link com a chave de funil_config)
+//   comercial_resumo            -> (agendador) resumo comercial no WhatsApp do gerente comercial
 //   gastos_meta {dias}          -> (agendador) grava o gasto do Meta Ads por dia e campanha em funil_gastos
 //   arquivo   {chatId, url, tipo:'imagem'|'documento', legenda?, nome?, mime?}
 //             -> envia imagem/PDF já guardado no Storage (bucket "envios", link assinado)
@@ -421,6 +423,79 @@ async function gastosMeta(dias: number) {
   return { ok: !erros.length, de, ate, linhas, erros };
 }
 
+// ---------- relatório comercial (casos com potencial de cirurgia) ----------
+const GRUPOS_COM: { k: string; t: string; etapas: string[]; desde: (d: any) => string; alerta: number; dica: string }[] = [
+  { k: "exames", t: "Exames pedidos — paciente ainda não trouxe", etapas: ["exames_sol"], alerta: 15,
+    desde: (d) => d.dataExames || String(d.consultaRegistradaEm || "").slice(0, 10) || d.dataConsulta, dica: "Cobrar o paciente: já fez os exames?" },
+  { k: "prontos", t: "Exames prontos — falta o retorno com o cirurgião", etapas: ["exames_ok", "retorno"], alerta: 7,
+    desde: (d) => d.dataExamesOk || String(d.atualizadoEm || "").slice(0, 10), dica: "Marcar o retorno com o cirurgião" },
+  { k: "atendidos", t: "Atendidos sem próximo passo", etapas: ["compareceu"], alerta: 5,
+    desde: (d) => d.dataConsulta || String(d.atualizadoEm || "").slice(0, 10), dica: "Ver com o cirurgião qual o próximo passo" },
+  { k: "proposta", t: "Proposta enviada — aguardando decisão", etapas: ["proposta"], alerta: 7,
+    desde: (d) => d.dataProposta || String(d.atualizadoEm || "").slice(0, 10), dica: "Retomar com o paciente sobre a proposta" },
+  { k: "convenio", t: "Convênio / autorização em andamento", etapas: ["docs_conv", "autorizacao", "autorizado"], alerta: 10,
+    desde: (d) => String(d.atualizadoEm || "").slice(0, 10), dica: "Ver o andamento com o convênio e marcar a cirurgia" },
+  { k: "marcadas", t: "Cirurgias marcadas", etapas: ["cir_marcada"], alerta: 99999,
+    desde: (d) => String(d.atualizadoEm || "").slice(0, 10), dica: "" },
+];
+async function chaveComercial(): Promise<string> {
+  const r = await dbs("funil_config?select=v&k=eq.comercial_chave");
+  return r.ok ? ((await r.json())[0]?.v || "") : "";
+}
+async function relatorioComercial() {
+  const etapas = GRUPOS_COM.flatMap((g) => g.etapas);
+  const [rf, rp] = await Promise.all([
+    dbs(`funil_pacientes?select=id,dados,cirurgiao_email&dados->>etapa=in.(${etapas.join(",")})&limit=2000`),
+    dbs("perfis?select=email,nome,whatsapp,papel"),
+  ]);
+  const fichas: any[] = rf.ok ? await rf.json() : [];
+  const perfis: any[] = rp.ok ? await rp.json() : [];
+  const pf = new Map(perfis.map((x: any) => [x.email, x]));
+  const ana = perfis.find((x: any) => x.email === "acytgiroldo@gmail.com")?.whatsapp || "";
+  const hoje = hojeBR(), dias = (a: string) => a && /^\d{4}-\d{2}-\d{2}/.test(a) ? Math.max(0, Math.round((Date.parse(hoje) - Date.parse(a.slice(0, 10))) / 864e5)) : null;
+  const grupos = GRUPOS_COM.map((g) => {
+    const casos = fichas.filter((f) => !f.dados?.demo && g.etapas.includes(f.dados?.etapa)).map((f) => {
+      const d = f.dados || {}, cir: any = pf.get(f.cirurgiao_email) || {};
+      const hist = Array.isArray(d.historico) ? d.historico : [];
+      const ult = hist[hist.length - 1] || {};
+      const conv = d.convenio === "Sim" ? (d.nomeConvenio || "convênio") : d.convenio === "Não" ? "particular" : "";
+      const n = g.k === "marcadas" ? (d.dataCirurgia ? -dias(d.dataCirurgia)! : null) : dias(g.desde(d));
+      return { id: f.id, nome: d.nome || "Sem nome", cirurgiao: cir.nome || "Sem cirurgião", cirurgiaoWhats: cir.whatsapp || "",
+        convenio: conv, cidade: d.cidade || "", etapa: d.etapa, dias: n, alerta: n !== null && n >= g.alerta,
+        ultima: ult.texto ? `${String(ult.data || "").split("-").reverse().join("/")} · ${String(ult.texto).slice(0, 140)}` : "",
+        proxima: d.proximaAcao || "", valor: Number(d.valorProposta) || Number(d.opme) || 0,
+        dataCirurgia: d.dataCirurgia || "", hospital: d.hospital || "", tratamento: d.tratamento || "" };
+    }).sort((a, b) => g.k === "marcadas" ? String(a.dataCirurgia).localeCompare(String(b.dataCirurgia)) : (b.dias ?? -1) - (a.dias ?? -1));
+    return { k: g.k, titulo: g.t, dica: g.dica, alertaDias: g.alerta, casos };
+  });
+  return { ok: true, gerado: new Date().toISOString(), anaWhats: ana, grupos };
+}
+async function resumoComercial() {
+  const rc = await dbs("funil_config?select=k,v&k=in.(comercial_whatsapp,comercial_chave)");
+  const cfg = Object.fromEntries((rc.ok ? await rc.json() : []).map((x: any) => [x.k, x.v]));
+  if (!cfg.comercial_whatsapp) return { ok: false, motivo: "sem número" };
+  const r = await relatorioComercial();
+  const brl = (v: number) => "R$ " + Math.round(v).toLocaleString("pt-BR");
+  const linhas: string[] = ["📊 *Relatório comercial — Alinha Face*", ""];
+  for (const g of r.grupos) {
+    if (!g.casos.length) continue;
+    const atras = g.casos.filter((c: any) => c.alerta).length;
+    linhas.push(`*${g.titulo}:* ${g.casos.length}` + (atras ? ` (⚠ ${atras} parado${atras > 1 ? "s" : ""})` : ""));
+    for (const c of g.casos.slice(0, 3)) {
+      linhas.push(`• ${c.nome} — ${c.cirurgiao}` + (g.k === "marcadas" ? (c.dataCirurgia ? ` · ${c.dataCirurgia.split("-").reverse().join("/")}` : "") : (c.dias !== null ? ` · ${c.dias} dia${c.dias === 1 ? "" : "s"}` : "")));
+    }
+    if (g.casos.length > 3) linhas.push(`  … e mais ${g.casos.length - 3}`);
+    linhas.push("");
+  }
+  const pot = r.grupos.filter((g: any) => g.k !== "marcadas").flatMap((g: any) => g.casos).reduce((a: number, c: any) => a + (c.valor || 0), 0);
+  if (pot) linhas.push(`Potencial em proposta/OPME: *${brl(pot)}*`, "");
+  linhas.push("Lista completa, com botões para cobrar a Ana e sinalizar o cirurgião:");
+  linhas.push("https://funil-alinhaface.pages.dev/comercial.html?k=" + cfg.comercial_chave);
+  await dbs("funil_avisos_medico", { method: "POST", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ email: "comercial@alinhaface", telefone: cfg.comercial_whatsapp, tipo: "alerta", texto: linhas.join("\n") }) });
+  return { ok: true, casos: r.grupos.reduce((a: number, g: any) => a + g.casos.length, 0) };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ erro: "use POST" }, 405);
@@ -523,6 +598,16 @@ Deno.serve(async (req) => {
   if (p.acao === "gastos_meta") {
     // chamado pelo agendador: só lê o gasto no Meta e grava no banco. Não recebe dados de fora além do número de dias.
     try { return json(await gastosMeta(Number(p.dias) || 3)); } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
+  }
+  if (p.acao === "comercial_resumo") {
+    // agendador (terças e quintas): manda o resumo para o WhatsApp do gerente comercial cadastrado em funil_config
+    try { return json(await resumoComercial()); } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
+  }
+  if (p.acao === "comercial" && p.k) {
+    // página do relatório comercial aberta pelo link secreto (sem login)
+    const ch = await chaveComercial();
+    if (!ch || String(p.k) !== ch) return json({ erro: "link inválido" }, 403);
+    try { return json(await relatorioComercial()); } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
   }
   if (p.acao === "processar_avisos") {
     try { return json(await processarAvisos()); } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
@@ -730,6 +815,7 @@ Deno.serve(async (req) => {
         }
         return json({ ok: true, apagadas });
       }
+      case "comercial": return json(await relatorioComercial());
       case "situacao_canal": {
         const lista = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=5`);
         const canal = (Array.isArray(lista) ? lista : []).map((c: any) => c.channelId).find(Boolean);

@@ -170,3 +170,8 @@ Outros ajustes feitos na Bia:
 - "Dr. Demonstração" (demo@alinhaface.com.br) com 10 pacientes de exemplo (demo-01..10, telefone 5500...), recriados toda madrugada com datas do dia (demo_renovar, sem disparar avisos).
 - Os avisos do Dr. Demonstração vão para o WhatsApp do parceiro que faz o papel de cirurgião nas apresentações (perfil). Pacientes de exemplo nunca recebem mensagem.
 - Painel: botão "Demonstração" no topo liga/desliga (só naquele navegador) a exibição do médico e dos exemplos. Ficha cadastrada para o Dr. Demonstração vira exemplo sozinha.
+
+## Relatório comercial (030)
+- Página comercial.html: casos com potencial de cirurgia agrupados (exames pedidos sem retorno, exames prontos sem retorno, atendidos sem próximo passo, proposta enviada, convênio/autorização, cirurgias marcadas), com dias parados e botões que abrem o WhatsApp para cobrar a Ana ou sinalizar o cirurgião.
+- Abre pelo botão "Comercial" do painel (admin logado) ou pelo link secreto com a chave de funil_config (para o gerente comercial, sem login).
+- Terças e quintas às 8h o resumo vai para o WhatsApp do gerente comercial (funil_config.comercial_whatsapp), com o link da página.

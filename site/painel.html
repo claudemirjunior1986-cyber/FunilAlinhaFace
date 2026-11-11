@@ -530,6 +530,7 @@
     <button class="btn" id="btnRecados" title="Orientações internas da equipe">📩 Recados</button>
     <button class="btn" id="btnVoucher" title="Voucher Blume avulso: só nome e data de início">Gerar voucher</button>
     <button class="btn" id="btnOrient" title="Orientações pré-operatórias para enviar ao paciente">Orientações</button>
+    <button class="btn" id="btnComercial" title="Casos com potencial de cirurgia: exames, propostas, convênio">Comercial</button>
     <button class="btn" id="btnImport">Importar</button>
     <button class="btn" id="btnExport">Exportar CSV</button>
     <button class="btn btn-primary" id="btnNew">+ Paciente</button>
@@ -759,6 +760,7 @@ async function conectar(){
   $("#quem").textContent = eu.nome;
   FUNIL._nome = eu.nome; FUNIL._email = eu.email;
   $("#btnSair").addEventListener("click", FUNIL.sair);
+  $("#btnComercial").addEventListener("click", ()=>window.open("comercial.html","_blank"));
   const bDemo = $("#btnDemo");
   if(DEMO){ bDemo.textContent = "Sair da demonstração"; bDemo.classList.add("btn-primary"); bDemo.classList.remove("btn-ghost");
     const av = el("div","al-top"); av.append(el("b",null,"Modo demonstração ligado"), el("span",null,"O Dr. Joaquim (teste) e os pacientes de exemplo aparecem no painel. Avisos do médico vão para o WhatsApp do Joaquim."));
