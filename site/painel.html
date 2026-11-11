@@ -595,7 +595,7 @@
     </div>
   </div>
 
-  <div class="statusline"><span class="dot" id="statusDot"></span><span id="statusText">Conectando à base…</span><span id="quem" style="margin-left:auto"></span><button class="btn btn-sm btn-ghost" id="btnSenha" type="button">Trocar senha</button><button class="btn btn-sm btn-ghost" id="btnDemo" type="button" title="Mostra o Dr. Demonstração e os pacientes de exemplo">Demonstração</button><button class="btn btn-sm btn-ghost" id="btnSair" type="button">Sair</button></div>
+  <div class="statusline"><span class="dot" id="statusDot"></span><span id="statusText">Conectando à base…</span><span id="quem" style="margin-left:auto"></span><button class="btn btn-sm btn-ghost" id="btnSenha" type="button">Trocar senha</button><button class="btn btn-sm btn-ghost" id="btnDemo" type="button" title="Mostra o Dr. Joaquim (teste) e os pacientes de exemplo">Demonstração</button><button class="btn btn-sm btn-ghost" id="btnSair" type="button">Sair</button></div>
   <div id="alertaTopo" role="status" aria-live="polite"></div>
 </div>
 
@@ -761,7 +761,7 @@ async function conectar(){
   $("#btnSair").addEventListener("click", FUNIL.sair);
   const bDemo = $("#btnDemo");
   if(DEMO){ bDemo.textContent = "Sair da demonstração"; bDemo.classList.add("btn-primary"); bDemo.classList.remove("btn-ghost");
-    const av = el("div","al-top"); av.append(el("b",null,"Modo demonstração ligado"), el("span",null,"O Dr. Demonstração e os pacientes de exemplo aparecem no painel. Avisos do médico vão para o WhatsApp do Joaquim."));
+    const av = el("div","al-top"); av.append(el("b",null,"Modo demonstração ligado"), el("span",null,"O Dr. Joaquim (teste) e os pacientes de exemplo aparecem no painel. Avisos do médico vão para o WhatsApp do Joaquim."));
     $("#alertaTopo").before(av); }
   bDemo.addEventListener("click", ()=>{ try{ localStorage.setItem("funilDemo", DEMO ? "0" : "1"); }catch(e){} location.reload(); });
   $("#btnSenha").addEventListener("click", FUNIL.trocarSenha);

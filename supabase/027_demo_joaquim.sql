@@ -5,7 +5,7 @@
 --  * Paciente cadastrado no painel para o Dr. Demonstração vira exemplo sozinho (some do painel com o modo demonstração desligado).
 -- Pode rodar de novo sem problema.
 
-update public.perfis set whatsapp = '5511981680761', avisos_whats = true where email = 'demo@alinhaface.com.br';
+update public.perfis set nome = 'Dr. Joaquim (teste)', whatsapp = '5511981680761', avisos_whats = true where email = 'demo@alinhaface.com.br';
 
 create or replace function public.bloqueia_aviso_demo() returns trigger
 language plpgsql security definer set search_path = public as $$

@@ -6,8 +6,8 @@
 --  * Toda madrugada (3h10) os exemplos voltam ao estado original, com datas a partir do dia.
 -- Pode rodar de novo sem problema.
 
-insert into public.perfis (email, nome, papel) values ('demo@alinhaface.com.br', 'Dr. Demonstração', 'cirurgiao')
-on conflict (email) do update set nome = excluded.nome, papel = 'cirurgiao', whatsapp = null, avisos_whats = false;
+insert into public.perfis (email, nome, papel) values ('demo@alinhaface.com.br', 'Dr. Joaquim (teste)', 'cirurgiao')
+on conflict (email) do update set nome = excluded.nome, papel = 'cirurgiao';
 
 -- nenhum aviso de WhatsApp para o médico de demonstração nem para pacientes de exemplo
 create or replace function public.bloqueia_aviso_demo() returns trigger
