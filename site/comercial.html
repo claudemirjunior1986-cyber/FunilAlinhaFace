@@ -46,12 +46,13 @@
 <div class="shell">
   <div class="top">
     <div><h1>Relatório comercial</h1><div class="sub" id="sub">Casos com potencial de cirurgia — carregando…</div></div>
-    <div class="sp"><button class="btn btn-sm" id="bCopiar" type="button" hidden>Copiar resumo</button><button class="btn btn-sm btn-ghost" id="bAtualizar" type="button">Atualizar</button></div>
+    <div class="sp"><button class="btn btn-sm btn-primary" id="bExcel" type="button" hidden>Baixar Excel</button><button class="btn btn-sm" id="bCopiar" type="button" hidden>Copiar resumo</button><button class="btn btn-sm btn-ghost" id="bAtualizar" type="button">Atualizar</button></div>
   </div>
   <div class="kpis" id="kpis"></div>
   <div id="lista"></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="config.js"></script>
 <script src="auth.js"></script>
 <script>
@@ -131,7 +132,7 @@ function render(){
     }
     l.appendChild(sec);
   }
-  $("#bCopiar").hidden = false;
+  $("#bCopiar").hidden = false; $("#bExcel").hidden = false;
 }
 
 function textoResumo(){
@@ -143,11 +144,30 @@ function textoResumo(){
   return out.join("\n");
 }
 
+const STATUS = { exames:"Pediu exame — aguardando o paciente", prontos:"Exames prontos — aguardando retorno", atendidos:"Atendido — sem próximo passo",
+  proposta:"Proposta enviada — aguardando decisão", convenio:"Aguardando autorização do convênio", marcadas:"Aguardando cirurgia" };
+function baixarExcel(){
+  if(!window.XLSX){ toast("Não consegui gerar o Excel. Recarregue a página."); return; }
+  const linhas = [["Nome","Cirurgião","Cidade","Status","Parado há (dias)","Convênio","Data da cirurgia"]];
+  for(const g of DADOS.grupos) for(const c of g.casos){
+    linhas.push([c.nome, c.cirurgiao, c.cidade || "", STATUS[g.k] || g.titulo,
+      g.k==="marcadas" ? "" : (c.dias ?? ""), c.convenio || "", c.dataCirurgia ? dataBR(c.dataCirurgia) : ""]);
+  }
+  const ws = XLSX.utils.aoa_to_sheet(linhas);
+  ws["!cols"] = [{wch:32},{wch:18},{wch:26},{wch:40},{wch:16},{wch:18},{wch:16}];
+  ws["!autofilter"] = { ref: "A1:G" + linhas.length };
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Casos");
+  const hoje = new Date(); const d = String(hoje.getDate()).padStart(2,"0")+"-"+String(hoje.getMonth()+1).padStart(2,"0")+"-"+hoje.getFullYear();
+  XLSX.writeFile(wb, "Relatorio comercial Alinha Face " + d + ".xlsx");
+  toast("Excel baixado.");
+}
+
 async function carregar(){
   try{ DADOS = await buscar(); render(); }
   catch(e){ $("#lista").textContent=""; $("#kpis").textContent=""; $("#lista").appendChild(el("div","aviso", CHAVE ? "Este link não está mais válido. Peça um novo ao Claudemir." : "Não consegui carregar o relatório. Recarregue a página.")); $("#sub").textContent=""; }
 }
 $("#bAtualizar").addEventListener("click", carregar);
+$("#bExcel").addEventListener("click", baixarExcel);
 $("#bCopiar").addEventListener("click", ()=>{ const t = textoResumo(); try{ navigator.clipboard.writeText(t).then(()=>toast("Resumo copiado.")); }catch(e){ toast("Não deu para copiar."); } });
 carregar();
 </script>
