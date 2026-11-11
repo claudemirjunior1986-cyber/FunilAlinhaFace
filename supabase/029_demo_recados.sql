@@ -40,4 +40,7 @@ grant execute on function public.demo_limpar() to service_role;
 delete from public.funil_recados r where
      r.de = 'demo@alinhaface.com.br' or r.para = 'demo@alinhaface.com.br' or coalesce(r.paciente_id,'') like 'demo-%'
   or exists (select 1 from public.funil_pacientes p where p.id = r.paciente_id and p.dados->>'demo' = 'true');
+-- caso de teste criado antes da limpeza automática existir: entra na contagem de 60 min a partir de agora
+update public.funil_pacientes set dados = dados || jsonb_build_object('demoDesde', to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+ where id not like 'demo-%' and dados->>'demo' = 'true' and coalesce(dados->>'demoDesde','') = '';
 select count(*) as recados_restantes from public.funil_recados;
