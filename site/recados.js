@@ -18,7 +18,7 @@ async function rcIniciar(eu){
   RC.eu = String(eu.email||"").toLowerCase(); RC.nome = eu.nome;
   try{
     const { data } = await FUNIL.sb.from("perfis").select("email,nome,papel").order("nome");
-    RC.equipe = (data||[]).filter(p => p.email !== RC.eu)
+    RC.equipe = (data||[]).filter(p => p.email !== RC.eu && p.email !== "demo@alinhaface.com.br")
       .sort((a,b)=> (a.papel==="admin"?0:1)-(b.papel==="admin"?0:1) || a.nome.localeCompare(b.nome));
   }catch(e){ RC.equipe = []; }
   await rcLer();

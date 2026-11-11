@@ -760,7 +760,7 @@ async function conectar(){
   $("#btnSenha").addEventListener("click", FUNIL.trocarSenha);
   try{
     const { data } = await FUNIL.sb.from("perfis").select("email,nome,whatsapp").eq("papel","cirurgiao").order("nome");
-    CIRURGIOES = data || [];
+    CIRURGIOES = (data || []).filter(c => c.email !== "demo@alinhaface.com.br");   // médico de demonstração fica fora do painel
   }catch(e){ CIRURGIOES = []; }
   DB = criarDB(FUNIL.sb);
   DOWNLOADS = DOWNLOADS_NAVEGADOR;
@@ -774,7 +774,8 @@ async function conectar(){
     render();
   }, ()=>{});
   DB.collection("pacientes").onSnapshot(snap=>{
-    pacientes = new Map(snap.docs.map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
+    // pacientes de exemplo do "Dr. Demonstração" (dados.demo) não aparecem para a equipe
+    pacientes = new Map(snap.docs.filter(d=>!d.data().demo).map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
     render();
   }, err=>{
     $("#statusText").textContent = "A base parou de sincronizar ("+err.code+"). Recarregue a página.";
