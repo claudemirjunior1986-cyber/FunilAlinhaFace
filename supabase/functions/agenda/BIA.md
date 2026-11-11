@@ -165,3 +165,8 @@ Outros ajustes feitos na Bia:
 - Paciente autorizou: grava médico e paciente (como antes). Não autorizou: o aparelho do médico grava SÓ a voz do médico (o áudio do paciente nunca entra nessa gravação).
 - Os trechos vão marcados "só a voz do médico" e o resumo é montado a partir do que o médico falou, sem inventar respostas do paciente.
 - Se a autorização mudar no meio da chamada, a gravação recomeça no modo certo.
+
+## Ambiente de demonstração (026, 027)
+- "Dr. Demonstração" (demo@alinhaface.com.br) com 10 pacientes de exemplo (demo-01..10, telefone 5500...), recriados toda madrugada com datas do dia (demo_renovar, sem disparar avisos).
+- Os avisos do Dr. Demonstração vão para o WhatsApp do parceiro que faz o papel de cirurgião nas apresentações (perfil). Pacientes de exemplo nunca recebem mensagem.
+- Painel: botão "Demonstração" no topo liga/desliga (só naquele navegador) a exibição do médico e dos exemplos. Ficha cadastrada para o Dr. Demonstração vira exemplo sozinha.

@@ -595,7 +595,7 @@
     </div>
   </div>
 
-  <div class="statusline"><span class="dot" id="statusDot"></span><span id="statusText">Conectando à base…</span><span id="quem" style="margin-left:auto"></span><button class="btn btn-sm btn-ghost" id="btnSenha" type="button">Trocar senha</button><button class="btn btn-sm btn-ghost" id="btnSair" type="button">Sair</button></div>
+  <div class="statusline"><span class="dot" id="statusDot"></span><span id="statusText">Conectando à base…</span><span id="quem" style="margin-left:auto"></span><button class="btn btn-sm btn-ghost" id="btnSenha" type="button">Trocar senha</button><button class="btn btn-sm btn-ghost" id="btnDemo" type="button" title="Mostra o Dr. Demonstração e os pacientes de exemplo">Demonstração</button><button class="btn btn-sm btn-ghost" id="btnSair" type="button">Sair</button></div>
   <div id="alertaTopo" role="status" aria-live="polite"></div>
 </div>
 
@@ -751,16 +751,23 @@ const DOWNLOADS_NAVEGADOR = {
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
   }
 };
+/* modo demonstração: liga/desliga no botão do topo; vale só neste navegador */
+const DEMO = (()=>{ try{ return localStorage.getItem("funilDemo") === "1"; }catch(e){ return false; } })();
 let CIRURGIOES = [];   // [{email, nome}] — vem da tabela perfis
 async function conectar(){
   const eu = await FUNIL.exigir(["admin"]);
   $("#quem").textContent = eu.nome;
   FUNIL._nome = eu.nome; FUNIL._email = eu.email;
   $("#btnSair").addEventListener("click", FUNIL.sair);
+  const bDemo = $("#btnDemo");
+  if(DEMO){ bDemo.textContent = "Sair da demonstração"; bDemo.classList.add("btn-primary"); bDemo.classList.remove("btn-ghost");
+    const av = el("div","al-top"); av.append(el("b",null,"Modo demonstração ligado"), el("span",null,"O Dr. Demonstração e os pacientes de exemplo aparecem no painel. Avisos do médico vão para o WhatsApp do Joaquim."));
+    $("#alertaTopo").before(av); }
+  bDemo.addEventListener("click", ()=>{ try{ localStorage.setItem("funilDemo", DEMO ? "0" : "1"); }catch(e){} location.reload(); });
   $("#btnSenha").addEventListener("click", FUNIL.trocarSenha);
   try{
     const { data } = await FUNIL.sb.from("perfis").select("email,nome,whatsapp").eq("papel","cirurgiao").order("nome");
-    CIRURGIOES = (data || []).filter(c => c.email !== "demo@alinhaface.com.br");   // médico de demonstração fica fora do painel
+    CIRURGIOES = (data || []).filter(c => DEMO || c.email !== "demo@alinhaface.com.br");   // médico de demonstração só no modo demonstração
   }catch(e){ CIRURGIOES = []; }
   DB = criarDB(FUNIL.sb);
   DOWNLOADS = DOWNLOADS_NAVEGADOR;
@@ -775,7 +782,7 @@ async function conectar(){
   }, ()=>{});
   DB.collection("pacientes").onSnapshot(snap=>{
     // pacientes de exemplo do "Dr. Demonstração" (dados.demo) não aparecem para a equipe
-    pacientes = new Map(snap.docs.filter(d=>!d.data().demo).map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
+    pacientes = new Map(snap.docs.filter(d=>DEMO || !d.data().demo).map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
     render();
   }, err=>{
     $("#statusText").textContent = "A base parou de sincronizar ("+err.code+"). Recarregue a página.";
