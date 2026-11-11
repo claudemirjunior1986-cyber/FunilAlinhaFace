@@ -520,26 +520,36 @@ Deno.serve(async (req) => {
         fetch(SB_URL + "/rest/v1/funil_ignorados?select=id", { headers: hdrS }).then((r) => r.ok ? r.json() : []),
       ]);
       const foraS = new Set<string>([...pfS.map((x: any) => so8(x.whatsapp)), ...igS.map((x: any) => String(x.id).replace(/^k/, ""))]);
-      // fora do horário da Ana (ter a sex, 14h às 18h) as conversas voltam para a Bia, que atende sozinha
+      // quando alguém da equipe escreve numa conversa, a Bia sai dela na hora (fica com a equipe até alguém clicar "Devolver para a Bia")
+      const ultimasDaEquipe = async (chatId: string) => {
+        try {
+          const ms = (await gm(`/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=20`) || []).map(mensagem).filter(Boolean);
+          return ms.filter((m: any) => m.de === "equipe" && m.em).map((m: any) => Date.parse(m.em)).sort((a: number, b: number) => b - a)[0] || 0;
+        } catch { return -1; }
+      };
+      let assumidas = 0;
+      for (const c of arr.filter((c: any) => !c.humano && c.ultima_em && Date.now() - Date.parse(c.ultima_em) < 10 * 60000).slice(0, 15)) {
+        if (!c.tel8 || foraS.has(c.tel8)) continue;
+        const t = await ultimasDaEquipe(c.chat_id);
+        if (t > 0 && Date.now() - t < 10 * 60000) {
+          try { await gm(`/chat/${encodeURIComponent(c.chat_id)}/start-human`, { method: "PUT" }); c.humano = true; assumidas++; } catch { /* próxima rodada */ }
+        }
+      }
+      // fora do horário da Ana (ter a sex, 14h às 18h): conversa que ficou com a equipe SEM ninguém da equipe ter escrito
+      // (ex.: a Bia transferiu e ninguém respondeu) volta para a Bia se o paciente está esperando. Se alguém da equipe
+      // escreveu nas últimas 24 h, a conversa fica com a equipe até alguém clicar "Devolver para a Bia".
       let devolvidas = 0;
       if (!horarioDaEquipe() && arr.some((c: any) => c.humano)) {
-        const hdr = { apikey: SR, Authorization: "Bearer " + SR };
-        const [pf, ig] = await Promise.all([
-          fetch(SB_URL + "/rest/v1/perfis?select=whatsapp&whatsapp=not.is.null", { headers: hdr }).then((r) => r.ok ? r.json() : []),
-          fetch(SB_URL + "/rest/v1/funil_ignorados?select=id", { headers: hdr }).then((r) => r.ok ? r.json() : []),
-        ]);
-        const fora = new Set<string>([...pf.map((x: any) => so8(x.whatsapp)), ...ig.map((x: any) => String(x.id).replace(/^k/, ""))]);
-        const recente = Date.now() - 20 * 60000;
         for (const c of arr) {
-          if (!c.humano || !c.tel8 || fora.has(c.tel8)) continue;               // cirurgiões e contatos ignorados ficam com a equipe
-          if (c.ultima_de === "assistant" && c.ultima_em && Date.parse(c.ultima_em) > recente) continue;   // alguém da equipe acabou de escrever
+          if (!c.humano || !c.tel8 || foraS.has(c.tel8)) continue;               // cirurgiões e contatos ignorados ficam com a equipe
+          if (c.ultima_de !== "user" || !c.ultima_em || Date.parse(c.ultima_em) < Date.now() - 6 * 3600000) continue;   // só paciente esperando
+          const t = await ultimasDaEquipe(c.chat_id);
+          if (t !== 0) continue;   // a equipe falou nessa conversa (ou não deu para conferir): não mexe
           try {
             await gm(`/chat/${encodeURIComponent(c.chat_id)}/stop-human`, { method: "PUT" }); c.humano = false; devolvidas++;
-            // paciente esperando resposta (últimas 6 h): a Bia responde agora
-            if (c.ultima_de === "user" && c.ultima_em && Date.parse(c.ultima_em) > Date.now() - 6 * 3600000 && devolvidas <= 5)
-              emSegundoPlano(biaRetoma(c.chat_id, "Bia (fora do horário)"));
+            if (devolvidas <= 5) emSegundoPlano(biaRetoma(c.chat_id, "Bia (fora do horário)"));
           } catch { /* tenta na próxima */ }
-          if (devolvidas >= 20) break;
+          if (devolvidas >= 10) break;
         }
       }
       // rede de segurança do presencial: a Bia disse "a secretária vai entrar em contato" e não acionou a intenção
@@ -592,7 +602,7 @@ Deno.serve(async (req) => {
       }
       let vigia: unknown = null;
       try { vigia = await vigiar(arr.map((c: any, i: number) => (i === 0 ? { ...c, canal: canalDaBia } : c)), foraS); } catch (e) { vigia = { erro: String((e as Error).message || e).slice(0, 200) }; }
-      return json({ ok: true, conversas: arr.length, devolvidas_para_bia: devolvidas, presenciais_automaticos: presenciais, vigia });
+      return json({ ok: true, conversas: arr.length, assumidas_pela_equipe: assumidas, devolvidas_para_bia: devolvidas, presenciais_automaticos: presenciais, vigia });
     } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
   }
   if (p.acao === "gastos_meta") {

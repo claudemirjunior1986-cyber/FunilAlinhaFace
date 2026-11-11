@@ -175,3 +175,7 @@ Outros ajustes feitos na Bia:
 - Página comercial.html: casos com potencial de cirurgia agrupados (exames pedidos sem retorno, exames prontos sem retorno, atendidos sem próximo passo, proposta enviada, convênio/autorização, cirurgias marcadas), com dias parados e botões que abrem o WhatsApp para cobrar a Ana ou sinalizar o cirurgião.
 - Abre pelo botão "Comercial" do painel (admin logado) ou pelo link secreto com a chave de funil_config (para o gerente comercial, sem login).
 - Terças e quintas às 8h o resumo vai para o WhatsApp do gerente comercial (funil_config.comercial_whatsapp), com o link da página.
+
+## Equipe escreveu = Bia sai da conversa
+- A cada 2 min, conversas com mensagem nova: se alguém da equipe (mensagem com nome de usuário no GPT Maker) escreveu nos últimos 10 min e a conversa ainda está com a Bia, passa para atendimento humano na hora.
+- Volta para a Bia só com "Devolver para a Bia" no funil. A devolução automática fora do horário da Ana agora só vale para conversa em que ninguém da equipe escreveu nas últimas 24 h e o paciente está esperando.
