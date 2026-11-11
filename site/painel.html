@@ -761,6 +761,15 @@ async function conectar(){
   FUNIL._nome = eu.nome; FUNIL._email = eu.email;
   $("#btnSair").addEventListener("click", FUNIL.sair);
   $("#btnComercial").addEventListener("click", ()=>window.open("comercial.html","_blank"));
+  // painel aberto o dia todo: quando sai versão nova do site, recarrega sozinho (só se nenhuma ficha ou janela estiver aberta)
+  (async()=>{
+    const versao = async()=>{ try{ const t = await (await fetch("sw.js?x="+Date.now(), {cache:"no-store"})).text(); return (t.match(/CACHE = "([^"]+)"/)||[])[1] || ""; }catch(e){ return ""; } };
+    const atual = await versao();
+    setInterval(async()=>{
+      const v = await versao();
+      if(atual && v && v !== atual && !document.querySelector(".drawer,.modal,.scrim") && !document.activeElement?.matches?.("input,textarea,select")) location.reload();
+    }, 5*60*1000);
+  })();
   const bDemo = $("#btnDemo");
   if(DEMO){ bDemo.textContent = "Sair da demonstração"; bDemo.classList.add("btn-primary"); bDemo.classList.remove("btn-ghost");
     const av = el("div","al-top"); av.append(el("b",null,"Modo demonstração ligado"), el("span",null,"O Dr. Joaquim (teste) e os pacientes de exemplo aparecem no painel. Avisos do médico vão para o WhatsApp do Joaquim."));
