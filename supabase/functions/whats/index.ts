@@ -1,6 +1,7 @@
 // Função "whats": ponte entre o painel e o GPT Maker (WhatsApp da Bia).
 // A chave do GPT Maker fica guardada como segredo GPTMAKER_TOKEN no Supabase,
-// nunca no site. Só administradores (tabela perfis) podem usar.
+// nunca no site. Só administradores (tabela perfis) podem usar; o comercial usa mensagens/enviar/assumir/
+// devolver/iniciar apenas nas conversas dos pacientes dele (034_comercial_whatsapp.sql).
 //
 // Ações (POST JSON {acao, ...}):
 //   atualizar {paginas?}        -> relê as conversas mais recentes e grava em funil_whats
@@ -496,6 +497,16 @@ async function resumoComercial() {
   return { ok: true, casos: r.grupos.reduce((a: number, g: any) => a + g.casos.length, 0) };
 }
 
+// ---------- comercial: confere se a conversa/telefone é de um paciente dele ----------
+const ACOES_COMERCIAL = ["mensagens", "enviar", "assumir", "devolver", "iniciar"];
+async function podeComercial(auth: string, p: any): Promise<boolean> {
+  if (!ACOES_COMERCIAL.includes(p.acao)) return false;
+  const r = p.acao === "iniciar"
+    ? await rest(auth, "rpc/comercial_pode_tel", { method: "POST", body: JSON.stringify({ p_tel: String(p.telefone || "") }) })
+    : await rest(auth, "rpc/comercial_pode_chat", { method: "POST", body: JSON.stringify({ p_chat: String(p.chatId || "") }) });
+  return r.ok && (await r.json()) === true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ erro: "use POST" }, 405);
@@ -623,7 +634,7 @@ Deno.serve(async (req) => {
     try { return json(await processarAvisos()); } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
   }
 
-  const auth = req.headers.get("Authorization") || "";
+  let auth = req.headers.get("Authorization") || "";
   SB_KEY = req.headers.get("apikey") || SB_KEY;   // a chave pública que o site já manda
   const u = await fetch(SB_URL + "/auth/v1/user", { headers: { apikey: SB_KEY, Authorization: auth } });
   if (!u.ok) return json({ erro: "faça login de novo" }, 401);
@@ -632,7 +643,12 @@ Deno.serve(async (req) => {
   const livre = p.acao === "transcrever" || p.acao === "resumir";
   if (!livre) {
     const adm = await rest(auth, "rpc/eh_admin", { method: "POST", body: "{}" });
-    if (!adm.ok || (await adm.json()) !== true) return json({ erro: "só administradores" }, 403);
+    if (!adm.ok || (await adm.json()) !== true) {
+      // comercial (Joaquim): só a conversa de um paciente que ele já enxerga no funil
+      if (!(await podeComercial(auth, p))) return json({ erro: "só administradores" }, 403);
+      auth = "Bearer " + SRK();
+      SB_KEY = SRK();
+    }
   }
 
   try {

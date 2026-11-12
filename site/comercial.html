@@ -84,6 +84,22 @@
   .rec small{display:block;color:var(--ink-3);font-size:12px;margin-bottom:3px}
   .recados{display:flex;flex-direction:column;gap:6px}
   textarea#tRecado{min-height:80px}
+  .wa{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .wa-topo{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface-2);flex-wrap:wrap;font-size:13px}
+  .wa-topo .st{margin-right:auto}
+  .wa-msgs{max-height:340px;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--ground)}
+  .wa-m{max-width:82%;padding:7px 10px;border-radius:10px;font-size:13.5px;white-space:pre-wrap;word-wrap:break-word}
+  .wa-m small{display:block;font-size:11px;color:var(--ink-3);margin-top:3px}
+  .wa-m.paciente{align-self:flex-start;background:var(--surface);border:1px solid var(--line)}
+  .wa-m.bia,.wa-m.equipe{align-self:flex-end;background:var(--accent-soft)}
+  .wa-m.sistema{align-self:center;background:transparent;color:var(--ink-3);font-size:12px}
+  .wa-env{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}
+  .wa-env textarea{min-height:70px}
+  .wa-env .lin{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+  .wl{display:flex;flex-direction:column;gap:6px}
+  .wl button{display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer}
+  .wl button.ag{border-left:4px solid var(--warn)}
+  .wl b{font-size:14px} .wl span{font-size:12.5px;color:var(--ink-3)}
   @media (max-width:640px){.caso{grid-template-columns:1fr}.caso .dir{align-items:flex-start;flex-direction:row}.ficha{grid-template-columns:1fr}}
 </style>
 </head>
@@ -98,6 +114,7 @@
       </svg>
       <div><h1>Comercial · Alinha Face</h1><div class="sub" id="ola">Carregando…</div></div>
     </div>
+    <button class="btn btn-sm" id="bWhats" type="button">WhatsApp</button>
     <button class="btn btn-sm" id="bRecados" type="button">Recados</button>
     <button class="btn btn-sm" id="bAtualizar" type="button">Atualizar</button>
     <button class="btn btn-sm btn-ghost" id="bSenha" type="button">Trocar senha</button>
@@ -145,7 +162,9 @@ const FASES = [
   {k:"feitas",   t:"Cirurgias realizadas", d:"Já operados.", etapas:["cir_feita","posop"], fechado:true},
 ];
 
-let eu = null, casos = [], contatos = [], meusRecados = [], filtroFase = "", aberto = null;
+let eu = null, casos = [], contatos = [], meusRecados = [], conversas = [], filtroFase = "", aberto = null;
+const tel8 = t => so(t).slice(-8);
+const chatDe = p => { const t = tel8(p.telefone); return t.length===8 ? conversas.find(c=>c.tel8===t) : null; };
 
 /* ---------- o que falta e como ajudar, por etapa ---------- */
 function exames(p){ return [...(p.examesTipos||[]), p.examesPedidos].filter(Boolean).join(", "); }
@@ -239,9 +258,10 @@ function situacao(p){
 
 /* ---------- carregar ---------- */
 async function carregar(){
-  const [rc, rk, rr] = await Promise.all([
+  const [rc, rk, rw, rr] = await Promise.all([
     sb.rpc("comercial_casos"),
     sb.rpc("comercial_contatos"),
+    sb.rpc("comercial_whats"),
     sb.from("funil_recados").select("*").order("criado_em",{ascending:false}).limit(300),
   ]);
   if(rc.error){ $("#lista").textContent=""; $("#lista").appendChild(el("div","vazio","Não consegui carregar os casos. Recarregue a página.")); return; }
@@ -249,13 +269,16 @@ async function carregar(){
     .map(p => Object.assign(p, { _s: situacao(p) }));
   contatos = rk.data || [];
   meusRecados = rr.data || [];
+  conversas = rw.data || [];
   const sel = $("#fCir"), atual = sel.value;
   sel.length = 1;
   [...new Set(casos.map(p=>p._cir))].sort().forEach(n=>{ const o = el("option",null,n); o.value = n; sel.appendChild(o); });
   sel.value = atual;
-  badgeRecados();
+  badgeRecados(); badgeWhats();
   render();
   if(aberto==="__recados") return abrirRecados();
+  if(aberto==="__whats") return abrirListaWhats();
+  if(aberto && aberto.indexOf("__")!==0 && document.querySelector(".drawer")) return;  // ficha aberta: não redesenha (não perde o que está digitando)
   if(aberto){ const p = casos.find(x=>x.id===aberto); if(p) abrir(p.id); else fechar(); }
 }
 
@@ -324,7 +347,7 @@ function lista(sec, arr){
 }
 
 /* ---------- ficha do caso ---------- */
-function fechar(){ aberto = null; document.querySelectorAll(".scrim,.drawer").forEach(x=>x.remove()); }
+function fechar(){ aberto = null; clearInterval(WAC.timer); WAC.chat = null; WAC.box = null; document.querySelectorAll(".scrim,.drawer").forEach(x=>x.remove()); }
 function abrir(id){
   const p = casos.find(x=>x.id===id); if(!p) return;
   fechar(); aberto = id;
@@ -353,12 +376,22 @@ function abrir(id){
   if(p.proximaAcao){ const p3 = el("p"); p3.append(el("strong",null,"Próxima ação marcada pela equipe: "), document.createTextNode(p.proximaAcao + (p.dataProximaAcao?" ("+dataBR(p.dataProximaAcao)+")":""))); aj.appendChild(p3); }
   const acts = el("div","acts");
   const link = (txt, href, prim) => { if(!href) return; const a = el("a","btn btn-sm"+(prim?" btn-primary":""),txt); a.href=href; a.target="_blank"; a.rel="noopener"; acts.appendChild(a); };
-  link("WhatsApp do paciente", wa(p.telefone, s.msg || `Oi, ${primeiro(p)}! Aqui é o Joaquim, da Alinha Face. Tudo bem?`), true);
+  let escreverWa = ()=>{};
+  if(p.telefone){ const bw = el("button","btn btn-sm btn-primary","WhatsApp do paciente"); bw.type="button"; bw.addEventListener("click",()=>escreverWa()); acts.appendChild(bw); }
   const bot = (txt, dest) => { const b = el("button","btn btn-sm",txt); b.type="button"; b.addEventListener("click",()=>escrever(dest)); acts.appendChild(b); };
   if(p.cirurgiao) bot("Falar com o cirurgião", "cirurgiao");
   bot("Falar com a Ana", "ana");
   aj.appendChild(acts);
   body.appendChild(aj);
+
+  // conversa do WhatsApp (Bia / GPT Maker) dentro do funil
+  if(p.telefone){
+    const wb = el("div","bloco"); wb.appendChild(el("h3",null,"WhatsApp do paciente"));
+    const box = el("div","wa"); wb.appendChild(box); body.appendChild(wb);
+    const msgPadrao = s.msg || `Oi, ${primeiro(p)}! Aqui é o Joaquim, da Alinha Face. Tudo bem?`;
+    escreverWa = ()=>{ wb.scrollIntoView({behavior:"smooth",block:"start"}); const t = box.querySelector("textarea"); if(t){ if(!t.value.trim()) t.value = msgPadrao; setTimeout(()=>{ t.focus(); t.setSelectionRange(t.value.length,t.value.length); },350); } };
+    montarConversa(box, p, msgPadrao);
+  }
 
   // ficha
   const fb = el("div","bloco"); fb.appendChild(el("h3",null,"Dados do caso"));
@@ -410,7 +443,7 @@ function abrir(id){
     bEnv.disabled = false; bEnv.textContent = "Enviar pelo painel";
     if(error){ toast(eu && eu.papel==="admin" ? "O envio é só para o perfil comercial." : "Não consegui enviar. Tente de novo."); return; }
     const rot = (destinos.find(x=>x[0]===destino)||[,""])[1];
-    ta.value = ""; toast("Mensagem enviada para " + rot + " no painel."); carregar();
+    ta.value = ""; toast("Mensagem enviada para " + rot + " no painel."); carregar().then(()=>abrir(p.id));
   });
   const wrap = el("div"); wrap.style.cssText = "display:flex;flex-direction:column;gap:8px;align-items:flex-end"; wrap.append(ta, bEnv);
   rb.append(chips, wrap);
@@ -437,6 +470,101 @@ function abrir(id){
   document.body.append(scrim, dw);
   bx.focus();
 }
+
+/* ---------- WhatsApp (Bia / GPT Maker) ---------- */
+const WAC = { chat:null, box:null, p:null, msgPadrao:"", timer:null };
+async function waChamar(corpo){
+  const { data, error } = await sb.functions.invoke("whats", { body: corpo });
+  if(error){ let m = error.message || "erro"; try{ const j = await error.context.json(); m = j.erro || m; }catch(e){} throw new Error(m); }
+  return data;
+}
+const horaMsg = iso => iso ? new Date(iso).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
+function badgeWhats(){
+  const n = conversas.filter(c=>c.ultima_de==="user").length;
+  const b = $("#bWhats"); b.textContent = n ? `WhatsApp · ${n} aguardando` : "WhatsApp";
+}
+function montarConversa(box, p, msgPadrao){
+  clearInterval(WAC.timer);
+  WAC.box = box; WAC.p = p; WAC.msgPadrao = msgPadrao;
+  const c = chatDe(p); WAC.chat = c ? c.chat_id : null;
+  box.textContent = "";
+  const topo = el("div","wa-topo"); box.appendChild(topo);
+  const st = el("span","st"); topo.appendChild(st);
+  const msgs = el("div","wa-msgs"); box.appendChild(msgs);
+  const env = el("div","wa-env"); box.appendChild(env);
+  const ta = el("textarea"); ta.placeholder = "Mensagem para o paciente (sai pelo WhatsApp da Alinha Face)…";
+  const lin = el("div","lin");
+  const bEnv = el("button","btn btn-sm btn-primary", c ? "Enviar no WhatsApp" : "Iniciar conversa no WhatsApp"); bEnv.type="button";
+  lin.appendChild(bEnv); env.append(ta, lin);
+  if(!c){
+    st.textContent = "Ainda não há conversa com este número no WhatsApp da Bia.";
+    msgs.remove(); ta.value = msgPadrao;
+  } else {
+    st.textContent = c.humano ? "👤 Equipe está atendendo (a Bia está pausada)" : "🤖 A Bia está respondendo";
+    const bTroca = el("button","btn btn-sm", c.humano ? "Devolver para a Bia" : "Assumir a conversa"); bTroca.type="button";
+    bTroca.addEventListener("click", async ()=>{
+      bTroca.disabled = true;
+      try{ await waChamar({ acao: c.humano ? "devolver" : "assumir", chatId: c.chat_id }); c.humano = !c.humano; toast(c.humano ? "Você assumiu. A Bia parou de responder." : "Conversa devolvida para a Bia."); montarConversa(box, p, msgPadrao); }
+      catch(e){ toast("Não consegui: " + e.message); bTroca.disabled = false; }
+    });
+    topo.appendChild(bTroca);
+    msgs.appendChild(el("div","wa-m sistema","Carregando mensagens…"));
+    carregarMensagens(msgs, c.chat_id);
+    WAC.timer = setInterval(()=>{ if(document.body.contains(msgs)) carregarMensagens(msgs, c.chat_id, true); else clearInterval(WAC.timer); }, 20000);
+  }
+  bEnv.addEventListener("click", async ()=>{
+    const t = ta.value.trim(); if(!t){ ta.focus(); return; }
+    bEnv.disabled = true; bEnv.textContent = "Enviando…";
+    try{
+      if(c){ await waChamar({ acao:"enviar", chatId:c.chat_id, texto:t }); c.humano = true; }
+      else { const r = await waChamar({ acao:"iniciar", telefone:p.telefone, texto:t }); if(r && r.chatId) conversas.unshift({ chat_id:r.chatId, tel8:tel8(p.telefone), humano:false, ultima:t, ultima_de:"assistant", ultima_em:new Date().toISOString() }); }
+      ta.value = ""; toast("Mensagem enviada no WhatsApp.");
+      const rw = await sb.rpc("comercial_whats"); if(!rw.error) conversas = rw.data || conversas; badgeWhats();
+      montarConversa(box, p, msgPadrao);
+    }catch(e){ toast("Não consegui enviar: " + e.message); bEnv.disabled = false; bEnv.textContent = c ? "Enviar no WhatsApp" : "Iniciar conversa no WhatsApp"; }
+  });
+}
+async function carregarMensagens(msgs, chatId, silencioso){
+  try{
+    const r = await waChamar({ acao:"mensagens", chatId, pagina:1 });
+    const lista = (r.mensagens||[]).slice().sort((a,b)=>String(a.em).localeCompare(String(b.em)));
+    const fim = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 40;
+    msgs.textContent = "";
+    if(!lista.length) msgs.appendChild(el("div","wa-m sistema","Sem mensagens."));
+    lista.forEach(m=>{
+      const d = el("div","wa-m "+m.de);
+      let txt = m.texto || "";
+      if(!txt && m.imagem) txt = "📷 imagem"; if(!txt && m.documento) txt = "📄 " + (m.arquivo||"documento"); if(!txt && m.audio) txt = "🎤 áudio" + (m.transcricao ? ": " + m.transcricao : "");
+      d.appendChild(document.createTextNode(txt));
+      d.appendChild(el("small",null,(m.de==="paciente" ? "Paciente" : m.de==="bia" ? "Bia" : m.de==="equipe" ? (m.quem||"Equipe") : "") + " · " + horaMsg(m.em)));
+      msgs.appendChild(d);
+    });
+    if(!silencioso || fim) msgs.scrollTop = msgs.scrollHeight;
+  }catch(e){ if(!silencioso){ msgs.textContent = ""; msgs.appendChild(el("div","wa-m sistema","Não consegui carregar as mensagens (" + e.message + ").")); } }
+}
+function abrirListaWhats(){
+  fechar(); aberto = "__whats";
+  const scrim = el("div","scrim"); scrim.addEventListener("click",fechar);
+  const dw = el("aside","drawer"); dw.setAttribute("role","dialog"); dw.setAttribute("aria-label","WhatsApp");
+  const hd = el("header"); hd.appendChild(el("h2",null,"WhatsApp dos seus pacientes"));
+  const bx = el("button","btn btn-sm btn-ghost","Fechar"); bx.addEventListener("click",fechar); hd.appendChild(bx);
+  const body = el("div","body");
+  body.appendChild(el("p","muted","Conversas da Bia com os pacientes da consulta agendada em diante. Em amarelo: o paciente falou por último e espera resposta."));
+  const wl = el("div","wl");
+  const porTel = new Map(casos.map(p=>[tel8(p.telefone), p]));
+  conversas.forEach(c=>{
+    const p = porTel.get(c.tel8); if(!p) return;
+    const b = el("button", c.ultima_de==="user" ? "ag" : ""); b.type="button";
+    b.append(el("b",null,p.nome||c.nome||"Paciente"), el("span",null,horaMsg(c.ultima_em)),
+      el("span",null,(c.ultima_de==="user"?"Paciente: ":"")+(c.ultima||"")), el("span",null,c.humano?"👤 equipe":"🤖 Bia"));
+    b.addEventListener("click",()=>{ abrir(p.id); setTimeout(()=>{ const h = [...document.querySelectorAll(".drawer h3")].find(x=>x.textContent==="WhatsApp do paciente"); h && h.scrollIntoView({behavior:"smooth",block:"start"}); }, 200); });
+    wl.appendChild(b);
+  });
+  if(!wl.children.length) wl.appendChild(el("div","vazio","Nenhuma conversa encontrada."));
+  body.appendChild(wl);
+  dw.append(hd, body); document.body.append(scrim, dw); bx.focus();
+}
+$("#bWhats").addEventListener("click", abrirListaWhats);
 
 /* ---------- recados (respostas da equipe) ---------- */
 const meuEmail = () => String((eu&&eu.email)||"").toLowerCase();
