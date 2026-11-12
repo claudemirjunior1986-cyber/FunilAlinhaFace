@@ -36,6 +36,7 @@ async function rcLer(){
   if(error) return;
   RC.lista = data || [];
   rcBadge();
+  rcComercialTopo();
   if(document.getElementById("rcPainel")) rcRenderLista();
   const sec = document.getElementById("rcFicha"); if(sec) rcRenderFicha(sec.dataset.pid);
 }
@@ -266,4 +267,56 @@ function rcRenderFicha(pid){
   const lista = RC.lista.filter(r=>r.paciente_id === pid).sort((a,b)=>String(a.criado_em).localeCompare(String(b.criado_em)));
   if(!lista.length){ corpo.appendChild(el("div","hint","Nenhum recado ou aviso sobre este paciente. Só a equipe e o cirurgião veem; o paciente nunca.")); return; }
   lista.forEach(r=>corpo.appendChild(rcCartao(r, true)));
+}
+
+/* ---------- pedidos do comercial (Joaquim) em destaque no topo do painel ---------- */
+const rcEhComercial = r => /\(comercial\)/i.test(r.de_nome||"") || (RC.equipe.find(p=>p.email===r.de)||{}).papel === "comercial";
+function rcComercialTopo(){
+  const box = document.getElementById("comercialTopo"); if(!box) return;
+  const pend = RC.lista.filter(r => r.para === RC.eu && !r.feito_em && rcEhComercial(r));
+  const aberto = box.querySelector("textarea:focus");
+  if(aberto) return;   // não apaga o que a pessoa está respondendo
+  box.textContent = "";
+  if(!pend.length) return;
+  const sec = el("section","jq");
+  const h = el("h3",null,"📌 Pedidos do Joaquim (comercial) · " + pend.length);
+  sec.appendChild(h);
+  pend.slice().reverse().forEach(r=>{
+    const it = el("div","jq-it"); const esq = el("div");
+    esq.appendChild(el("div","t", r.texto));
+    esq.appendChild(el("div","m", [r.paciente_nome ? "👤 " + r.paciente_nome : "", rcQuando(r.criado_em), r.lido_em ? "" : "novo"].filter(Boolean).join(" · ")));
+    const bt = el("div","bt");
+    const p = r.paciente_id && typeof pacientes !== "undefined" ? pacientes.get(r.paciente_id) : null;
+    if(p){ const bf = el("button","btn btn-sm","Abrir ficha"); bf.type="button"; bf.addEventListener("click",()=>abrirDrawer(p.id)); bt.appendChild(bf); }
+    const br = el("button","btn btn-sm","Responder"); br.type="button";
+    const bok = el("button","btn btn-sm btn-primary","Feito"); bok.type="button";
+    bok.addEventListener("click", async ()=>{
+      bok.disabled = true; const agora = new Date().toISOString();
+      const { error } = await FUNIL.sb.from("funil_recados").update({ feito_em: agora, lido_em: r.lido_em || agora }).eq("id", r.id);
+      if(error){ bok.disabled = false; toast("Não consegui marcar como feito."); return; }
+      toast("Marcado como feito."); rcLer();
+    });
+    br.addEventListener("click", ()=>{
+      if(it.querySelector(".resp")) return;
+      const f = el("div","resp"); const ta = el("textarea"); ta.placeholder = "Resposta para o Joaquim…";
+      const be = el("button","btn btn-sm btn-primary","Enviar"); be.type="button";
+      be.addEventListener("click", async ()=>{
+        const texto = ta.value.trim(); if(!texto){ ta.focus(); return; }
+        be.disabled = true;
+        const { error } = await FUNIL.sb.from("funil_recados").insert({ de: RC.eu, de_nome: RC.nome, para: r.de, para_nome: (r.de_nome||"").replace(/\s*\(comercial\)/i,""),
+          paciente_id: r.paciente_id, paciente_nome: r.paciente_nome, texto, responde_a: r.id });
+        if(error){ be.disabled = false; toast("Não consegui enviar."); return; }
+        const agora = new Date().toISOString();
+        await FUNIL.sb.from("funil_recados").update({ feito_em: agora, lido_em: r.lido_em || agora }).eq("id", r.id);
+        toast("Resposta enviada para o Joaquim."); rcLer();
+      });
+      f.append(ta, be); it.appendChild(f); ta.focus();
+    });
+    bt.append(br, bok);
+    it.append(esq, bt); sec.appendChild(it);
+  });
+  box.appendChild(sec);
+  // marca como lidos os que apareceram
+  const ids = pend.filter(r=>!r.lido_em).map(r=>r.id);
+  if(ids.length) FUNIL.sb.from("funil_recados").update({ lido_em: new Date().toISOString() }).in("id", ids).then(()=>{});
 }
