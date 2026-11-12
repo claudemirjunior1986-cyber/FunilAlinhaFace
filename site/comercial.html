@@ -329,6 +329,7 @@ function abrir(id){
   const p = casos.find(x=>x.id===id); if(!p) return;
   fechar(); aberto = id;
   const s = p._s;
+  let escrever = ()=>{};
   const scrim = el("div","scrim"); scrim.addEventListener("click",fechar);
   const dw = el("aside","drawer"); dw.setAttribute("role","dialog"); dw.setAttribute("aria-label","Caso de "+(p.nome||""));
   const hd = el("header"); hd.appendChild(el("h2",null,p.nome||"Sem nome"));
@@ -353,9 +354,9 @@ function abrir(id){
   const acts = el("div","acts");
   const link = (txt, href, prim) => { if(!href) return; const a = el("a","btn btn-sm"+(prim?" btn-primary":""),txt); a.href=href; a.target="_blank"; a.rel="noopener"; acts.appendChild(a); };
   link("WhatsApp do paciente", wa(p.telefone, s.msg || `Oi, ${primeiro(p)}! Aqui é o Joaquim, da Alinha Face. Tudo bem?`), true);
-  link("Falar com o cirurgião", wa(p._cirWhats, `${p._cir}, tudo bem? Aqui é o Joaquim, da Alinha Face. Sobre o paciente ${p.nome}${p.convenio==="Sim"&&p.nomeConvenio?" ("+p.nomeConvenio+")":""}: está em "${ETAPAS[p.etapa]}". ${s.ajuda} Consegue me dizer como está?`));
-  const ana = contatos.find(c=>/ana/i.test(c.nome) && c.whatsapp) || contatos.find(c=>c.whatsapp);
-  if(ana) link("Falar com a "+ana.nome.split(" ")[0], wa(ana.whatsapp, `${ana.nome.split(" ")[0]}, tudo bem? Sobre ${p.nome} (${p._cir}): está em "${ETAPAS[p.etapa]}"${s.dias?` há ${s.dias} dia${s.dias===1?"":"s"}`:""}. ${s.falta} Pode me contar como está?`));
+  const bot = (txt, dest) => { const b = el("button","btn btn-sm",txt); b.type="button"; b.addEventListener("click",()=>escrever(dest)); acts.appendChild(b); };
+  if(p.cirurgiao) bot("Falar com o cirurgião", "cirurgiao");
+  bot("Falar com a Ana", "ana");
   aj.appendChild(acts);
   body.appendChild(aj);
 
@@ -384,20 +385,35 @@ function abrir(id){
   if(resumo){ const rb = el("div","bloco"); rb.appendChild(el("h3",null,"Resumo do cirurgião")); rb.appendChild(el("div","texto",resumo)); body.appendChild(rb); }
   if(p.observacoes){ const ob = el("div","bloco"); ob.appendChild(el("h3",null,"Observações da equipe")); ob.appendChild(el("div","texto",p.observacoes)); body.appendChild(ob); }
 
-  // recado
-  const rb = el("div","bloco"); rb.appendChild(el("h3",null,"Recado para a equipe"));
-  const ta = el("textarea"); ta.id = "tRecado"; ta.placeholder = "Ex.: Falei com o paciente, ele faz a ressonância na sexta. / Paciente pediu para remarcar o retorno.";
-  const bEnv = el("button","btn btn-sm btn-primary","Enviar recado"); bEnv.type = "button";
+  // mensagem dentro do painel (cirurgião, Ana ou equipe)
+  const rb = el("div","bloco"); rb.id = "blocoMsg"; rb.appendChild(el("h3",null,"Mensagem pelo painel"));
+  const destinos = [];
+  if(p.cirurgiao) destinos.push(["cirurgiao", p._cir && p._cir!=="Sem cirurgião" ? p._cir : "Cirurgião"]);
+  destinos.push(["ana","Ana"], ["equipe","Equipe (Claudemir e Ana)"]);
+  const sugestao = {
+    cirurgiao: `${p._cir}, tudo bem? Aqui é o Joaquim. Sobre ${p.nome}: está em "${ETAPAS[p.etapa]}"${s.dias?` há ${s.dias} dia${s.dias===1?"":"s"}`:""}. Qual o próximo passo? Posso ajudar em algo?`,
+    ana: `Ana, sobre ${p.nome} (${p._cir}): está em "${ETAPAS[p.etapa]}"${s.dias?` há ${s.dias} dia${s.dias===1?"":"s"}`:""}. ${s.falta} Pode me contar como está?`,
+    equipe: ""
+  };
+  let destino = destinos[0][0];
+  const chips = el("div"); chips.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px";
+  const ta = el("textarea"); ta.id = "tRecado"; ta.placeholder = "Escreva a mensagem…";
+  const marcar = d => { destino = d; chips.querySelectorAll("button").forEach(b=>{ const on = b.dataset.d===d; b.classList.toggle("btn-primary", on); b.setAttribute("aria-pressed", on); }); };
+  destinos.forEach(([d,rot])=>{ const b = el("button","btn btn-sm","Para: "+rot); b.type="button"; b.dataset.d = d; b.addEventListener("click",()=>{ const antes = ta.value.trim(); if(!antes || Object.values(sugestao).includes(antes)) ta.value = sugestao[d]; marcar(d); }); chips.appendChild(b); });
+  marcar(destino);
+  escrever = d => { marcar(d); ta.value = sugestao[d] || ""; rb.scrollIntoView({behavior:"smooth", block:"start"}); setTimeout(()=>{ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 350); };
+  const bEnv = el("button","btn btn-sm btn-primary","Enviar pelo painel"); bEnv.type = "button";
   bEnv.addEventListener("click", async ()=>{
     const t = ta.value.trim(); if(!t){ ta.focus(); return; }
     bEnv.disabled = true; bEnv.textContent = "Enviando…";
-    const { error } = await sb.rpc("comercial_recado", { p_paciente_id: p.id, p_texto: t });
-    bEnv.disabled = false; bEnv.textContent = "Enviar recado";
-    if(error){ toast(eu && eu.papel==="admin" ? "Recado é só para o perfil comercial." : "Não consegui enviar. Tente de novo."); return; }
-    ta.value = ""; toast("Recado enviado para a equipe e anotado no histórico."); carregar();
+    const { error } = await sb.rpc("comercial_mensagem", { p_paciente_id: p.id, p_destino: destino, p_texto: t });
+    bEnv.disabled = false; bEnv.textContent = "Enviar pelo painel";
+    if(error){ toast(eu && eu.papel==="admin" ? "O envio é só para o perfil comercial." : "Não consegui enviar. Tente de novo."); return; }
+    const rot = (destinos.find(x=>x[0]===destino)||[,""])[1];
+    ta.value = ""; toast("Mensagem enviada para " + rot + " no painel."); carregar();
   });
   const wrap = el("div"); wrap.style.cssText = "display:flex;flex-direction:column;gap:8px;align-items:flex-end"; wrap.append(ta, bEnv);
-  rb.appendChild(wrap);
+  rb.append(chips, wrap);
   const ids = new Set(meusRecados.filter(r=>r.paciente_id===p.id).map(r=>r.id));
   const rs = meusRecados.filter(r=>r.paciente_id===p.id || ids.has(r.responde_a));
   if(rs.length){

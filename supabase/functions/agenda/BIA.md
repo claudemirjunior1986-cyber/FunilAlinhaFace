@@ -184,3 +184,4 @@ Outros ajustes feitos na Bia:
 - Papel novo `comercial` em perfis (Joaquim). Ao entrar, vai direto para comercial.html.
 - Vê só os casos da consulta agendada em diante (agendou, faltou, atendido, exames, retorno, proposta, documentos, autorização, autorizado, cirurgia marcada/realizada, pós-op), via função `comercial_casos()` — não lê a tabela direto.
 - Cada caso mostra a situação, o que falta e como ele pode ajudar, com botões de WhatsApp (paciente, cirurgião, Ana) e recado para a equipe (`comercial_recado`, que também anota no histórico). Não altera a ficha.
+- (033) "Falar com o cirurgião" e "Falar com a Ana" viraram mensagens dentro do painel (funil_recados), via `comercial_mensagem(paciente, 'cirurgiao'|'ana'|'equipe', texto)`. O cirurgião vê em "Avisos da equipe" e pode responder ao Joaquim (política recados_criar aceita destinatário comercial). Fica anotado no histórico.
