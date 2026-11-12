@@ -100,6 +100,15 @@
   .wl button{display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer}
   .wl button.ag{border-left:4px solid var(--warn)}
   .wl b{font-size:14px} .wl span{font-size:12.5px;color:var(--ink-3)}
+  .urg{border:2px solid var(--crit);background:var(--crit-bg);border-radius:var(--radius);padding:12px 14px;margin-bottom:18px}
+  .urg h2{font-size:16px;margin:0 0 8px;color:var(--crit);display:flex;align-items:center;gap:8px}
+  .urg .it{display:grid;grid-template-columns:1fr auto;gap:6px 12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:8px}
+  .urg .it .t{font-weight:600;font-size:14.5px}
+  .urg .it .d{font-size:13px;color:var(--ink-2);margin-top:3px}
+  .urg .it .h{font-size:12px;color:var(--ink-3);margin-top:3px}
+  .urg .it .bt{display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end}
+  @keyframes pisca{0%,100%{box-shadow:0 0 0 0 rgba(168,50,40,.0)}50%{box-shadow:0 0 0 6px rgba(168,50,40,.25)}}
+  .urg.novo{animation:pisca 1.2s ease-in-out 6}
   @media (max-width:640px){.caso{grid-template-columns:1fr}.caso .dir{align-items:flex-start;flex-direction:row}.ficha{grid-template-columns:1fr}}
 </style>
 </head>
@@ -121,6 +130,7 @@
     <button class="btn btn-sm btn-ghost" id="bSair" type="button">Sair</button>
   </div>
 
+  <div id="urgentes"></div>
   <div class="kpis" id="kpis"></div>
   <div class="filtros">
     <input type="text" id="fBusca" placeholder="Buscar paciente, cidade, convênio…" aria-label="Buscar">
@@ -162,7 +172,7 @@ const FASES = [
   {k:"feitas",   t:"Cirurgias realizadas", d:"Já operados.", etapas:["cir_feita","posop"], fechado:true},
 ];
 
-let eu = null, casos = [], contatos = [], meusRecados = [], conversas = [], filtroFase = "", aberto = null;
+let eu = null, casos = [], contatos = [], meusRecados = [], conversas = [], urgentes = [], filtroFase = "", aberto = null;
 const tel8 = t => so(t).slice(-8);
 const chatDe = p => { const t = tel8(p.telefone); return t.length===8 ? conversas.find(c=>c.tel8===t) : null; };
 
@@ -270,15 +280,18 @@ async function carregar(){
   contatos = rk.data || [];
   meusRecados = rr.data || [];
   conversas = rw.data || [];
+  urgentes.forEach(u=>{ if(u.chat_id && !conversas.some(c=>c.chat_id===u.chat_id))
+    conversas.push({ chat_id:u.chat_id, tel8:so(u.telefone).slice(-8), nome:u.nome, ultima:u.ultima, ultima_de:u.ultima_de, ultima_em:u.ultima_em, humano:u.humano }); });
   const sel = $("#fCir"), atual = sel.value;
   sel.length = 1;
   [...new Set(casos.map(p=>p._cir))].sort().forEach(n=>{ const o = el("option",null,n); o.value = n; sel.appendChild(o); });
   sel.value = atual;
   badgeRecados(); badgeWhats();
   render();
+  if(urgentes.length) desenharUrgentes(false);
   if(aberto==="__recados") return abrirRecados();
   if(aberto==="__whats") return abrirListaWhats();
-  if(aberto && aberto.indexOf("__")!==0 && document.querySelector(".drawer")) return;  // ficha aberta: não redesenha (não perde o que está digitando)
+  if(aberto && (aberto==="__conv" || aberto.indexOf("__")!==0) && document.querySelector(".drawer")) return;  // ficha aberta: não redesenha (não perde o que está digitando)
   if(aberto){ const p = casos.find(x=>x.id===aberto); if(p) abrir(p.id); else fechar(); }
 }
 
@@ -566,6 +579,74 @@ function abrirListaWhats(){
 }
 $("#bWhats").addEventListener("click", abrirListaWhats);
 
+/* ---------- ⚡ atuação urgente ---------- */
+let urgVistos = null;
+async function carregarUrgentes(){
+  const { data, error } = await sb.rpc("comercial_urgentes");
+  if(error) return;
+  urgentes = data || [];
+  // a conversa urgente entra na lista de conversas (mesmo que seja lead), para abrir e responder
+  urgentes.forEach(u=>{ if(u.chat_id && !conversas.some(c=>c.chat_id===u.chat_id))
+    conversas.push({ chat_id:u.chat_id, tel8:so(u.telefone).slice(-8), nome:u.nome, ultima:u.ultima, ultima_de:u.ultima_de, ultima_em:u.ultima_em, humano:u.humano }); });
+  const ids = urgentes.map(u=>u.id);
+  const novos = urgVistos ? ids.filter(i=>!urgVistos.includes(i)) : [];
+  urgVistos = ids;
+  desenharUrgentes(novos.length > 0);
+  document.title = (urgentes.length ? `(${urgentes.length}) ⚡ ` : "") + "Comercial · Alinha Face";
+  if(novos.length){ apito(); notificar(urgentes.find(u=>u.id===novos[0])); }
+}
+function desenharUrgentes(piscar){
+  const box = $("#urgentes"); box.textContent = "";
+  if(!urgentes.length) return;
+  const sec = el("section","urg"+(piscar?" novo":""));
+  const h = el("h2",null,"⚡ Atuação urgente"); h.appendChild(el("span","n",String(urgentes.length))); sec.appendChild(h);
+  urgentes.forEach(u=>{
+    const it = el("div","it"); const esq = el("div");
+    const p = u.paciente_id ? casos.find(x=>x.id===u.paciente_id) : null;
+    esq.appendChild(el("div","t", String(u.titulo||"").replace(/^⚡\s*/,"")));
+    if(u.detalhe) esq.appendChild(el("div","d","“"+u.detalhe+"”"));
+    esq.appendChild(el("div","h",[p ? p._cir + " · " + (ETAPAS[p.etapa]||"") : "Ainda não está no funil do comercial (lead)", u.telefone, "marcado " + horaMsg(u.criado_em), u.humano ? "👤 com a equipe" : "🤖 Bia respondendo"].filter(Boolean).join(" · ")));
+    const bt = el("div","bt");
+    const ba = el("button","btn btn-sm btn-primary","Abrir conversa"); ba.type="button";
+    ba.addEventListener("click",()=>abrirUrgente(u));
+    const br = el("button","btn btn-sm","Resolvido"); br.type="button";
+    br.addEventListener("click", async ()=>{ br.disabled = true; const { error } = await sb.rpc("comercial_resolver_urgente",{ p_id:u.id }); if(error){ br.disabled=false; toast("Não consegui dar baixa."); return; } toast("Baixa dada."); carregarUrgentes(); });
+    bt.append(ba, br); it.append(esq, bt); sec.appendChild(it);
+  });
+  box.appendChild(sec);
+}
+function abrirUrgente(u){
+  const p = u.paciente_id ? casos.find(x=>x.id===u.paciente_id) : null;
+  if(p){ abrir(p.id); setTimeout(()=>{ const h3 = [...document.querySelectorAll(".drawer h3")].find(x=>x.textContent==="WhatsApp do paciente"); h3 && h3.scrollIntoView({behavior:"smooth",block:"start"}); }, 200); return; }
+  // lead: só a conversa
+  fechar(); aberto = "__conv";
+  const scrim = el("div","scrim"); scrim.addEventListener("click",fechar);
+  const dw = el("aside","drawer"); dw.setAttribute("role","dialog"); dw.setAttribute("aria-label","Conversa");
+  const hd = el("header"); hd.appendChild(el("h2",null,u.nome || u.telefone || "Paciente"));
+  const bx = el("button","btn btn-sm btn-ghost","Fechar"); bx.addEventListener("click",fechar); hd.appendChild(bx);
+  const body = el("div","body");
+  const aj = el("div","ajuda crit");
+  const p1 = el("p"); p1.append(el("strong",null,"Por que é urgente: "), document.createTextNode(String(u.titulo||"").replace(/^⚡\s*/,""))); aj.appendChild(p1);
+  if(u.detalhe){ const p2 = el("p"); p2.append(el("strong",null,"Mensagem: "), document.createTextNode(u.detalhe)); aj.appendChild(p2); }
+  aj.appendChild(el("p",null,"Este paciente ainda é um lead (não tem consulta registrada). Você pode continuar a conversa por aqui."));
+  body.appendChild(aj);
+  const wb = el("div","bloco"); wb.appendChild(el("h3",null,"WhatsApp do paciente"));
+  const box = el("div","wa"); wb.appendChild(box); body.appendChild(wb);
+  dw.append(hd, body); document.body.append(scrim, dw);
+  const nome1 = String(u.nome||"").trim().split(/\s+/)[0];
+  montarConversa(box, { nome:u.nome, telefone:u.telefone }, `Oi${nome1?", "+nome1:""}! Aqui é o Joaquim, da Alinha Face. Vou te ajudar pessoalmente com isso.`);
+  bx.focus();
+}
+function apito(){
+  try{ const ctx = new (window.AudioContext||window.webkitAudioContext)(); [0,0.25,0.5].forEach(t=>{ const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 880; o.connect(g); g.connect(ctx.destination); g.gain.setValueAtTime(0.15, ctx.currentTime+t); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+t+0.2); o.start(ctx.currentTime+t); o.stop(ctx.currentTime+t+0.22); }); }catch(e){}
+}
+function notificar(u){
+  try{ if(!u || !("Notification" in window)) return;
+    const mostrar = ()=>{ const n = new Notification("⚡ Atuação urgente", { body: String(u.titulo||"").replace(/^⚡\s*/,""), icon:"icones/icone-192.png" }); n.onclick = ()=>{ window.focus(); abrirUrgente(u); }; };
+    if(Notification.permission === "granted") mostrar();
+  }catch(e){}
+}
+
 /* ---------- recados (respostas da equipe) ---------- */
 const meuEmail = () => String((eu&&eu.email)||"").toLowerCase();
 function badgeRecados(){
@@ -609,7 +690,10 @@ $("#bSair").addEventListener("click", ()=>FUNIL.sair());
 (async ()=>{
   eu = await FUNIL.exigir(["comercial","admin"]);
   await carregar();
+  await carregarUrgentes();
   setInterval(carregar, 5*60*1000);
+  setInterval(carregarUrgentes, 60*1000);
+  document.addEventListener("click", ()=>{ try{ if("Notification" in window && Notification.permission === "default") Notification.requestPermission(); }catch(e){} }, { once:true });
 })();
 </script>
 <script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>

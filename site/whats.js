@@ -310,6 +310,17 @@ function waRenderConversa(carregando){
     const bn = el("button","btn btn-sm","Criar ficha"); bn.title = "Cadastra como paciente novo (A classificar)";
     bn.addEventListener("click",()=>waCriarFicha(c)); acoes.appendChild(bn);
   }
+  const bu = el("button","btn btn-sm","⚡ Urgente p/ Joaquim"); bu.title = "Avisa o Joaquim (comercial) para atuar nesta conversa";
+  bu.addEventListener("click", async ()=>{
+    const motivo = prompt("Por que o Joaquim deve atuar? (ex.: perguntou se o plano cobre, mandou foto do exame)", "");
+    if(motivo === null) return;
+    bu.disabled = true;
+    const { data, error } = await FUNIL.sb.rpc("marcar_urgente_comercial", { p_chat: c.chat_id, p_motivo: motivo });
+    bu.disabled = false;
+    if(error){ toast("Não consegui marcar. Tente de novo."); return; }
+    toast(data ? "Joaquim avisado: conversa marcada como urgente." : "Esta conversa já está marcada como urgente para o Joaquim.");
+  });
+  acoes.appendChild(bu);
   const bh = el("button","btn btn-sm", c.humano ? "Devolver para a Bia" : "Assumir conversa");
   bh.title = c.humano ? "A Bia volta a responder sozinha" : "A Bia para de responder; a equipe conversa pelo site";
   bh.addEventListener("click",()=>waTrocarHumano(c, !c.humano, bh));

@@ -304,6 +304,46 @@ const FRASES: { re: RegExp; titulo: string; consulta?: boolean }[] = [
     titulo: "Bia afirmou o que o convênio cobre ou cobra" },
 ];
 
+// ---------- atuação urgente do comercial ----------
+const URGENTES = [
+  { re: /\b(plano|conv[eê]nio|unimed|bradesco|sul ?am[eé]rica|amil|hapvida|porto seguro|cassi|notre ?dame|interm[eé]dica|golden cross|prevent senior|central nacional|cobre|cobertura|reembolso)\b/i,
+    t: "falou de plano de saúde / cobertura" },
+  { re: /(resultado|laudo|\bfiz (a|o|os|as) (exame|resson|tomo|raio|panor)|exames? (ficou|ficaram|saiu|sa[ií]ram|pront))/i,
+    t: "falou do resultado do exame" },
+  { re: /(quanto custa|qual (é |e )?o valor|pre[cç]o|parcel|quero (operar|fazer a cirurgia|fazer o procedimento)|marcar (a )?cirurgia)/i,
+    t: "perguntou valor / quer operar" },
+];
+async function marcarUrgentes(arr: any[], fora: Set<string>) {
+  const agora = Date.now();
+  const cand = arr.filter((c: any) => c.ultima_de === "user" && c.ultima_em && agora - Date.parse(c.ultima_em) < 15 * 60000 && c.tel8 && !fora.has(c.tel8)).slice(0, 10);
+  if (!cand.length) return 0;
+  const abertos = new Set((await dbs("funil_alertas?select=chat_id&tipo=eq.urgente_comercial&resolvido_em=is.null").then((r) => r.ok ? r.json() : []))
+    .map((a: any) => a.chat_id));
+  let n = 0;
+  for (const c of cand) {
+    if (abertos.has(c.chat_id)) continue;
+    let msgs: any[] = [];
+    try { msgs = (await gm(`/chat/${encodeURIComponent(c.chat_id)}/messages?page=1&pageSize=10`) || []).map(mensagem).filter(Boolean); } catch { continue; }
+    let motivo = "", trecho = "";
+    for (const m of msgs.filter((m: any) => m.de === "paciente" && m.em && agora - Date.parse(m.em) < 15 * 60000)) {
+      if (m.imagem || m.documento) {
+        motivo = m.imagem ? "mandou uma foto (pode ser exame)" : "mandou um arquivo (pode ser exame)";
+        trecho = String(m.texto || m.arquivo || ""); break;
+      }
+      const t = String(m.texto || m.transcricao || "");
+      if (!t || /avalia[cç][aã]o (no|do) site|site da alinha face/i.test(t)) continue;   // mensagem pronta do quiz
+      const u = URGENTES.find((x) => x.re.test(t));
+      if (u) { motivo = u.t; trecho = t; break; }
+    }
+    if (!motivo) continue;
+    const novo = await rpc("abrir_alerta", { p_tipo: "urgente_comercial", p_chave: "urg:" + c.chat_id,
+      p_titulo: "⚡ " + (c.nome || "Paciente") + " " + motivo,
+      p_detalhe: trecho.replace(/\s+/g, " ").slice(0, 300) || null, p_chat: c.chat_id });
+    if (novo) n++;
+  }
+  return n;
+}
+
 async function vigiar(arr: any[], fora: Set<string>) {
   const res: Record<string, unknown> = {};
   const agora = Date.now();
@@ -351,6 +391,9 @@ async function vigiar(arr: any[], fora: Set<string>) {
     if (novo && retomadas < 3) { retomadas++; emSegundoPlano(biaRetoma(c.chat_id, "Bia (estava sem resposta)")); }
   }
   res.sem_resposta = semResposta; res.retomadas = retomadas;
+
+  // 4) atuação urgente do comercial (Joaquim): paciente mandou foto/arquivo ou falou de convênio, exame, valor
+  try { res.urgentes = await marcarUrgentes(arr, fora); } catch (e) { res.urgentes = "erro: " + String((e as Error).message || e).slice(0, 80); }
 
   // 3) frases da Bia: confere as mensagens da Bia de 10 a 30 min atrás (dá tempo de a agenda sincronizar)
   let conferidas = 0, frases = 0;

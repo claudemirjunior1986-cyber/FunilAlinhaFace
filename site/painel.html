@@ -1863,7 +1863,7 @@ function marcarPerdido(p, depois){
 let alertas = [];
 async function alLer(){
   try{
-    const { data, error } = await FUNIL.sb.from("funil_alertas").select("*").is("resolvido_em",null).order("criado_em",{ascending:false}).limit(60);
+    const { data, error } = await FUNIL.sb.from("funil_alertas").select("*").is("resolvido_em",null).neq("tipo","urgente_comercial").order("criado_em",{ascending:false}).limit(60);
     if(error) return;
     const antes = JSON.stringify(alertas.map(a=>a.id)); alertas = data || [];
     alTopo();
