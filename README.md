@@ -8,6 +8,9 @@ Páginas estáticas, sem build, que leem e gravam no Supabase.
 - `index.html` — entrada com e-mail e senha. Manda cada pessoa para a página do seu perfil.
 - `painel.html` — painel completo (Novos, Dr. Gustavo, Rotina do dia, Funil, Tabela, Relatórios).
   Só para perfil **admin** (Claudemir e Ana Clara).
+- `comercial.html` — ambiente do gerente comercial (Joaquim), perfil **comercial**: só os casos da
+  consulta agendada em diante, com o que falta, como ajudar, botões de WhatsApp e recado para a equipe.
+  Admin também abre (botão "Comercial" do painel). O link antigo com chave (`?k=`) vai para `relatorio-comercial.html`.
 - `medico.html` — área do cirurgião: agenda, pacientes dele e registro da consulta
   (compareceu, pediu exames, quais exames, resumo). Só para perfil **cirurgiao**.
 - `auth.js` — login, perfil e troca de senha, usados por todas as páginas.
@@ -18,7 +21,7 @@ Páginas estáticas, sem build, que leem e gravam no Supabase.
 
 Rode o arquivo inteiro no SQL Editor do Supabase. Ele cria:
 
-- `perfis` — quem acessa e com que papel (`admin` ou `cirurgiao`).
+- `perfis` — quem acessa e com que papel (`admin`, `cirurgiao` ou `comercial`).
 - `funil_pacientes` — uma linha por paciente; a ficha inteira fica em `dados` (jsonb).
   `cirurgiao_email` é preenchido sozinho a partir de `dados.cirurgiao`.
 - `funil_encaminhamentos` — encaminhamentos do painel.

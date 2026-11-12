@@ -179,3 +179,8 @@ Outros ajustes feitos na Bia:
 ## Equipe escreveu = Bia sai da conversa
 - A cada 2 min, conversas com mensagem nova: se alguém da equipe (mensagem com nome de usuário no GPT Maker) escreveu nos últimos 10 min e a conversa ainda está com a Bia, passa para atendimento humano na hora.
 - Volta para a Bia só com "Devolver para a Bia" no funil. A devolução automática fora do horário da Ana agora só vale para conversa em que ninguém da equipe escreveu nas últimas 24 h e o paciente está esperando.
+
+## Ambiente comercial com login (032)
+- Papel novo `comercial` em perfis (Joaquim). Ao entrar, vai direto para comercial.html.
+- Vê só os casos da consulta agendada em diante (agendou, faltou, atendido, exames, retorno, proposta, documentos, autorização, autorizado, cirurgia marcada/realizada, pós-op), via função `comercial_casos()` — não lê a tabela direto.
+- Cada caso mostra a situação, o que falta e como ele pode ajudar, com botões de WhatsApp (paciente, cirurgião, Ana) e recado para a equipe (`comercial_recado`, que também anota no histórico). Não altera a ficha.

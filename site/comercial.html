@@ -4,172 +4,465 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#17325C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Alinha Face">
+<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icones/favicon-32.png">
-<title>Relatório comercial · Alinha Face</title>
+<title>Comercial · Alinha Face</title>
+<script>
+  // link antigo do relatório (com chave, sem login) continua funcionando
+  if (new URLSearchParams(location.search).has("k")) location.replace("relatorio-comercial.html" + location.search);
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="base.css">
 <style>
-  .shell{max-width:1100px;margin:0 auto;padding:18px 16px 60px;display:flex;flex-direction:column;gap:16px}
-  .top{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
-  .top h1{font-family:var(--font-display);font-size:24px;margin:0}
-  .top .sub{color:var(--ink-3);font-size:13px}
-  .top .sp{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;cursor:pointer;text-align:left;font:inherit;color:inherit}
-  .kpi b{display:block;font-family:var(--font-mono);font-size:24px;color:var(--ink)}
+  .shell{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
+  .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .top .brand{margin-right:auto}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;cursor:pointer;text-align:left}
+  .kpi:hover{border-color:var(--line-strong)}
+  .kpi[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .kpi b{display:block;font-family:var(--font-display);font-size:26px;line-height:1.1}
   .kpi span{font-size:12.5px;color:var(--ink-2)}
   .kpi.al b{color:var(--crit)}
-  .grupo{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
-  .grupo>header{display:flex;align-items:baseline;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface-2);flex-wrap:wrap}
-  .grupo h2{font-size:15.5px;margin:0}
-  .grupo .n{font-family:var(--font-mono);font-size:13px;color:var(--ink-3)}
-  .grupo .dica{font-size:12.5px;color:var(--ink-3);margin-left:auto}
-  .caso{display:grid;grid-template-columns:1fr auto;gap:6px 14px;padding:12px 16px;border-top:1px solid var(--line)}
-  .caso:first-of-type{border-top:0}
+  .filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .filtros input{flex:1 1 220px}
+  .filtros select{flex:0 1 210px}
+  section.fase{margin-bottom:22px}
+  section.fase>h2{font-size:16px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+  section.fase>h2 .n{font-family:var(--font-body);font-size:12px;font-weight:600;background:var(--surface-3);color:var(--ink-2);border-radius:999px;padding:1px 8px}
+  section.fase>p{margin:0 0 10px;font-size:13px;color:var(--ink-3)}
+  .lista{display:flex;flex-direction:column;gap:8px}
+  .caso{display:grid;grid-template-columns:1fr auto;gap:4px 14px;padding:12px 14px;cursor:pointer;text-align:left;width:100%;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius)}
+  .caso:hover{border-color:var(--line-strong)}
+  .caso.al{border-left:4px solid var(--crit)}
   .caso .nm{font-weight:600;font-size:15px}
-  .caso .meta{font-size:13px;color:var(--ink-2);margin-top:2px}
-  .caso .nota{font-size:12.5px;color:var(--ink-3);margin-top:4px}
-  .dias{font-family:var(--font-mono);font-size:12.5px;padding:2px 8px;border-radius:999px;background:var(--surface-3);color:var(--ink-2);white-space:nowrap}
-  .dias.al{background:var(--crit-bg);color:var(--crit);font-weight:600}
-  .acts{display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end}
+  .caso .meta{font-size:13px;color:var(--ink-2)}
+  .caso .falta{font-size:13px;margin-top:4px}
+  .caso .falta b{color:var(--ink-3);font-weight:600}
+  .caso .dir{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+  .pill{font-size:12px;font-weight:600;border-radius:999px;padding:3px 9px;white-space:nowrap}
+  .pill.ok{background:var(--ok-bg);color:var(--ok)}
+  .pill.warn{background:var(--warn-bg);color:var(--warn)}
+  .pill.crit{background:var(--crit-bg);color:var(--crit)}
+  .pill.neu{background:var(--surface-3);color:var(--ink-2)}
+  .vazio{padding:16px;text-align:center;color:var(--ink-3);border:1px dashed var(--line-strong);border-radius:var(--radius)}
+  details.fase>summary{cursor:pointer;font-weight:600;font-size:15px;margin-bottom:10px}
+
+  .scrim{position:fixed;inset:0;background:rgba(10,18,32,.45);z-index:40}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(600px,100%);background:var(--surface);z-index:41;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+  .drawer header{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .drawer header h2{font-size:19px;margin-right:auto}
+  .drawer .body{padding:18px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:18px}
+  .bloco h3{font-size:14px;margin:0 0 8px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.04em}
+  .trilha{display:flex;gap:3px;flex-wrap:wrap}
+  .trilha span{flex:1 1 0;min-width:52px;font-size:11px;text-align:center;padding:6px 3px;border-radius:6px;background:var(--surface-2);color:var(--ink-3);line-height:1.2}
+  .trilha span.feito{background:var(--accent-soft);color:var(--ink-2)}
+  .trilha span.agora{background:var(--accent);color:var(--accent-ink);font-weight:600}
+  .ajuda{border-radius:var(--radius);padding:14px;background:var(--warn-bg)}
+  .ajuda.ok{background:var(--ok-bg)}
+  .ajuda.crit{background:var(--crit-bg)}
+  .ajuda p{margin:0 0 6px;font-size:14px}
+  .ajuda p:last-child{margin-bottom:0}
+  .ajuda .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   .acts a{text-decoration:none}
   .acts a.btn:not(.btn-primary){color:var(--ink)}
-  .vazio{padding:12px 16px;color:var(--ink-3);font-size:13.5px}
-  .aviso{padding:30px 16px;text-align:center;color:var(--ink-2)}
-  @media (max-width:640px){.caso{grid-template-columns:1fr}.acts{justify-content:flex-start}.grupo .dica{margin-left:0;width:100%}}
+  .ficha{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;font-size:14px}
+  .ficha div span{display:block;font-size:12px;color:var(--ink-3)}
+  .ficha .full{grid-column:1/-1}
+  .texto{font-size:14px;white-space:pre-wrap;background:var(--surface-2);border-radius:8px;padding:10px 12px}
+  .hist{display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+  .hist div{display:grid;grid-template-columns:78px 1fr;gap:8px}
+  .hist div b{font-family:var(--font-mono);font-size:12px;color:var(--ink-3);font-weight:500;padding-top:2px}
+  .rec{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13.5px}
+  .rec small{display:block;color:var(--ink-3);font-size:12px;margin-bottom:3px}
+  .recados{display:flex;flex-direction:column;gap:6px}
+  textarea#tRecado{min-height:80px}
+  @media (max-width:640px){.caso{grid-template-columns:1fr}.caso .dir{align-items:flex-start;flex-direction:row}.ficha{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="shell">
   <div class="top">
-    <div><h1>Relatório comercial</h1><div class="sub" id="sub">Casos com potencial de cirurgia — carregando…</div></div>
-    <div class="sp"><button class="btn btn-sm btn-primary" id="bExcel" type="button" hidden>Baixar Excel</button><button class="btn btn-sm" id="bCopiar" type="button" hidden>Copiar resumo</button><button class="btn btn-sm btn-ghost" id="bAtualizar" type="button">Atualizar</button></div>
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+        <circle cx="17" cy="17" r="16" fill="var(--accent-soft)"></circle>
+        <path d="M17 1a16 16 0 0 0 0 32Z" fill="var(--accent)"></path>
+        <path d="M5 26 L27 7" stroke="var(--gold)" stroke-width="1.6" fill="none"></path>
+      </svg>
+      <div><h1>Comercial · Alinha Face</h1><div class="sub" id="ola">Carregando…</div></div>
+    </div>
+    <button class="btn btn-sm" id="bRecados" type="button">Recados</button>
+    <button class="btn btn-sm" id="bAtualizar" type="button">Atualizar</button>
+    <button class="btn btn-sm btn-ghost" id="bSenha" type="button">Trocar senha</button>
+    <button class="btn btn-sm btn-ghost" id="bSair" type="button">Sair</button>
   </div>
+
   <div class="kpis" id="kpis"></div>
-  <div id="lista"></div>
+  <div class="filtros">
+    <input type="text" id="fBusca" placeholder="Buscar paciente, cidade, convênio…" aria-label="Buscar">
+    <select id="fCir" aria-label="Cirurgião"><option value="">Todos os cirurgiões</option></select>
+  </div>
+  <div id="lista"><div class="vazio">Carregando os casos…</div></div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="config.js"></script>
 <script src="auth.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const el = (t,c,txt)=>{const e=document.createElement(t); if(c) e.className=c; if(txt!=null) e.textContent=txt; return e;};
-const CHAVE = new URLSearchParams(location.search).get("k") || "";
-let DADOS = null;
-const toast = m => { document.querySelectorAll(".toast").forEach(t=>t.remove()); const t = el("div","toast",m); t.setAttribute("role","status"); document.body.appendChild(t); setTimeout(()=>t.remove(), 2600); };
-const brl = v => "R$ " + Math.round(v||0).toLocaleString("pt-BR");
-const dataBR = d => d ? String(d).slice(0,10).split("-").reverse().join("/") : "";
+const sb = FUNIL.sb;
+const toast = m => { document.querySelectorAll(".toast").forEach(t=>t.remove()); const t = el("div","toast",m); t.setAttribute("role","status"); document.body.appendChild(t); setTimeout(()=>t.remove(), 2800); };
 const so = n => String(n||"").replace(/\D/g,"");
+const hoje = () => new Date().toLocaleDateString("sv-SE",{timeZone:"America/Sao_Paulo"});
+const dataBR = d => d ? String(d).slice(0,10).split("-").reverse().join("/") : "";
+const brl = v => "R$ " + Math.round(v||0).toLocaleString("pt-BR");
+const diasDesde = d => (d && /^\d{4}-\d{2}-\d{2}/.test(d)) ? Math.round((Date.parse(hoje()) - Date.parse(String(d).slice(0,10)))/864e5) : null;
+const primeiro = p => String(p.nome||"").trim().split(/\s+/)[0] || "";
+const wa = (tel, txt) => { let n = so(tel); if(!n) return ""; if(n.length <= 11) n = "55" + n; return "https://wa.me/" + n + "?text=" + encodeURIComponent(txt); };
 
-async function buscar(){
-  const C = window.FUNIL_CONFIG;
-  if(CHAVE){
-    const r = await fetch(C.SUPABASE_URL + "/functions/v1/whats", { method:"POST",
-      headers:{ "Content-Type":"application/json", apikey:C.SUPABASE_ANON_KEY, Authorization:"Bearer "+C.SUPABASE_ANON_KEY },
-      body: JSON.stringify({ acao:"comercial", k:CHAVE }) });
-    const j = await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(j.erro || "não consegui abrir");
-    return j;
+const ETAPAS = {agendou:"Consulta agendada", noshow:"Faltou à consulta", compareceu:"Atendido", exames_sol:"Exames pedidos",
+  exames_ok:"Exames entregues", retorno:"Retorno feito", proposta:"Proposta enviada", docs_conv:"Documentos do convênio",
+  autorizacao:"Aguardando autorização", autorizado:"Autorizado — marcar cirurgia", cir_marcada:"Cirurgia marcada",
+  cir_feita:"Cirurgia realizada", posop:"Pós-operatório"};
+const TRILHA = [["agendou","Consulta"],["compareceu","Atendido"],["exames_sol","Exames"],["retorno","Retorno"],["proposta","Proposta"],
+  ["docs_conv","Documentos"],["autorizacao","Autorização"],["cir_marcada","Cirurgia"],["cir_feita","Realizada"]];
+const ORDEM = ["agendou","noshow","compareceu","exames_sol","exames_ok","retorno","proposta","docs_conv","autorizacao","autorizado","cir_marcada","cir_feita","posop"];
+const FASES = [
+  {k:"consulta", t:"Consulta agendada", d:"Pacientes com a primeira consulta marcada (ou que faltaram e precisam remarcar).", etapas:["agendou","noshow"]},
+  {k:"exames",   t:"Atendidos e exames", d:"Já passaram em consulta. Aqui o caso anda com os exames e o retorno com o cirurgião.", etapas:["compareceu","exames_sol","exames_ok","retorno"]},
+  {k:"proposta", t:"Proposta", d:"O paciente recebeu a proposta e precisa decidir.", etapas:["proposta"]},
+  {k:"convenio", t:"Convênio e autorização", d:"Juntando documentos, aguardando o convênio ou autorizado para marcar.", etapas:["docs_conv","autorizacao","autorizado"]},
+  {k:"cirurgia", t:"Cirurgias marcadas", d:"Garantir o material (OPME) e o hospital para a data.", etapas:["cir_marcada"]},
+  {k:"feitas",   t:"Cirurgias realizadas", d:"Já operados.", etapas:["cir_feita","posop"], fechado:true},
+];
+
+let eu = null, casos = [], contatos = [], meusRecados = [], filtroFase = "", aberto = null;
+
+/* ---------- o que falta e como ajudar, por etapa ---------- */
+function exames(p){ return [...(p.examesTipos||[]), p.examesPedidos].filter(Boolean).join(", "); }
+function situacao(p){
+  const h = hoje(), N = primeiro(p);
+  const s = { falta:"", ajuda:"", tom:"warn", alerta:false, dias:null, desde:"", msg:"" };
+  switch(p.etapa){
+    case "agendou": {
+      const passou = p.dataConsulta && p.dataConsulta < h;
+      s.desde = p.dataConsulta;
+      if(passou){
+        s.dias = diasDesde(p.dataConsulta); s.alerta = true; s.tom = "crit";
+        s.falta = `A consulta era em ${dataBR(p.dataConsulta)} e ainda não foi registrada.`;
+        s.ajuda = "Confirmar com o cirurgião se o paciente foi atendido, ou com a Ana se faltou.";
+      } else {
+        s.tom = "ok";
+        s.falta = p.dataConsulta ? `Consulta ${p.dataConsulta===h?"HOJE":"em "+dataBR(p.dataConsulta)}${p.horaConsulta?" às "+p.horaConsulta:""} (${p.modalidade||"online"}).` : "Consulta agendada, sem data no sistema.";
+        s.ajuda = "Garantir que o paciente compareça. Se quiser, mande uma mensagem de confirmação.";
+        s.msg = `Oi, ${N}! Aqui é o Joaquim, da Alinha Face. Passando para confirmar sua consulta${p.dataConsulta?" do dia "+dataBR(p.dataConsulta):""}${p.horaConsulta?" às "+p.horaConsulta:""}. Está tudo certo para você? Qualquer coisa estou à disposição.`;
+      }
+      break; }
+    case "noshow":
+      s.desde = p.dataConsulta; s.dias = diasDesde(p.dataConsulta); s.alerta = (s.dias ?? 0) >= 2; s.tom = "crit";
+      s.falta = "O paciente faltou à consulta e ainda não remarcou.";
+      s.ajuda = "Falar com o paciente e ajudar a remarcar a consulta.";
+      s.msg = `Oi, ${N}! Aqui é o Joaquim, da Alinha Face. Vi que não conseguiu participar da sua consulta. Quer que eu te ajude a remarcar num horário melhor para você?`;
+      break;
+    case "compareceu":
+      s.desde = p.dataConsulta || String(p.consultaRegistradaEm||"").slice(0,10); s.dias = diasDesde(s.desde); s.alerta = (s.dias ?? 0) >= 5;
+      s.falta = "Foi atendido, mas o próximo passo não foi registrado (exames, proposta ou indicação).";
+      s.ajuda = "Perguntar ao cirurgião qual é o próximo passo do caso.";
+      break;
+    case "exames_sol": {
+      s.desde = p.dataExames || String(p.consultaRegistradaEm||"").slice(0,10) || p.dataConsulta; s.dias = diasDesde(s.desde); s.alerta = (s.dias ?? 0) >= 10;
+      const ex = exames(p) || "exames";
+      const v = p.voucherEmitido ? ` Voucher Blume ${p.voucherStatus==="Usado"?"já usado":p.voucherStatus==="Venceu"?"VENCEU":"emitido em "+dataBR(p.voucherEmitido)+" (vale 5 dias)"}.` : "";
+      s.falta = `O paciente precisa fazer: ${ex}.${v}`;
+      s.ajuda = p.voucherStatus==="Venceu" ? "O voucher venceu: pedir à Ana um novo e ajudar o paciente a agendar o exame."
+        : "Ajudar o paciente a agendar o exame e cobrar o resultado.";
+      if(p.voucherStatus==="Venceu") s.tom = "crit", s.alerta = true;
+      s.msg = `Oi, ${N}! Aqui é o Joaquim, da Alinha Face. Conseguiu agendar ${ex.toLowerCase().includes("resson")?"a sua ressonância":"os seus exames"}? Se precisar, te ajudo a marcar. Assim que ficar pronto, me manda por aqui que eu já encaminho ao doutor.`;
+      break; }
+    case "exames_ok":
+      s.desde = p.dataExamesOk || p.examesVistoEm || String(p.atualizadoEm||"").slice(0,10); s.dias = diasDesde(s.desde); s.alerta = (s.dias ?? 0) >= 7;
+      s.falta = "Exames entregues. Falta o retorno com o cirurgião.";
+      s.ajuda = "Ajudar a marcar o retorno do paciente com o cirurgião.";
+      s.msg = `Oi, ${N}! Aqui é o Joaquim, da Alinha Face. Recebemos seus exames. Vamos marcar seu retorno com o doutor? Qual o melhor dia e horário para você?`;
+      break;
+    case "retorno":
+      s.desde = p.dataRetorno || String(p.atualizadoEm||"").slice(0,10); s.dias = diasDesde(s.desde); s.alerta = (s.dias ?? 0) >= 5;
+      s.falta = "Retorno feito. Falta a indicação de cirurgia / proposta.";
+      s.ajuda = "Ver com o cirurgião se o caso é cirúrgico e se a proposta já pode sair.";
+      break;
+    case "proposta":
+      s.desde = p.dataProposta || String(p.atualizadoEm||"").slice(0,10); s.dias = diasDesde(s.desde); s.alerta = (s.dias ?? 0) >= 7;
+      s.falta = `Proposta enviada${p.valorProposta?" ("+brl(p.valorProposta)+")":""}. Falta a decisão do paciente.`;
+      s.ajuda = p.convenio==="Sim" ? "Retomar com o paciente e explicar que o convênio cobre; tirar as dúvidas para ele seguir." : "Retomar com o paciente: condições de pagamento, dúvidas, objeções.";
+      s.msg = `Oi, ${N}! Aqui é o Joaquim, da Alinha Face. Conseguiu ver a proposta do seu tratamento? Fico à disposição para tirar qualquer dúvida e te ajudar com os próximos passos.`;
+      break;
+    case "docs_conv":
+      s.desde = p.dataEtapaCir || String(p.atualizadoEm||"").slice(0,10); s.dias = diasDesde(s.desde); s.alerta = (s.dias ?? 0) >= 5;
+      s.falta = "Juntando documentos para o convênio (carteirinha, documento com foto, exames, laudos e pedido médico).";
+      s.ajuda = "Cobrar do paciente os documentos que faltam e do cirurgião o pedido/laudo.";
+      s.msg = `Oi, ${N}! Aqui é o Joaquim, da Alinha Face. Para darmos entrada na autorização da sua cirurgia no convênio, precisamos dos seus documentos (carteirinha, documento com foto e exames). Consegue me mandar por aqui?`;
+      break;
+    case "autorizacao":
+      s.desde = p.dataGuiaEnviada || p.dataEtapaCir; s.dias = diasDesde(s.desde); s.alerta = (s.dias ?? 0) >= 15;
+      s.falta = `Pedido no convênio${s.desde?" desde "+dataBR(s.desde):""}. O prazo é de 21 dias úteis.`;
+      s.ajuda = "Acompanhar com o hospital/convênio. Se houver pendência ou segunda opinião, ajudar a resolver rápido.";
+      break;
+    case "autorizado":
+      s.desde = p.dataAutorizado || String(p.atualizadoEm||"").slice(0,10); s.dias = diasDesde(s.desde); s.alerta = (s.dias ?? 0) >= 5; s.tom = "ok";
+      s.falta = "Autorizado! Falta marcar a data da cirurgia.";
+      s.ajuda = "Ajudar a marcar a cirurgia com o cirurgião e o hospital e garantir o material (OPME).";
+      break;
+    case "cir_marcada": {
+      const d = diasDesde(p.dataCirurgia); s.tom = "ok"; s.desde = p.dataCirurgia;
+      s.falta = p.dataCirurgia ? `Cirurgia ${d===0?"HOJE":d>0?"era em "+dataBR(p.dataCirurgia)+" (falta registrar)":"em "+dataBR(p.dataCirurgia)}${p.hospital?" · "+p.hospital:""}.` : "Cirurgia marcada, sem data no sistema.";
+      if(d>0){ s.tom="crit"; s.alerta=true; }
+      s.ajuda = p.empresaOpme && p.empresaOpme!=="Outra empresa" ? `Garantir o material com a ${p.empresaOpme} para a data.` : "Definir qual empresa fornece o material (Rimedualc, Moch ou Vertrauen) e garantir para a data.";
+      if(!p.empresaOpme && d!=null && d<=0 && d>=-7){ s.alerta = true; }
+      break; }
+    case "cir_feita": case "posop":
+      s.tom = "ok"; s.desde = p.dataCirurgiaRealizada || p.dataCirurgia;
+      s.falta = `Cirurgia realizada${s.desde?" em "+dataBR(s.desde):""}.`;
+      s.ajuda = "Conferir faturamento do material e acompanhar o pós-operatório.";
+      break;
   }
-  await FUNIL.exigir(["admin"]);
-  const { data, error } = await FUNIL.sb.functions.invoke("whats", { body:{ acao:"comercial" } });
-  if(error) throw error;
-  return data;
+  return s;
 }
 
-function linkAna(c, g){
-  if(!DADOS.anaWhats) return "";
-  const t = `Ana, tudo bem? Sobre ${c.nome} (${c.cirurgiao}): está em "${g.titulo.split(" — ")[0]}"`
-    + (c.dias!=null && g.k!=="marcadas" ? ` há ${c.dias} dia${c.dias===1?"":"s"}` : "") + `. ${g.dica ? g.dica+". " : ""}Pode dar andamento e me contar como está?`;
-  return "https://wa.me/" + so(DADOS.anaWhats) + "?text=" + encodeURIComponent(t);
+/* ---------- carregar ---------- */
+async function carregar(){
+  const [rc, rk, rr] = await Promise.all([
+    sb.rpc("comercial_casos"),
+    sb.rpc("comercial_contatos"),
+    sb.from("funil_recados").select("*").order("criado_em",{ascending:false}).limit(300),
+  ]);
+  if(rc.error){ $("#lista").textContent=""; $("#lista").appendChild(el("div","vazio","Não consegui carregar os casos. Recarregue a página.")); return; }
+  casos = (rc.data||[]).map(r => Object.assign({}, r.dados, { id:r.id, _cir:r.cirurgiao_nome||"Sem cirurgião", _cirWhats:r.cirurgiao_whats||"" }))
+    .map(p => Object.assign(p, { _s: situacao(p) }));
+  contatos = rk.data || [];
+  meusRecados = rr.data || [];
+  const sel = $("#fCir"), atual = sel.value;
+  sel.length = 1;
+  [...new Set(casos.map(p=>p._cir))].sort().forEach(n=>{ const o = el("option",null,n); o.value = n; sel.appendChild(o); });
+  sel.value = atual;
+  badgeRecados();
+  render();
+  if(aberto==="__recados") return abrirRecados();
+  if(aberto){ const p = casos.find(x=>x.id===aberto); if(p) abrir(p.id); else fechar(); }
 }
-function linkCir(c, g){
-  if(!c.cirurgiaoWhats) return "";
-  const t = `${c.cirurgiao}, tudo bem? Aqui é o Joaquim, da Alinha Face. Sobre o paciente ${c.nome}`
-    + (c.convenio ? ` (${c.convenio})` : "") + `: o caso está em "${g.titulo.split(" — ")[0]}"`
-    + (c.dias!=null && g.k!=="marcadas" ? ` há ${c.dias} dia${c.dias===1?"":"s"}` : "") + `. Consegue me dizer qual o próximo passo?`;
-  return "https://wa.me/" + so(c.cirurgiaoWhats) + "?text=" + encodeURIComponent(t);
+
+function visiveis(){
+  const q = $("#fBusca").value.trim().toLowerCase(), cir = $("#fCir").value;
+  return casos.filter(p => (!cir || p._cir===cir) &&
+    (!q || [p.nome,p.cidade,p.nomeConvenio,p.telefone,p.hospital,p._cir].join(" ").toLowerCase().includes(q)));
 }
 
 function render(){
-  const k = $("#kpis"), l = $("#lista"); k.textContent = ""; l.textContent = "";
-  const total = DADOS.grupos.reduce((a,g)=>a+g.casos.length,0);
-  const pot = DADOS.grupos.filter(g=>g.k!=="marcadas").flatMap(g=>g.casos).reduce((a,c)=>a+(c.valor||0),0);
-  $("#sub").textContent = `${total} caso${total===1?"":"s"} em andamento` + (pot ? ` · potencial ${brl(pot)} em proposta/OPME` : "")
-    + ` · atualizado ${new Date(DADOS.gerado).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`;
-  for(const g of DADOS.grupos){
-    const atras = g.casos.filter(c=>c.alerta).length;
-    const b = el("button","kpi"+(atras?" al":"")); b.type="button";
-    b.append(el("b",null,String(g.casos.length)), el("span",null,g.titulo.split(" — ")[0] + (atras ? ` · ⚠ ${atras} parado${atras>1?"s":""}` : "")));
-    b.addEventListener("click",()=>document.getElementById("g-"+g.k)?.scrollIntoView({behavior:"smooth",block:"start"}));
-    k.appendChild(b);
+  const v = visiveis();
+  const precisa = v.filter(p=>p._s.alerta);
+  const k = $("#kpis"); k.textContent = "";
+  const kpi = (id, n, rot, al) => { const b = el("button","kpi"+(al&&n?" al":"")); b.type="button"; b.setAttribute("aria-pressed", filtroFase===id);
+    b.append(el("b",null,String(n)), el("span",null,rot));
+    b.addEventListener("click",()=>{ filtroFase = filtroFase===id ? "" : id; render(); }); k.appendChild(b); };
+  kpi("ajuda", precisa.length, "Precisam de ajuda agora", true);
+  for(const f of FASES.filter(f=>!f.fechado)) kpi(f.k, v.filter(p=>f.etapas.includes(p.etapa)).length, f.t);
 
-    const sec = el("section","grupo"); sec.id = "g-"+g.k;
-    const h = el("header"); h.append(el("h2",null,g.titulo), el("span","n",String(g.casos.length)));
-    if(g.dica) h.appendChild(el("span","dica","Próximo passo: "+g.dica));
-    sec.appendChild(h);
-    if(!g.casos.length) sec.appendChild(el("div","vazio","Nenhum caso aqui agora."));
-    for(const c of g.casos){
-      const row = el("div","caso"); const esq = el("div");
-      const t1 = el("div"); t1.append(el("span","nm",c.nome), document.createTextNode(" "));
-      if(g.k==="marcadas"){ if(c.dataCirurgia) t1.appendChild(el("span","dias", "cirurgia "+dataBR(c.dataCirurgia))); }
-      else if(c.dias!=null) t1.appendChild(el("span","dias"+(c.alerta?" al":""), `parado há ${c.dias} dia${c.dias===1?"":"s"}`));
-      esq.appendChild(t1);
-      esq.appendChild(el("div","meta",[c.cirurgiao, c.convenio, c.cidade, c.hospital, c.valor ? brl(c.valor) : ""].filter(Boolean).join(" · ")));
-      if(c.ultima) esq.appendChild(el("div","nota","Última anotação: "+c.ultima));
-      if(c.proxima) esq.appendChild(el("div","nota","Próxima ação: "+c.proxima));
-      row.appendChild(esq);
-      const ac = el("div","acts");
-      const la = linkAna(c,g), lc = linkCir(c,g);
-      if(la){ const a = el("a","btn btn-sm","Cobrar a Ana"); a.href=la; a.target="_blank"; a.rel="noopener"; ac.appendChild(a); }
-      if(lc){ const a = el("a","btn btn-sm btn-primary","Sinalizar o cirurgião"); a.href=lc; a.target="_blank"; a.rel="noopener"; ac.appendChild(a); }
-      row.appendChild(ac);
-      sec.appendChild(row);
-    }
+  const nome = (eu && eu.nome) || "";
+  $("#ola").textContent = `${nome ? "Olá, "+nome+" · " : ""}${v.length} caso${v.length===1?"":"s"} da consulta agendada em diante`;
+
+  const l = $("#lista"); l.textContent = "";
+  if(filtroFase==="ajuda"){
+    const sec = el("section","fase");
+    const h = el("h2",null,"Precisam de ajuda agora"); h.appendChild(el("span","n",String(precisa.length))); sec.appendChild(h);
+    sec.appendChild(el("p",null,"Casos parados ou com algo vencido. Os mais antigos primeiro."));
+    lista(sec, precisa.sort((a,b)=>(b._s.dias??0)-(a._s.dias??0)));
+    l.appendChild(sec); return;
+  }
+  for(const f of FASES){
+    if(filtroFase && filtroFase!==f.k) continue;
+    const doFase = v.filter(p=>f.etapas.includes(p.etapa))
+      .sort((a,b)=> f.k==="consulta" || f.k==="cirurgia" ? String(a._s.desde||"9").localeCompare(String(b._s.desde||"9")) : (b._s.dias??-1)-(a._s.dias??-1));
+    const sec = f.fechado && !filtroFase ? el("details","fase") : el("section","fase");
+    if(sec.tagName==="DETAILS"){ sec.appendChild(el("summary",null,`${f.t} (${doFase.length})`)); }
+    else { const h = el("h2",null,f.t); h.appendChild(el("span","n",String(doFase.length))); sec.appendChild(h); sec.appendChild(el("p",null,f.d)); }
+    lista(sec, doFase);
     l.appendChild(sec);
   }
-  $("#bCopiar").hidden = false; $("#bExcel").hidden = false;
 }
 
-function textoResumo(){
-  const out = ["📊 Relatório comercial — Alinha Face",""];
-  for(const g of DADOS.grupos){ if(!g.casos.length) continue;
-    out.push(`${g.titulo}: ${g.casos.length}`);
-    g.casos.forEach(c=>out.push(`• ${c.nome} — ${c.cirurgiao}` + (g.k==="marcadas" ? (c.dataCirurgia?` · ${dataBR(c.dataCirurgia)}`:"") : (c.dias!=null?` · ${c.dias} dia(s)`:""))));
-    out.push(""); }
-  return out.join("\n");
-}
-
-const STATUS = { exames:"Pediu exame — aguardando o paciente", prontos:"Exames prontos — aguardando retorno", atendidos:"Atendido — sem próximo passo",
-  proposta:"Proposta enviada — aguardando decisão", convenio:"Aguardando autorização do convênio", marcadas:"Aguardando cirurgia" };
-function baixarExcel(){
-  if(!window.XLSX){ toast("Não consegui gerar o Excel. Recarregue a página."); return; }
-  const linhas = [["Nome","Cirurgião","Cidade","Status","Parado há (dias)","Convênio","Data da cirurgia"]];
-  for(const g of DADOS.grupos) for(const c of g.casos){
-    linhas.push([c.nome, c.cirurgiao, c.cidade || "", STATUS[g.k] || g.titulo,
-      g.k==="marcadas" ? "" : (c.dias ?? ""), c.convenio || "", c.dataCirurgia ? dataBR(c.dataCirurgia) : ""]);
+function lista(sec, arr){
+  const box = el("div","lista");
+  if(!arr.length) box.appendChild(el("div","vazio","Nenhum caso aqui agora."));
+  for(const p of arr){
+    const s = p._s;
+    const b = el("button","caso"+(s.alerta?" al":"")); b.type = "button";
+    const esq = el("div");
+    esq.appendChild(el("div","nm",p.nome||"Sem nome"));
+    const conv = p.convenio==="Sim" ? (p.nomeConvenio||"Convênio") : p.convenio==="Não" ? "Particular" : "";
+    esq.appendChild(el("div","meta",[p._cir, p.tratamento && p.tratamento!=="A definir" ? p.tratamento : "", conv, p.cidade].filter(Boolean).join(" · ")));
+    const f = el("div","falta"); f.append(el("b",null,"Como ajudar: "), document.createTextNode(s.ajuda)); esq.appendChild(f);
+    const dir = el("div","dir");
+    dir.appendChild(el("span","pill "+(s.tom==="crit"?"crit":s.tom==="ok"?"ok":"neu"), ETAPAS[p.etapa]||p.etapa));
+    if(s.dias!=null && s.dias>0 && !["cir_feita","posop"].includes(p.etapa)) dir.appendChild(el("span","pill "+(s.alerta?"crit":"neu"), `parado há ${s.dias} dia${s.dias===1?"":"s"}`));
+    b.append(esq, dir);
+    b.addEventListener("click",()=>abrir(p.id));
+    box.appendChild(b);
   }
-  const ws = XLSX.utils.aoa_to_sheet(linhas);
-  ws["!cols"] = [{wch:32},{wch:18},{wch:26},{wch:40},{wch:16},{wch:18},{wch:16}];
-  ws["!autofilter"] = { ref: "A1:G" + linhas.length };
-  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Casos");
-  const hoje = new Date(); const d = String(hoje.getDate()).padStart(2,"0")+"-"+String(hoje.getMonth()+1).padStart(2,"0")+"-"+hoje.getFullYear();
-  XLSX.writeFile(wb, "Relatorio comercial Alinha Face " + d + ".xlsx");
-  toast("Excel baixado.");
+  sec.appendChild(box);
 }
 
-async function carregar(){
-  try{ DADOS = await buscar(); render(); }
-  catch(e){ $("#lista").textContent=""; $("#kpis").textContent=""; $("#lista").appendChild(el("div","aviso", CHAVE ? "Este link não está mais válido. Peça um novo ao Claudemir." : "Não consegui carregar o relatório. Recarregue a página.")); $("#sub").textContent=""; }
+/* ---------- ficha do caso ---------- */
+function fechar(){ aberto = null; document.querySelectorAll(".scrim,.drawer").forEach(x=>x.remove()); }
+function abrir(id){
+  const p = casos.find(x=>x.id===id); if(!p) return;
+  fechar(); aberto = id;
+  const s = p._s;
+  const scrim = el("div","scrim"); scrim.addEventListener("click",fechar);
+  const dw = el("aside","drawer"); dw.setAttribute("role","dialog"); dw.setAttribute("aria-label","Caso de "+(p.nome||""));
+  const hd = el("header"); hd.appendChild(el("h2",null,p.nome||"Sem nome"));
+  const bx = el("button","btn btn-sm btn-ghost","Fechar"); bx.addEventListener("click",fechar); hd.appendChild(bx);
+  const body = el("div","body");
+
+  // trilha
+  const tr = el("div","trilha");
+  const pos = ORDEM.indexOf(p.etapa);
+  TRILHA.forEach(([k,rot],i)=>{
+    const ki = ORDEM.indexOf(k), prox = TRILHA[i+1] ? ORDEM.indexOf(TRILHA[i+1][0]) : 99;
+    const c = pos>=ki && pos<prox ? "agora" : pos>=prox ? "feito" : "";
+    tr.appendChild(el("span",c,rot));
+  });
+  body.appendChild(tr);
+
+  // situação e ajuda
+  const aj = el("div","ajuda "+(s.tom==="crit"?"crit":s.tom==="ok"?"ok":""));
+  const p1 = el("p"); p1.append(el("strong",null,"Situação: "), document.createTextNode(s.falta)); aj.appendChild(p1);
+  const p2 = el("p"); p2.append(el("strong",null,"Como você pode ajudar: "), document.createTextNode(s.ajuda)); aj.appendChild(p2);
+  if(p.proximaAcao){ const p3 = el("p"); p3.append(el("strong",null,"Próxima ação marcada pela equipe: "), document.createTextNode(p.proximaAcao + (p.dataProximaAcao?" ("+dataBR(p.dataProximaAcao)+")":""))); aj.appendChild(p3); }
+  const acts = el("div","acts");
+  const link = (txt, href, prim) => { if(!href) return; const a = el("a","btn btn-sm"+(prim?" btn-primary":""),txt); a.href=href; a.target="_blank"; a.rel="noopener"; acts.appendChild(a); };
+  link("WhatsApp do paciente", wa(p.telefone, s.msg || `Oi, ${primeiro(p)}! Aqui é o Joaquim, da Alinha Face. Tudo bem?`), true);
+  link("Falar com o cirurgião", wa(p._cirWhats, `${p._cir}, tudo bem? Aqui é o Joaquim, da Alinha Face. Sobre o paciente ${p.nome}${p.convenio==="Sim"&&p.nomeConvenio?" ("+p.nomeConvenio+")":""}: está em "${ETAPAS[p.etapa]}". ${s.ajuda} Consegue me dizer como está?`));
+  const ana = contatos.find(c=>/ana/i.test(c.nome) && c.whatsapp) || contatos.find(c=>c.whatsapp);
+  if(ana) link("Falar com a "+ana.nome.split(" ")[0], wa(ana.whatsapp, `${ana.nome.split(" ")[0]}, tudo bem? Sobre ${p.nome} (${p._cir}): está em "${ETAPAS[p.etapa]}"${s.dias?` há ${s.dias} dia${s.dias===1?"":"s"}`:""}. ${s.falta} Pode me contar como está?`));
+  aj.appendChild(acts);
+  body.appendChild(aj);
+
+  // ficha
+  const fb = el("div","bloco"); fb.appendChild(el("h3",null,"Dados do caso"));
+  const fi = el("div","ficha");
+  const campo = (rot, val, full) => { if(val==null || val==="" ) return; const d = el("div",full?"full":null); d.append(el("span",null,rot), document.createTextNode(val)); fi.appendChild(d); };
+  campo("Cirurgião", p._cir);
+  campo("Telefone", p.telefone);
+  campo("Cidade", p.cidade);
+  campo("Convênio", p.convenio==="Sim" ? (p.nomeConvenio||"Sim") : p.convenio==="Não" ? "Particular" : p.convenio);
+  campo("Tratamento", p.tratamento && p.tratamento!=="A definir" ? p.tratamento : "");
+  campo("Origem", p.origem);
+  campo("Consulta", p.dataConsulta ? dataBR(p.dataConsulta)+(p.horaConsulta?" às "+p.horaConsulta:"")+" · "+(p.modalidade||"Online")+(p.local&&p.local!=="Online"?" · "+p.local:"") : "", true);
+  campo("Exames pedidos", exames(p), true);
+  campo("Voucher Blume", p.voucherEmitido ? `Emitido em ${dataBR(p.voucherEmitido)} · ${p.voucherStatus||""}` : "");
+  campo("Proposta", p.valorProposta ? brl(p.valorProposta)+(p.dataProposta?" · "+dataBR(p.dataProposta):"") : "");
+  campo("Pagamento", p.pagamento && p.pagamento!=="A definir" ? p.pagamento : "");
+  campo("Material (OPME)", p.empresaOpme ? (p.empresaOpme==="Outra empresa" ? "Outra empresa"+(p.empresaOutraNome?" ("+p.empresaOutraNome+")":"") : p.empresaOpme) : "");
+  campo("Valor OPME", p.opme ? brl(p.opme) : "");
+  campo("Hospital", p.hospital);
+  campo("Data da cirurgia", p.dataCirurgia ? dataBR(p.dataCirurgia) : "");
+  fb.appendChild(fi); body.appendChild(fb);
+
+  const resumo = p.resumoConsulta || p.resumoCaso;
+  if(resumo){ const rb = el("div","bloco"); rb.appendChild(el("h3",null,"Resumo do cirurgião")); rb.appendChild(el("div","texto",resumo)); body.appendChild(rb); }
+  if(p.observacoes){ const ob = el("div","bloco"); ob.appendChild(el("h3",null,"Observações da equipe")); ob.appendChild(el("div","texto",p.observacoes)); body.appendChild(ob); }
+
+  // recado
+  const rb = el("div","bloco"); rb.appendChild(el("h3",null,"Recado para a equipe"));
+  const ta = el("textarea"); ta.id = "tRecado"; ta.placeholder = "Ex.: Falei com o paciente, ele faz a ressonância na sexta. / Paciente pediu para remarcar o retorno.";
+  const bEnv = el("button","btn btn-sm btn-primary","Enviar recado"); bEnv.type = "button";
+  bEnv.addEventListener("click", async ()=>{
+    const t = ta.value.trim(); if(!t){ ta.focus(); return; }
+    bEnv.disabled = true; bEnv.textContent = "Enviando…";
+    const { error } = await sb.rpc("comercial_recado", { p_paciente_id: p.id, p_texto: t });
+    bEnv.disabled = false; bEnv.textContent = "Enviar recado";
+    if(error){ toast(eu && eu.papel==="admin" ? "Recado é só para o perfil comercial." : "Não consegui enviar. Tente de novo."); return; }
+    ta.value = ""; toast("Recado enviado para a equipe e anotado no histórico."); carregar();
+  });
+  const wrap = el("div"); wrap.style.cssText = "display:flex;flex-direction:column;gap:8px;align-items:flex-end"; wrap.append(ta, bEnv);
+  rb.appendChild(wrap);
+  const ids = new Set(meusRecados.filter(r=>r.paciente_id===p.id).map(r=>r.id));
+  const rs = meusRecados.filter(r=>r.paciente_id===p.id || ids.has(r.responde_a));
+  if(rs.length){
+    const box = el("div","recados"); box.style.marginTop = "10px";
+    rs.forEach(r=>{ const c = el("div","rec"); const quem = r.de===String(eu.email).toLowerCase() ? "Você → "+(r.para_nome||r.para) : (r.de_nome||r.de)+" → você";
+      c.append(el("small",null, quem+" · "+new Date(r.criado_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})+(r.feito_em?" · ✔ respondido":"")), document.createTextNode(r.texto)); box.appendChild(c); });
+    rb.appendChild(box);
+  }
+  body.appendChild(rb);
+
+  // histórico
+  const hist = (Array.isArray(p.historico)?p.historico:[]).slice().reverse();
+  if(hist.length){
+    const hb = el("div","bloco"); hb.appendChild(el("h3",null,"Histórico"));
+    const hl = el("div","hist");
+    hist.slice(0,40).forEach(x=>{ const d = el("div"); d.append(el("b",null,dataBR(x.data)), el("span",null,x.texto||"")); hl.appendChild(d); });
+    hb.appendChild(hl); body.appendChild(hb);
+  }
+
+  dw.append(hd, body);
+  document.body.append(scrim, dw);
+  bx.focus();
 }
-$("#bAtualizar").addEventListener("click", carregar);
-$("#bExcel").addEventListener("click", baixarExcel);
-$("#bCopiar").addEventListener("click", ()=>{ const t = textoResumo(); try{ navigator.clipboard.writeText(t).then(()=>toast("Resumo copiado.")); }catch(e){ toast("Não deu para copiar."); } });
-carregar();
+
+/* ---------- recados (respostas da equipe) ---------- */
+const meuEmail = () => String((eu&&eu.email)||"").toLowerCase();
+function badgeRecados(){
+  const n = meusRecados.filter(r=>r.para===meuEmail() && !r.lido_em).length;
+  const b = $("#bRecados"); b.textContent = n ? `Recados · ${n} novo${n>1?"s":""}` : "Recados";
+  b.classList.toggle("btn-primary", n>0);
+}
+function abrirRecados(){
+  fechar(); aberto = "__recados";
+  const scrim = el("div","scrim"); scrim.addEventListener("click",fechar);
+  const dw = el("aside","drawer"); dw.setAttribute("role","dialog"); dw.setAttribute("aria-label","Recados");
+  const hd = el("header"); hd.appendChild(el("h2",null,"Recados"));
+  const bx = el("button","btn btn-sm btn-ghost","Fechar"); bx.addEventListener("click",fechar); hd.appendChild(bx);
+  const body = el("div","body");
+  if(!meusRecados.length) body.appendChild(el("div","vazio","Nenhum recado ainda. Os recados que você manda pela ficha de um paciente, e as respostas da equipe, aparecem aqui."));
+  const box = el("div","recados");
+  meusRecados.forEach(r=>{
+    const c = el("div","rec"); if(r.para===meuEmail() && !r.lido_em) c.style.borderColor = "var(--accent)";
+    const quem = r.de===meuEmail() ? "Você → "+(r.para_nome||r.para) : (r.de_nome||r.de)+" → você";
+    c.appendChild(el("small",null, quem+" · "+new Date(r.criado_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})+(r.paciente_nome?" · 👤 "+r.paciente_nome:"")));
+    c.appendChild(document.createTextNode(r.texto));
+    const pac = r.paciente_id && casos.find(x=>x.id===r.paciente_id);
+    if(pac){ const b = el("button","btn btn-sm btn-ghost","Abrir o caso"); b.style.marginTop="4px"; b.addEventListener("click",()=>abrir(pac.id)); c.appendChild(el("div")).appendChild(b); }
+    box.appendChild(c);
+  });
+  body.appendChild(box);
+  dw.append(hd, body); document.body.append(scrim, dw); bx.focus();
+  const ids = meusRecados.filter(r=>r.para===meuEmail() && !r.lido_em).map(r=>r.id);
+  if(ids.length){ const agora = new Date().toISOString();
+    sb.from("funil_recados").update({ lido_em: agora }).in("id", ids).then(()=>{ meusRecados.forEach(r=>{ if(ids.includes(r.id)) r.lido_em = agora; }); badgeRecados(); }); }
+}
+$("#bRecados").addEventListener("click", abrirRecados);
+
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") fechar(); });
+$("#fBusca").addEventListener("input", render);
+$("#fCir").addEventListener("change", render);
+$("#bAtualizar").addEventListener("click", ()=>{ carregar(); toast("Atualizado."); });
+$("#bSenha").addEventListener("click", ()=>FUNIL.trocarSenha());
+$("#bSair").addEventListener("click", ()=>FUNIL.sair());
+
+(async ()=>{
+  eu = await FUNIL.exigir(["comercial","admin"]);
+  await carregar();
+  setInterval(carregar, 5*60*1000);
+})();
 </script>
+<script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </body>
 </html>

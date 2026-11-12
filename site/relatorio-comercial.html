@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#17325C">
+<link rel="icon" type="image/png" sizes="32x32" href="icones/favicon-32.png">
+<title>Relatório comercial (link) · Alinha Face</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="base.css">
+<style>
+  .shell{max-width:1100px;margin:0 auto;padding:18px 16px 60px;display:flex;flex-direction:column;gap:16px}
+  .top{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+  .top h1{font-family:var(--font-display);font-size:24px;margin:0}
+  .top .sub{color:var(--ink-3);font-size:13px}
+  .top .sp{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+  .kpi b{display:block;font-family:var(--font-mono);font-size:24px;color:var(--ink)}
+  .kpi span{font-size:12.5px;color:var(--ink-2)}
+  .kpi.al b{color:var(--crit)}
+  .grupo{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .grupo>header{display:flex;align-items:baseline;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface-2);flex-wrap:wrap}
+  .grupo h2{font-size:15.5px;margin:0}
+  .grupo .n{font-family:var(--font-mono);font-size:13px;color:var(--ink-3)}
+  .grupo .dica{font-size:12.5px;color:var(--ink-3);margin-left:auto}
+  .caso{display:grid;grid-template-columns:1fr auto;gap:6px 14px;padding:12px 16px;border-top:1px solid var(--line)}
+  .caso:first-of-type{border-top:0}
+  .caso .nm{font-weight:600;font-size:15px}
+  .caso .meta{font-size:13px;color:var(--ink-2);margin-top:2px}
+  .caso .nota{font-size:12.5px;color:var(--ink-3);margin-top:4px}
+  .dias{font-family:var(--font-mono);font-size:12.5px;padding:2px 8px;border-radius:999px;background:var(--surface-3);color:var(--ink-2);white-space:nowrap}
+  .dias.al{background:var(--crit-bg);color:var(--crit);font-weight:600}
+  .acts{display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end}
+  .acts a{text-decoration:none}
+  .acts a.btn:not(.btn-primary){color:var(--ink)}
+  .vazio{padding:12px 16px;color:var(--ink-3);font-size:13.5px}
+  .aviso{padding:30px 16px;text-align:center;color:var(--ink-2)}
+  @media (max-width:640px){.caso{grid-template-columns:1fr}.acts{justify-content:flex-start}.grupo .dica{margin-left:0;width:100%}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top">
+    <div><h1>Relatório comercial</h1><div class="sub" id="sub">Casos com potencial de cirurgia — carregando…</div></div>
+    <div class="sp"><button class="btn btn-sm btn-primary" id="bExcel" type="button" hidden>Baixar Excel</button><button class="btn btn-sm" id="bCopiar" type="button" hidden>Copiar resumo</button><button class="btn btn-sm btn-ghost" id="bAtualizar" type="button">Atualizar</button></div>
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <div id="lista"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const el = (t,c,txt)=>{const e=document.createElement(t); if(c) e.className=c; if(txt!=null) e.textContent=txt; return e;};
+const CHAVE = new URLSearchParams(location.search).get("k") || "";
+let DADOS = null;
+const toast = m => { document.querySelectorAll(".toast").forEach(t=>t.remove()); const t = el("div","toast",m); t.setAttribute("role","status"); document.body.appendChild(t); setTimeout(()=>t.remove(), 2600); };
+const brl = v => "R$ " + Math.round(v||0).toLocaleString("pt-BR");
+const dataBR = d => d ? String(d).slice(0,10).split("-").reverse().join("/") : "";
+const so = n => String(n||"").replace(/\D/g,"");
+
+async function buscar(){
+  const C = window.FUNIL_CONFIG;
+  if(CHAVE){
+    const r = await fetch(C.SUPABASE_URL + "/functions/v1/whats", { method:"POST",
+      headers:{ "Content-Type":"application/json", apikey:C.SUPABASE_ANON_KEY, Authorization:"Bearer "+C.SUPABASE_ANON_KEY },
+      body: JSON.stringify({ acao:"comercial", k:CHAVE }) });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.erro || "não consegui abrir");
+    return j;
+  }
+  await FUNIL.exigir(["admin"]);
+  const { data, error } = await FUNIL.sb.functions.invoke("whats", { body:{ acao:"comercial" } });
+  if(error) throw error;
+  return data;
+}
+
+function linkAna(c, g){
+  if(!DADOS.anaWhats) return "";
+  const t = `Ana, tudo bem? Sobre ${c.nome} (${c.cirurgiao}): está em "${g.titulo.split(" — ")[0]}"`
+    + (c.dias!=null && g.k!=="marcadas" ? ` há ${c.dias} dia${c.dias===1?"":"s"}` : "") + `. ${g.dica ? g.dica+". " : ""}Pode dar andamento e me contar como está?`;
+  return "https://wa.me/" + so(DADOS.anaWhats) + "?text=" + encodeURIComponent(t);
+}
+function linkCir(c, g){
+  if(!c.cirurgiaoWhats) return "";
+  const t = `${c.cirurgiao}, tudo bem? Aqui é o Joaquim, da Alinha Face. Sobre o paciente ${c.nome}`
+    + (c.convenio ? ` (${c.convenio})` : "") + `: o caso está em "${g.titulo.split(" — ")[0]}"`
+    + (c.dias!=null && g.k!=="marcadas" ? ` há ${c.dias} dia${c.dias===1?"":"s"}` : "") + `. Consegue me dizer qual o próximo passo?`;
+  return "https://wa.me/" + so(c.cirurgiaoWhats) + "?text=" + encodeURIComponent(t);
+}
+
+function render(){
+  const k = $("#kpis"), l = $("#lista"); k.textContent = ""; l.textContent = "";
+  const total = DADOS.grupos.reduce((a,g)=>a+g.casos.length,0);
+  const pot = DADOS.grupos.filter(g=>g.k!=="marcadas").flatMap(g=>g.casos).reduce((a,c)=>a+(c.valor||0),0);
+  $("#sub").textContent = `${total} caso${total===1?"":"s"} em andamento` + (pot ? ` · potencial ${brl(pot)} em proposta/OPME` : "")
+    + ` · atualizado ${new Date(DADOS.gerado).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`;
+  for(const g of DADOS.grupos){
+    const atras = g.casos.filter(c=>c.alerta).length;
+    const b = el("button","kpi"+(atras?" al":"")); b.type="button";
+    b.append(el("b",null,String(g.casos.length)), el("span",null,g.titulo.split(" — ")[0] + (atras ? ` · ⚠ ${atras} parado${atras>1?"s":""}` : "")));
+    b.addEventListener("click",()=>document.getElementById("g-"+g.k)?.scrollIntoView({behavior:"smooth",block:"start"}));
+    k.appendChild(b);
+
+    const sec = el("section","grupo"); sec.id = "g-"+g.k;
+    const h = el("header"); h.append(el("h2",null,g.titulo), el("span","n",String(g.casos.length)));
+    if(g.dica) h.appendChild(el("span","dica","Próximo passo: "+g.dica));
+    sec.appendChild(h);
+    if(!g.casos.length) sec.appendChild(el("div","vazio","Nenhum caso aqui agora."));
+    for(const c of g.casos){
+      const row = el("div","caso"); const esq = el("div");
+      const t1 = el("div"); t1.append(el("span","nm",c.nome), document.createTextNode(" "));
+      if(g.k==="marcadas"){ if(c.dataCirurgia) t1.appendChild(el("span","dias", "cirurgia "+dataBR(c.dataCirurgia))); }
+      else if(c.dias!=null) t1.appendChild(el("span","dias"+(c.alerta?" al":""), `parado há ${c.dias} dia${c.dias===1?"":"s"}`));
+      esq.appendChild(t1);
+      esq.appendChild(el("div","meta",[c.cirurgiao, c.convenio, c.cidade, c.hospital, c.valor ? brl(c.valor) : ""].filter(Boolean).join(" · ")));
+      if(c.ultima) esq.appendChild(el("div","nota","Última anotação: "+c.ultima));
+      if(c.proxima) esq.appendChild(el("div","nota","Próxima ação: "+c.proxima));
+      row.appendChild(esq);
+      const ac = el("div","acts");
+      const la = linkAna(c,g), lc = linkCir(c,g);
+      if(la){ const a = el("a","btn btn-sm","Cobrar a Ana"); a.href=la; a.target="_blank"; a.rel="noopener"; ac.appendChild(a); }
+      if(lc){ const a = el("a","btn btn-sm btn-primary","Sinalizar o cirurgião"); a.href=lc; a.target="_blank"; a.rel="noopener"; ac.appendChild(a); }
+      row.appendChild(ac);
+      sec.appendChild(row);
+    }
+    l.appendChild(sec);
+  }
+  $("#bCopiar").hidden = false; $("#bExcel").hidden = false;
+}
+
+function textoResumo(){
+  const out = ["📊 Relatório comercial — Alinha Face",""];
+  for(const g of DADOS.grupos){ if(!g.casos.length) continue;
+    out.push(`${g.titulo}: ${g.casos.length}`);
+    g.casos.forEach(c=>out.push(`• ${c.nome} — ${c.cirurgiao}` + (g.k==="marcadas" ? (c.dataCirurgia?` · ${dataBR(c.dataCirurgia)}`:"") : (c.dias!=null?` · ${c.dias} dia(s)`:""))));
+    out.push(""); }
+  return out.join("\n");
+}
+
+const STATUS = { exames:"Pediu exame — aguardando o paciente", prontos:"Exames prontos — aguardando retorno", atendidos:"Atendido — sem próximo passo",
+  proposta:"Proposta enviada — aguardando decisão", convenio:"Aguardando autorização do convênio", marcadas:"Aguardando cirurgia" };
+function baixarExcel(){
+  if(!window.XLSX){ toast("Não consegui gerar o Excel. Recarregue a página."); return; }
+  const linhas = [["Nome","Cirurgião","Cidade","Status","Parado há (dias)","Convênio","Data da cirurgia"]];
+  for(const g of DADOS.grupos) for(const c of g.casos){
+    linhas.push([c.nome, c.cirurgiao, c.cidade || "", STATUS[g.k] || g.titulo,
+      g.k==="marcadas" ? "" : (c.dias ?? ""), c.convenio || "", c.dataCirurgia ? dataBR(c.dataCirurgia) : ""]);
+  }
+  const ws = XLSX.utils.aoa_to_sheet(linhas);
+  ws["!cols"] = [{wch:32},{wch:18},{wch:26},{wch:40},{wch:16},{wch:18},{wch:16}];
+  ws["!autofilter"] = { ref: "A1:G" + linhas.length };
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Casos");
+  const hoje = new Date(); const d = String(hoje.getDate()).padStart(2,"0")+"-"+String(hoje.getMonth()+1).padStart(2,"0")+"-"+hoje.getFullYear();
+  XLSX.writeFile(wb, "Relatorio comercial Alinha Face " + d + ".xlsx");
+  toast("Excel baixado.");
+}
+
+async function carregar(){
+  try{ DADOS = await buscar(); render(); }
+  catch(e){ $("#lista").textContent=""; $("#kpis").textContent=""; $("#lista").appendChild(el("div","aviso", CHAVE ? "Este link não está mais válido. Peça um novo ao Claudemir." : "Não consegui carregar o relatório. Recarregue a página.")); $("#sub").textContent=""; }
+}
+$("#bAtualizar").addEventListener("click", carregar);
+$("#bExcel").addEventListener("click", baixarExcel);
+$("#bCopiar").addEventListener("click", ()=>{ const t = textoResumo(); try{ navigator.clipboard.writeText(t).then(()=>toast("Resumo copiado.")); }catch(e){ toast("Não deu para copiar."); } });
+carregar();
+</script>
+</body>
+</html>
