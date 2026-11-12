@@ -260,9 +260,13 @@ async function carregar(){
 }
 
 function visiveis(){
-  const q = $("#fBusca").value.trim().toLowerCase(), cir = $("#fCir").value;
-  return casos.filter(p => (!cir || p._cir===cir) &&
-    (!q || [p.nome,p.cidade,p.nomeConvenio,p.telefone,p.hospital,p._cir].join(" ").toLowerCase().includes(q)));
+  // busca sem acento e tolerante a letra dobrada (Senna = Sena, Cíntia = Cintia, Karla/Carla)
+  const norm = t => String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/k/g,"c").replace(/y/g,"i").replace(/(.)\1+/g,"$1");
+  const q = norm($("#fBusca").value.trim()), cir = $("#fCir").value;
+  const partes = q.split(/\s+/).filter(Boolean);
+  return casos.filter(p => (!cir || p._cir===cir) && (!partes.length || (()=>{
+    const alvo = norm([p.nome,p.cidade,p.nomeConvenio,p.telefone,p.hospital,p._cir].join(" "));
+    return partes.every(x => alvo.includes(x)); })()));
 }
 
 function render(){
