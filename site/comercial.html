@@ -173,6 +173,7 @@ const FASES = [
   {k:"feitas",   t:"Cirurgias realizadas", d:"Já operados.", etapas:["cir_feita","posop"], fechado:true},
 ];
 
+const ATUADOS = new Set();  // atuados nesta sessão (até a próxima leitura confirmar)
 let eu = null, casos = [], contatos = [], meusRecados = [], conversas = [], urgentes = [], filtroFase = "", aberto = null;
 const tel8 = t => so(t).slice(-8);
 const chatDe = p => { const t = tel8(p.telefone); return t.length===8 ? conversas.find(c=>c.tel8===t) : null; };
@@ -284,7 +285,7 @@ async function carregar(){
     sb.from("funil_recados").select("*").order("criado_em",{ascending:false}).limit(300),
   ]);
   if(rc.error){ $("#lista").textContent=""; $("#lista").appendChild(el("div","vazio","Não consegui carregar os casos. Recarregue a página.")); return; }
-  casos = (rc.data||[]).map(r => Object.assign({}, r.dados, { id:r.id, _cir:r.cirurgiao_nome||"Sem cirurgião", _cirWhats:r.cirurgiao_whats||"" }))
+  casos = (rc.data||[]).map(r => Object.assign({}, r.dados, { id:r.id, _cir:r.cirurgiao_nome||"Sem cirurgião", _cirWhats:r.cirurgiao_whats||"", _atuou: r.atuou_hoje===true || ATUADOS.has(r.id) }))
     .map(p => Object.assign(p, { _s: situacao(p) }));
   contatos = rk.data || [];
   meusRecados = rr.data || [];
@@ -315,7 +316,9 @@ function visiveis(){
 }
 
 function render(){
-  const v = visiveis();
+  const todos = visiveis();
+  const feitosHoje = todos.filter(p=>p._atuou);
+  const v = todos.filter(p=>!p._atuou);   // quem ele já atendeu hoje sai da lista e volta amanhã
   const precisa = v.filter(p=>p._s.alerta);
   const k = $("#kpis"); k.textContent = "";
   const kpi = (id, n, rot, al) => { const b = el("button","kpi"+(al&&n?" al":"")); b.type="button"; b.setAttribute("aria-pressed", filtroFase===id);
@@ -343,6 +346,12 @@ function render(){
     if(sec.tagName==="DETAILS"){ sec.appendChild(el("summary",null,`${f.t} (${doFase.length})`)); }
     else { const h = el("h2",null,f.t); h.appendChild(el("span","n",String(doFase.length))); sec.appendChild(h); sec.appendChild(el("p",null,f.d)); }
     lista(sec, doFase);
+    l.appendChild(sec);
+  }
+  if(feitosHoje.length && (!filtroFase || filtroFase==="feitos")){
+    const sec = el("details","fase");
+    sec.appendChild(el("summary",null,`✔ Já atuei hoje (${feitosHoje.length}) — voltam para a lista amanhã`));
+    lista(sec, feitosHoje);
     l.appendChild(sec);
   }
 }
@@ -404,6 +413,18 @@ function abrir(id){
   const bot = (txt, dest) => { const b = el("button","btn btn-sm",txt); b.type="button"; b.addEventListener("click",()=>escrever(dest)); acts.appendChild(b); };
   if(p.cirurgiao) bot("Falar com o cirurgião", "cirurgiao");
   bot("Falar com a Ana", "ana");
+  const bAt = el("button","btn btn-sm", p._atuou ? "↩ Voltar para a lista hoje" : "✔ Já atuei hoje"); bAt.type="button";
+  bAt.title = p._atuou ? "O caso volta a aparecer na sua lista hoje" : "Tira o caso da sua lista até amanhã";
+  bAt.addEventListener("click", async ()=>{
+    bAt.disabled = true;
+    const voltar = !!p._atuou;
+    const { error } = await sb.rpc("comercial_atuei", { p_paciente_id: p.id, p_voltar: voltar });
+    if(error){ bAt.disabled = false; toast(eu && eu.papel==="admin" ? "Esse botão é do perfil comercial." : "Não consegui marcar. Tente de novo."); return; }
+    if(voltar) ATUADOS.delete(p.id); else ATUADOS.add(p.id);
+    toast(voltar ? "O caso voltou para a sua lista." : "Feito! O caso sai da sua lista e volta amanhã.");
+    fechar(); carregar();
+  });
+  acts.appendChild(bAt);
   aj.appendChild(acts);
   body.appendChild(aj);
 
@@ -466,7 +487,7 @@ function abrir(id){
     bEnv.disabled = false; bEnv.textContent = "Enviar pelo painel";
     if(error){ toast(eu && eu.papel==="admin" ? "O envio é só para o perfil comercial." : "Não consegui enviar. Tente de novo."); return; }
     const rot = (destinos.find(x=>x[0]===destino)||[,""])[1];
-    ta.value = ""; toast("Mensagem enviada para " + rot + " no painel."); carregar().then(()=>abrir(p.id));
+    ta.value = ""; ATUADOS.add(p.id); toast("Mensagem enviada para " + rot + ". O caso sai da sua lista até amanhã."); carregar().then(()=>abrir(p.id));
   });
   const wrap = el("div"); wrap.style.cssText = "display:flex;flex-direction:column;gap:8px;align-items:flex-end"; wrap.append(ta, bEnv);
   rb.append(chips, wrap);
@@ -541,7 +562,8 @@ function montarConversa(box, p, msgPadrao){
     try{
       if(c){ await waChamar({ acao:"enviar", chatId:c.chat_id, texto:t }); c.humano = true; }
       else { const r = await waChamar({ acao:"iniciar", telefone:p.telefone, texto:t }); if(r && r.chatId) conversas.unshift({ chat_id:r.chatId, tel8:tel8(p.telefone), humano:false, ultima:t, ultima_de:"assistant", ultima_em:new Date().toISOString() }); }
-      ta.value = ""; toast("Mensagem enviada no WhatsApp.");
+      ta.value = ""; if(p.id){ ATUADOS.add(p.id); const cx = casos.find(x=>x.id===p.id); if(cx) cx._atuou = true; render(); }
+      toast("Mensagem enviada no WhatsApp." + (p.id ? " O caso sai da sua lista até amanhã." : ""));
       const rw = await sb.rpc("comercial_whats"); if(!rw.error) conversas = rw.data || conversas; badgeWhats();
       montarConversa(box, p, msgPadrao);
     }catch(e){ toast("Não consegui enviar: " + e.message); bEnv.disabled = false; bEnv.textContent = c ? "Enviar no WhatsApp" : "Iniciar conversa no WhatsApp"; }
