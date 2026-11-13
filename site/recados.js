@@ -2,7 +2,7 @@
    Orientações entre administradores (ex.: Claudemir → Ana Clara), gerais ou sobre um paciente.
    Só quem mandou e quem recebeu enxergam. O paciente nunca vê.
    Usa do painel: el, $, toast, pacientes, abrirDrawer, fecharOverlays, dataBR. */
-const RC = { lista: [], equipe: [], eu: null, aba: "recebidos", _t: null, primeiraCarga: true };
+const RC = { lista: [], equipe: [], eu: null, aba: "recebidos", pessoa: "", _t: null, primeiraCarga: true };
 
 const rcQuando = iso => {
   if(!iso) return "";
@@ -11,7 +11,7 @@ const rcQuando = iso => {
   return d.toDateString() === hj.toDateString() ? "hoje " + hm
     : d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",timeZone:"America/Sao_Paulo"}) + " " + hm;
 };
-const rcPendentes = () => RC.lista.filter(r => r.para === RC.eu && !r.feito_em);
+const rcPendentes = () => RC.lista.filter(r => rcRecebidoAberto(r));
 const rcNaoLidos  = () => RC.lista.filter(r => r.para === RC.eu && !r.lido_em);
 
 async function rcIniciar(eu){
@@ -72,20 +72,64 @@ function rcAbrirPainel(){
     FUNIL.sb.from("funil_recados").update({ lido_em: agora }).in("id", ids).then(()=>{});
   }
 }
+/* respostas a um recado (quem respondeu usou "Responder") */
+const rcRespostas = r => RC.lista.filter(x => x.responde_a === r.id);
+const rcOutro = r => r.de === RC.eu ? r.para : r.de;               // com quem é a conversa
+const rcNomeDe = (email, r) => { const p = RC.equipe.find(x=>x.email===email);
+  return p ? p.nome : (r && (r.de===email ? r.de_nome : r.para_nome)) || email; };
+const rcPapelDe = email => { const p = RC.equipe.find(x=>x.email===email); return p ? p.papel : ""; };
+// recebido: precisa de resposta se ninguém respondeu e não foi marcado feito
+const rcEhRespostaMinha = r => !!r.responde_a && (RC.lista.find(x=>x.id===r.responde_a)||{}).de === RC.eu;   // é resposta a algo que eu mandei
+const rcRecebidoAberto = r => r.para === RC.eu && !r.feito_em && !rcEhRespostaMinha(r) && !rcRespostas(r).some(x=>x.de===RC.eu);
+// enviado: aguardando se o outro não respondeu nem marcou feito
+const rcEnviadoAberto  = r => r.de === RC.eu && !r.feito_em && !rcRespostas(r).some(x=>x.de!==RC.eu);
 function rcRenderLista(){
   const box = document.getElementById("rcLista"); if(!box) return;
-  document.querySelectorAll(".rc-abas button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.k===RC.aba)));
+  const nRec = RC.lista.filter(rcRecebidoAberto).length, nEnv = RC.lista.filter(rcEnviadoAberto).length;
+  document.querySelectorAll(".rc-abas button").forEach(b=>{
+    b.setAttribute("aria-pressed", String(b.dataset.k===RC.aba));
+    b.textContent = b.dataset.k === "recebidos" ? "📥 Mandaram para mim" + (nRec ? " · " + nRec + " p/ responder" : "")
+                                                : "📤 Eu mandei" + (nEnv ? " · " + nEnv + " sem resposta" : "");
+  });
   box.textContent = "";
-  const lista = RC.lista.filter(r => RC.aba === "recebidos" ? r.para === RC.eu : r.de === RC.eu);
-  lista.sort((a,b)=> (!!a.feito_em - !!b.feito_em) || String(b.criado_em).localeCompare(String(a.criado_em)));
+  const daAba = RC.lista.filter(r => RC.aba === "recebidos" ? r.para === RC.eu : r.de === RC.eu);
+  // filtro por pessoa (cirurgião, Joaquim, Claudemir…)
+  const pessoas = [...new Set(daAba.map(rcOutro))];
+  const ordemPapel = e => ({cirurgiao:0, comercial:1, admin:2, equipe:3}[rcPapelDe(e)] ?? 4);
+  pessoas.sort((a,b)=> ordemPapel(a)-ordemPapel(b) || rcNomeDe(a).localeCompare(rcNomeDe(b)));
+  if(RC.pessoa && !pessoas.includes(RC.pessoa)) RC.pessoa = "";
+  if(pessoas.length > 1){
+    const chips = el("div","rc-pessoas");
+    const chip = (email, rot, n) => { const b = el("button", null, rot + (n ? " · " + n : "")); b.type = "button";
+      b.setAttribute("aria-pressed", String(RC.pessoa === email)); if(n) b.classList.add("tem");
+      b.addEventListener("click",()=>{ RC.pessoa = email; rcRenderLista(); }); chips.appendChild(b); };
+    const aberto = RC.aba === "recebidos" ? rcRecebidoAberto : rcEnviadoAberto;
+    chip("", "Todos", daAba.filter(aberto).length);
+    pessoas.forEach(e => chip(e, (rcPapelDe(e)==="cirurgiao" ? "🩺 " : "") + rcNomeDe(e, daAba.find(r=>rcOutro(r)===e)), daAba.filter(r=>rcOutro(r)===e && aberto(r)).length));
+    box.appendChild(chips);
+  }
+  const lista = daAba.filter(r => !RC.pessoa || rcOutro(r) === RC.pessoa);
   if(!lista.length){
     box.appendChild(el("div","rc-vazio", RC.aba==="recebidos" ? "Nenhum recado para você." : "Você ainda não mandou recados. Use \"+ Novo recado\" ou o botão dentro da ficha do paciente."));
     return;
   }
-  lista.forEach(r=>box.appendChild(rcCartao(r)));
+  // um bloco por pessoa; dentro, os que pedem ação primeiro
+  const aberto = RC.aba === "recebidos" ? rcRecebidoAberto : rcEnviadoAberto;
+  const grupos = new Map();
+  lista.forEach(r => { const k = rcOutro(r); if(!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(r); });
+  [...grupos.keys()].sort((a,b)=> grupos.get(b).filter(aberto).length - grupos.get(a).filter(aberto).length || ordemPapel(a)-ordemPapel(b))
+    .forEach(k => {
+      const arr = grupos.get(k).sort((a,b)=> (aberto(b)-aberto(a)) || String(b.criado_em).localeCompare(String(a.criado_em)));
+      const n = arr.filter(aberto).length;
+      const h = el("div","rc-grupo");
+      h.append(el("strong",null,(rcPapelDe(k)==="cirurgiao" ? "🩺 " : "") + rcNomeDe(k, arr[0])),
+               el("span", "rc-gn" + (n ? " tem" : ""), n ? (RC.aba==="recebidos" ? n + " para responder" : n + " sem resposta") : "tudo respondido"));
+      box.appendChild(h);
+      arr.forEach(r=>box.appendChild(rcCartao(r)));
+    });
 }
 function rcCartao(r, naFicha){
-  const c = el("div","rc-card" + (r.feito_em ? " feito" : "") + (r.para===RC.eu && !r.feito_em ? " pend" : ""));
+  const c = el("div","rc-card" + ((r.para===RC.eu ? !rcRecebidoAberto(r) : !rcEnviadoAberto(r)) ? " feito" : "") + (rcRecebidoAberto(r) ? " pend" : "") + (rcEnviadoAberto(r) ? " esp" : ""));
   const topo = el("div","rc-topo");
   const quem = r.de === RC.eu ? "Você → " + (r.para_nome || r.para) : (r.de_nome || r.de) + " → " + (r.para === RC.eu ? "você" : (r.para_nome || r.para));
   topo.append(el("strong",null,quem), el("span","rc-hora",rcQuando(r.criado_em)));
@@ -106,9 +150,24 @@ function rcCartao(r, naFicha){
     c.appendChild(ax);
   }
   const st = el("div","rc-st");
-  if(r.feito_em) st.textContent = "✔ Feito " + rcQuando(r.feito_em);
-  else if(r.lido_em) st.textContent = "Lido " + rcQuando(r.lido_em);
-  else st.textContent = r.de === RC.eu ? "Ainda não lido" : "Novo";
+  const resps = rcRespostas(r);
+  if(r.de === RC.eu){
+    const delas = resps.filter(x=>x.de!==RC.eu);
+    if(delas.length || r.feito_em){
+      st.appendChild(el("span","rc-sel ok", delas.length ? "✅ Respondido" : "✔ Feito"));
+      st.appendChild(document.createTextNode(" " + rcQuando(delas.length ? delas[0].criado_em : r.feito_em)));
+      if(delas.length){ const ult = delas.slice().sort((a,b)=>String(b.criado_em).localeCompare(String(a.criado_em)))[0];
+        c.appendChild(el("div","rc-resp","↩ " + (ult.de_nome || ult.de) + ": " + ult.texto)); }
+    } else {
+      st.appendChild(el("span","rc-sel esp","⏳ Aguardando resposta"));
+      st.appendChild(document.createTextNode(r.lido_em ? " · lido " + rcQuando(r.lido_em) : " · ainda não lido"));
+    }
+  } else if(r.para === RC.eu){
+    if(rcEhRespostaMinha(r)) st.appendChild(el("span","rc-sel ok","↩ Resposta ao seu recado"));
+    else if(resps.some(x=>x.de===RC.eu)) st.appendChild(el("span","rc-sel ok","✅ Você respondeu"));
+    else if(r.feito_em) st.appendChild(el("span","rc-sel ok","✔ Feito " + rcQuando(r.feito_em)));
+    else st.appendChild(el("span","rc-sel pend","🔴 Responder"));
+  }
   const ops = el("div","rc-ops");
   if(r.para === RC.eu){
     const resp = el("button","btn btn-sm","Responder"); resp.addEventListener("click",()=>rcNovo(r.paciente_id ? pacientes.get(r.paciente_id) || {id:r.paciente_id, nome:r.paciente_nome} : null, r));
