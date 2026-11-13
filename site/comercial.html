@@ -163,11 +163,12 @@ const TRILHA = [["agendou","Consulta"],["compareceu","Atendido"],["exames_sol","
   ["docs_conv","Documentos"],["autorizacao","Autorização"],["cir_marcada","Cirurgia"],["cir_feita","Realizada"]];
 const ORDEM = ["agendou","noshow","compareceu","exames_sol","exames_ok","retorno","proposta","docs_conv","autorizacao","autorizado","cir_marcada","cir_feita","posop"];
 const FASES = [
+  {k:"exames10", t:"Exames pedidos — prazo de 10 dias", d:"O paciente tem no máximo 10 dias para fazer o exame. Aparece aqui no dia seguinte ao pedido do cirurgião. Os que vencem antes vêm primeiro.", etapas:["exames_sol"]},
   {k:"autorizado", t:"Autorizados — aguardando agendamento", d:"Convênio já autorizou. Falta marcar a data da cirurgia e garantir o material (OPME).", etapas:["autorizado"]},
   {k:"convenio", t:"Cirurgias em andamento no convênio", d:"Juntando documentos ou aguardando a autorização do convênio (prazo de 21 dias úteis).", etapas:["docs_conv","autorizacao"]},
   {k:"cirurgia", t:"Cirurgias marcadas", d:"Garantir o material (OPME) e o hospital para a data.", etapas:["cir_marcada"]},
   {k:"proposta", t:"Proposta", d:"O paciente recebeu a proposta e precisa decidir.", etapas:["proposta"]},
-  {k:"exames",   t:"Atendidos e exames", d:"Já passaram em consulta. Aqui o caso anda com os exames e o retorno com o cirurgião.", etapas:["compareceu","exames_sol","exames_ok","retorno"]},
+  {k:"exames",   t:"Atendidos, exames entregues e retorno", d:"Já passaram em consulta. Aqui o caso anda com o resultado dos exames e o retorno com o cirurgião.", etapas:["compareceu","exames_ok","retorno"]},
   {k:"consulta", t:"Consulta agendada", d:"Pacientes com a primeira consulta marcada (ou que faltaram e precisam remarcar).", etapas:["agendou","noshow"]},
   {k:"feitas",   t:"Cirurgias realizadas", d:"Já operados.", etapas:["cir_feita","posop"], fechado:true},
 ];
@@ -208,14 +209,22 @@ function situacao(p){
       s.ajuda = "Perguntar ao cirurgião qual é o próximo passo do caso.";
       break;
     case "exames_sol": {
-      s.desde = p.dataExames || String(p.consultaRegistradaEm||"").slice(0,10) || p.dataConsulta; s.dias = diasDesde(s.desde); s.alerta = (s.dias ?? 0) >= 10;
+      // regra: o paciente tem no máximo 10 dias para fazer o exame; aparece para o Joaquim já no dia seguinte ao pedido
+      s.desde = p.dataExames || String(p.consultaRegistradaEm||"").slice(0,10) || p.dataConsulta; s.dias = diasDesde(s.desde);
       const ex = exames(p) || "exames";
+      const prazo = s.desde ? new Date(Date.parse(String(s.desde).slice(0,10)) + 10*864e5).toISOString().slice(0,10) : "";
+      const resta = s.dias == null ? null : 10 - s.dias;
+      s.prazoExame = { prazo, resta, dia: s.dias };
       const v = p.voucherEmitido ? ` Voucher Blume ${p.voucherStatus==="Usado"?"já usado":p.voucherStatus==="Venceu"?"VENCEU":"emitido em "+dataBR(p.voucherEmitido)+" (vale 5 dias)"}.` : "";
-      s.falta = `O paciente precisa fazer: ${ex}.${v}`;
-      s.ajuda = p.voucherStatus==="Venceu" ? "O voucher venceu: pedir à Ana um novo e ajudar o paciente a agendar o exame."
-        : "Ajudar o paciente a agendar o exame e cobrar o resultado.";
-      if(p.voucherStatus==="Venceu") s.tom = "crit", s.alerta = true;
-      s.msg = `Oi, ${N}! Aqui é o Joaquim, da Alinha Face. Conseguiu agendar ${ex.toLowerCase().includes("resson")?"a sua ressonância":"os seus exames"}? Se precisar, te ajudo a marcar. Assim que ficar pronto, me manda por aqui que eu já encaminho ao doutor.`;
+      s.falta = `Exames pedidos${s.desde?" em "+dataBR(s.desde):""}: ${ex}. `
+        + (resta==null ? "Prazo de 10 dias para fazer." : resta < 0 ? `PRAZO DE 10 DIAS VENCIDO há ${-resta} dia${resta===-1?"":"s"} (era ${dataBR(prazo)}).`
+          : resta === 0 ? `O prazo de 10 dias vence HOJE (${dataBR(prazo)}).` : `Prazo: até ${dataBR(prazo)} (faltam ${resta} dia${resta===1?"":"s"}).`) + v;
+      s.ajuda = p.voucherStatus==="Venceu" ? "O voucher venceu: pedir à Ana um novo e ajudar o paciente a agendar o exame já."
+        : resta!=null && resta < 0 ? "Prazo estourado: falar hoje com o paciente, agendar o exame junto com ele e avisar o cirurgião."
+        : "Garantir que o paciente agende e faça o exame dentro dos 10 dias; cobrar o resultado.";
+      s.alerta = (s.dias ?? 0) >= 1 || p.voucherStatus==="Venceu";
+      s.tom = (resta!=null && resta <= 3) || p.voucherStatus==="Venceu" ? "crit" : "warn";
+      s.msg = `Oi, ${N}! Aqui é o Joaquim, da Alinha Face. Já conseguiu agendar ${ex.toLowerCase().includes("resson")?"a sua ressonância":"os seus exames"}? O ideal é fazer${prazo && resta>=0?" até "+dataBR(prazo):" o quanto antes"} para o doutor dar sequência ao seu tratamento. Se precisar, te ajudo a marcar agora. Assim que ficar pronto, me manda por aqui que eu já encaminho ao doutor.`;
       break; }
     case "exames_ok":
       s.desde = p.dataExamesOk || p.examesVistoEm || String(p.atualizadoEm||"").slice(0,10); s.dias = diasDesde(s.desde); s.alerta = (s.dias ?? 0) >= 7;
@@ -329,7 +338,7 @@ function render(){
   for(const f of FASES){
     if(filtroFase && filtroFase!==f.k) continue;
     const doFase = v.filter(p=>f.etapas.includes(p.etapa))
-      .sort((a,b)=> f.k==="consulta" || f.k==="cirurgia" || f.k==="convenio" || f.k==="autorizado" ? String(a._s.desde||"9").localeCompare(String(b._s.desde||"9")) : (b._s.dias??-1)-(a._s.dias??-1));
+      .sort((a,b)=> f.k==="consulta" || f.k==="cirurgia" || f.k==="convenio" || f.k==="autorizado" || f.k==="exames10" ? String(a._s.desde||"9").localeCompare(String(b._s.desde||"9")) : (b._s.dias??-1)-(a._s.dias??-1));
     const sec = f.fechado && !filtroFase ? el("details","fase") : el("section","fase");
     if(sec.tagName==="DETAILS"){ sec.appendChild(el("summary",null,`${f.t} (${doFase.length})`)); }
     else { const h = el("h2",null,f.t); h.appendChild(el("span","n",String(doFase.length))); sec.appendChild(h); sec.appendChild(el("p",null,f.d)); }
@@ -351,7 +360,8 @@ function lista(sec, arr){
     const f = el("div","falta"); f.append(el("b",null,"Como ajudar: "), document.createTextNode(s.ajuda)); esq.appendChild(f);
     const dir = el("div","dir");
     dir.appendChild(el("span","pill "+(s.tom==="crit"?"crit":s.tom==="ok"?"ok":"neu"), ETAPAS[p.etapa]||p.etapa));
-    if(s.dias!=null && s.dias>0 && !["cir_feita","posop"].includes(p.etapa)) dir.appendChild(el("span","pill "+(s.alerta?"crit":"neu"), `parado há ${s.dias} dia${s.dias===1?"":"s"}`));
+    if(s.prazoExame && s.prazoExame.resta!=null){ const r = s.prazoExame.resta; dir.appendChild(el("span","pill "+(r<0||r<=3?"crit":"warn"), r<0 ? `exame atrasado ${-r}d` : r===0 ? "prazo vence hoje" : `faltam ${r}d p/ exame`)); }
+    else if(s.dias!=null && s.dias>0 && !["cir_feita","posop"].includes(p.etapa)) dir.appendChild(el("span","pill "+(s.alerta?"crit":"neu"), `parado há ${s.dias} dia${s.dias===1?"":"s"}`));
     b.append(esq, dir);
     b.addEventListener("click",()=>abrir(p.id));
     box.appendChild(b);
