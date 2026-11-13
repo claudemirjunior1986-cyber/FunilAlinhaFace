@@ -15,7 +15,7 @@
     const s = await sessao();
     if(!s) return null;
     const email = (s.user.email || "").toLowerCase();
-    const { data, error } = await sb.from("perfis").select("email,nome,papel").eq("email", email).maybeSingle();
+    const { data, error } = await sb.from("perfis").select("*").eq("email", email).maybeSingle();
     if(error || !data) return { email, nome: email, papel: null };
     return data;
   }
@@ -26,7 +26,7 @@
     if(!p){ location.replace("index.html"); return new Promise(()=>{}); }
     if(!p.papel){ location.replace("index.html?semacesso=1"); return new Promise(()=>{}); }
     if(papeisAceitos && !papeisAceitos.includes(p.papel)){
-      location.replace(p.papel === "admin" ? "painel.html" : p.papel === "comercial" ? "comercial.html" : "medico.html");
+      location.replace(p.papel === "admin" || p.papel === "equipe" ? "painel.html" : p.papel === "comercial" ? "comercial.html" : "medico.html");
       return new Promise(()=>{});
     }
     return p;

@@ -766,9 +766,17 @@ const DOWNLOADS_NAVEGADOR = {
 /* modo demonstração: liga/desliga no botão do topo; vale só neste navegador */
 const DEMO = (()=>{ try{ return localStorage.getItem("funilDemo") === "1"; }catch(e){ return false; } })();
 let CIRURGIOES = [];   // [{email, nome}] — vem da tabela perfis
+let EQUIPE = "";      // e-mail do cirurgião quando quem entrou é a equipe dele
 async function conectar(){
-  const eu = await FUNIL.exigir(["admin"]);
+  const eu = await FUNIL.exigir(["admin","equipe"]);
   $("#quem").textContent = eu.nome;
+  // equipe do cirurgião (secretária/assistente): mesmo painel, só os pacientes daquele cirurgião (o banco já filtra)
+  EQUIPE = eu.papel === "equipe" ? String(eu.equipe_de||"").toLowerCase() : "";
+  if(EQUIPE){
+    document.body.classList.add("modo-equipe");
+    ["viewWhats","viewAg","viewGus","viewAfo","btnComercial","btnImport","btnDemo","btnVoucher"].forEach(id=>{ const b = document.getElementById(id); if(b) b.hidden = true; });
+    const sub = document.querySelector(".brand .sub"); if(sub) sub.textContent = "Equipe do cirurgião · " + (eu.nome||"");
+  }
   FUNIL._nome = eu.nome; FUNIL._email = eu.email;
   $("#btnSair").addEventListener("click", FUNIL.sair);
   $("#btnComercial").addEventListener("click", ()=>window.open("comercial.html","_blank"));
@@ -791,13 +799,15 @@ async function conectar(){
     const { data } = await FUNIL.sb.from("perfis").select("email,nome,whatsapp").eq("papel","cirurgiao").order("nome");
     CIRURGIOES = data || [];   // inclui o "Dr. Joaquim (teste)" para casos de demonstração
   }catch(e){ CIRURGIOES = []; }
+  if(EQUIPE){ CIRURGIOES = CIRURGIOES.filter(c=>String(c.email).toLowerCase()===EQUIPE);
+    const sub = document.querySelector(".brand .sub"); if(sub && CIRURGIOES[0]) sub.textContent = "Equipe do " + CIRURGIOES[0].nome; }
   DB = criarDB(FUNIL.sb);
   DOWNLOADS = DOWNLOADS_NAVEGADOR;
   $("#statusText").textContent = "Base conectada — tudo que você editar fica salvo para a equipe.";
   $("#statusDot").classList.remove("off");
-  waIniciar();
+  if(!EQUIPE) waIniciar();
   rcIniciar(eu);
-  alIniciar();
+  if(!EQUIPE) alIniciar();
   DB.collection("encaminhamentos").onSnapshot(snap=>{
     encaminhamentos = new Map(snap.docs.map(d=>[d.id, Object.assign({id:d.id}, d.data())]));
     render();
@@ -2636,7 +2646,7 @@ function abrirDrawer(id, pre){
              campo("Horário", sel("f_hora",HORARIOS,p.horaConsulta,"—")),
              campo("Modalidade", sel("f_mod",MODALIDADES,p.modalidade)));
   const selCir = el("select"); selCir.id = "f_cir";
-  { const o0 = el("option",null,"— nenhum ainda —"); o0.value = ""; selCir.appendChild(o0); }
+  if(!EQUIPE){ const o0 = el("option",null,"— nenhum ainda —"); o0.value = ""; selCir.appendChild(o0); }
   for(const c of CIRURGIOES){ const o = el("option",null,c.nome); o.value = c.email; if((p.cirurgiao||"")===c.email) o.selected = true; selCir.appendChild(o); }
   const g2d = el("div","grid2");
   g2d.append(campo("Local", sel("f_local",LOCAIS,p.local)), campo("Cirurgião responsável", selCir));
@@ -2783,7 +2793,7 @@ function abrirDrawer(id, pre){
       proximaAcao:(function(){ const v=$("#f_pacao").value; return v==="Outro (escrever)" ? $("#f_pacao_txt").value.trim() : v; })(), dataProximaAcao:$("#f_dpacao").value, observacoes:$("#f_obs").value.trim(),
       resumoCaso:$("#f_resumo").value.trim(),
       voucherEmitido:$("#f_vemit").value, voucherStatus:$("#f_vemit").value ? $("#f_vstat").value : "",
-      cirurgiao:$("#f_cir").value,
+      cirurgiao:$("#f_cir").value || EQUIPE,
       dataCirurgia:$("#f_dcir").value, hospital:$("#f_hosp").value.trim()
     });
     if(p.presencialEncaminhado && p.dataConsulta){

@@ -190,3 +190,4 @@ Outros ajustes feitos na Bia:
 - Pedidos do Joaquim (recados vindos do perfil comercial) aparecem em destaque roxo no topo do painel (#comercialTopo, recados.js rcComercialTopo), com Abrir ficha / Responder / Feito.
 - Exames pedidos (exames_sol): prazo de 10 dias para o paciente fazer; aparecem para o Joaquim em seção própria no topo e em 'Precisam de ajuda' já no dia seguinte ao pedido, com contagem regressiva (dataExames + 10).
 - (036) 'Já atuei hoje': caso em que o Joaquim agiu hoje (WhatsApp pelo funil, mensagem pelo painel ou botão) sai da lista dele e volta no dia seguinte; comercial_casos() devolve atuou_hoje; botão comercial_atuei(id, voltar).
+- (037) Módulo equipe do cirurgião: papel 'equipe' + perfis.equipe_de; usa o painel.html (sem WhatsApp da Bia, alertas, agendas, comercial, importar, demo, voucher) e o banco só entrega os pacientes do cirurgião dela (política pac_equipe). Primeiro: equipevictor@alinhaface.com.br → Dr. Victor.

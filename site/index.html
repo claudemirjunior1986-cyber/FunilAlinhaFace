@@ -79,7 +79,7 @@ async function seguir(){
     await sb.auth.signOut();
     return true;
   }
-  location.replace(p.papel === "admin" ? "painel.html" : p.papel === "comercial" ? "comercial.html" : "medico.html");
+  location.replace(p.papel === "admin" || p.papel === "equipe" ? "painel.html" : p.papel === "comercial" ? "comercial.html" : "medico.html");
   return true;
 }
 
