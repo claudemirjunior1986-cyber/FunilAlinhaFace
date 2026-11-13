@@ -1,13 +1,21 @@
 /* ============ Teleconsulta: criar a sala e mandar o link ============
    Usado no painel (equipe) e na área do médico. Só depende de FUNIL. */
 async function teleSala(p, cirurgiao){
-  // reaproveita a sala aberta nas últimas 12 h para este paciente
-  const desde = new Date(Date.now() - 12*3600e3).toISOString();
-  const { data: ex } = await FUNIL.sb.from("funil_teleconsultas").select("id")
-    .eq("paciente_id", p.id).is("fim", null).gte("criada_em", desde).order("criada_em",{ascending:false}).limit(1);
-  if(ex && ex[0]) return ex[0].id;
+  // Usa SEMPRE a mesma sala do link que o paciente recebeu (confirmação do agendamento e lembrete de 15 min).
+  // Antes, depois de 12 h a sala do agendamento não era achada e o médico abria outra: cada um ficava numa sala.
+  const chave = p.dataConsulta && p.horaConsulta ? p.dataConsulta + " " + String(p.horaConsulta).slice(0,5) : "";
+  const hojeSP = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const desde = new Date(Date.now() - 30*864e5).toISOString();
+  const { data: abertas } = await FUNIL.sb.from("funil_teleconsultas").select("id,consulta,criada_em")
+    .eq("paciente_id", p.id).is("fim", null).gte("criada_em", desde).order("criada_em",{ascending:false}).limit(20);
+  const l = abertas || [];
+  const recente = t => Date.now() - new Date(t.criada_em).getTime() < 12*3600e3;
+  const achada = (chave && l.find(t => t.consulta === chave))                       // a sala desta consulta
+    || l.find(t => String(t.consulta || "").slice(0,10) === hojeSP)                 // a sala de uma consulta de hoje
+    || l.find(t => !t.consulta && recente(t));                                      // uma aberta há pouco
+  if(achada) return achada.id;
   const { data, error } = await FUNIL.sb.from("funil_teleconsultas")
-    .insert({ paciente_id: p.id, paciente_nome: p.nome || "", cirurgiao: cirurgiao || p.cirurgiao || null })
+    .insert({ paciente_id: p.id, paciente_nome: p.nome || "", cirurgiao: cirurgiao || p.cirurgiao || null, consulta: chave || null })
     .select("id").single();
   if(error) throw error;
   return data.id;

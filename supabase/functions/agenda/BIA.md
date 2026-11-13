@@ -193,3 +193,6 @@ Outros ajustes feitos na Bia:
 - (037) Módulo equipe do cirurgião: papel 'equipe' + perfis.equipe_de; usa o painel.html (sem WhatsApp da Bia, alertas, agendas, comercial, importar, demo, voucher) e o banco só entrega os pacientes do cirurgião dela (política pac_equipe). Primeiro: equipevictor@alinhaface.com.br → Dr. Victor.
 - Recados do painel: separados em 'Mandaram para mim' / 'Eu mandei', agrupados por pessoa (cirurgiões primeiro) com filtro por pessoa, e selo de respondido / aguardando resposta / responder.
 - Painel: 'Exames pedidos' virou 'Exames em andamento' (etapa exames_sol + compareceu com pedido): seções Precisa agendar / Exame agendado / Apresentar resultado, prazo de 10 dias; campos dados.exameAgendadoPara e dados.exameRealizadoEm; 'Resultado entregue' leva a exames_ok. A tela do Joaquim reflete esses campos.
+
+## Teleconsulta: médico e paciente na mesma sala
+- O botão de teleconsulta do painel e da área do médico (teleSala) agora usa a sala da própria consulta (a do link que o paciente recebeu na confirmação e no lembrete). Antes, se a consulta tinha sido marcada há mais de 12 h, o médico abria uma sala nova e cada um ficava esperando numa sala diferente.
