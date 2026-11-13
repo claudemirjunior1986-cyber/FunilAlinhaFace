@@ -566,7 +566,10 @@ function montarConversa(box, p, msgPadrao){
       toast("Mensagem enviada no WhatsApp." + (p.id ? " O caso sai da sua lista até amanhã." : ""));
       const rw = await sb.rpc("comercial_whats"); if(!rw.error) conversas = rw.data || conversas; badgeWhats();
       montarConversa(box, p, msgPadrao);
-    }catch(e){ toast("Não consegui enviar: " + e.message); bEnv.disabled = false; bEnv.textContent = c ? "Enviar no WhatsApp" : "Iniciar conversa no WhatsApp"; }
+    }catch(e){
+      if(/INVALID_PHONE|invalid.?phone/i.test(e.message)){
+        toast("O telefone da ficha está errado ou incompleto (" + (p.telefone||"vazio") + "). Peça à Ana para corrigir o número na ficha e tente de novo.");
+      } else toast("Não consegui enviar: " + e.message); bEnv.disabled = false; bEnv.textContent = c ? "Enviar no WhatsApp" : "Iniciar conversa no WhatsApp"; }
   });
 }
 async function carregarMensagens(msgs, chatId, silencioso){
