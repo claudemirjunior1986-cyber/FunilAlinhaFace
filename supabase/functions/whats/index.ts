@@ -574,23 +574,61 @@ async function analiseIA(quem: string) {
       ].filter(Boolean).join("\n"),
     };
   });
-  let lista = casos.map((c) => c.texto).join("\n");
-  if (lista.length > 45000) lista = lista.slice(0, 45000);
-  const prompt = "TAREFA DIFERENTE (não é resumo de consulta): ANÁLISE COMERCIAL PARA O DIRETOR\n\n"
+  const contexto = "TAREFA DIFERENTE (não é resumo de consulta): ANÁLISE COMERCIAL PARA O DIRETOR\n\n"
     + "Você é um analista comercial da Alinha Face, empresa que conecta pacientes com problemas de mordida/face (cirurgia ortognática, ATM etc.) "
     + "a cirurgiões parceiros e cuida do caminho até a cirurgia (consulta, exames, retorno, proposta, convênio). A Ana Clara é a atendente; o diretor é o Claudemir.\n"
-    + `Hoje é ${hoje}. Abaixo estão os casos em andamento. Avalie cada um e escolha os até 20 casos que mais merecem a atenção do diretor agora: `
-    + "os com maior chance de virar cirurgia e os que estão em risco de esfriar (parados, sem retorno). Use só o que está escrito; não invente fatos.\n\n"
-    + "Responda SOMENTE com um JSON válido, sem texto antes ou depois, neste formato:\n"
-    + '{"visao":"3 a 5 frases curtas: como está a carteira, onde está o gargalo e o que fazer esta semana",'
-    + '"casos":[{"cod":"C1","chance":"alta|média|baixa","prioridade":1,"motivo":"até 140 caracteres: por que pode operar ou por que está em risco",'
-    + '"acao":"até 110 caracteres: a próxima ação concreta","quem":"Ana|Cirurgião|Diretor|Paciente"}]}\n'
-    + "Ordene por prioridade (1 = mais urgente). \n\nCasos:\n" + lista;
-  const ctx = "IA" + Date.now();
-  const r = await gm(`/agent/${AGENTE_RESUMO}/conversation`, { method: "POST", body: JSON.stringify({ contextId: ctx, chatName: ctx, prompt }) });
-  let txt = String(r?.message || "").trim();
-  let tmp: string | null = null;
-  for (let t = 0; t < 35 && !txt; t++) {
+    + `Hoje é ${hoje}. Use só o que está escrito; não invente fatos. Não cite diagnósticos de saúde mental nem outros dados sensíveis no texto.\n\n`;
+  // lê o JSON da resposta (mesmo se vier cortado ou com texto em volta)
+  const lerJson = (txt: string) => {
+    const bruto = txt.replace(/```(json)?/g, "");
+    let visao = "", itens: any[] = [];
+    try {
+      const j = JSON.parse(bruto.slice(bruto.indexOf("{"), bruto.lastIndexOf("}") + 1));
+      visao = String(j.visao || ""); itens = Array.isArray(j.casos) ? j.casos : [];
+    } catch {
+      visao = (bruto.match(/"visao"\s*:\s*"((?:[^"\\]|\\.)*)"/) || [])[1] || "";
+      for (const m of bruto.matchAll(/\{[^{}]*"cod"[^{}]*\}/g)) { try { itens.push(JSON.parse(m[0])); } catch { /* pula */ } }
+    }
+    return { visao, itens };
+  };
+  // 1) avalia TODOS os casos, em lotes de 10 (em paralelo)
+  const lotes: typeof casos[] = [];
+  for (let i = 0; i < casos.length && i < 120; i += 10) lotes.push(casos.slice(i, i + 10));
+  const respostas = await Promise.all(lotes.map((l, n) => perguntarIA("IA" + n + "x" + Date.now(), contexto
+    + "Avalie CADA um dos casos abaixo (todos, sem pular nenhum). Responda SOMENTE com um JSON válido, sem texto antes ou depois:\n"
+    + '{"casos":[{"cod":"C1","chance":"alta|média|baixa","nota":0,"motivo":"até 120 caracteres","acao":"até 90 caracteres","quem":"Ana|Cirurgião|Diretor|Paciente"}]}\n'
+    + "chance = chance de virar cirurgia. nota = 0 a 100, quanto este caso merece a atenção do diretor AGORA (alta chance de operar ou risco de esfriar/perder = nota alta). "
+    + "motivo = por que pode operar ou por que está em risco. acao = a próxima ação concreta.\n\nCasos:\n" + l.map((c) => c.texto).join("\n"))));
+  const itens = respostas.flatMap((t) => t ? lerJson(t).itens : []);
+  if (!itens.length) return { ok: false, erro: "a IA não respondeu a tempo; tente de novo em um minuto" };
+  const porCod = new Map(casos.map((c) => [c.cod, c]));
+  const saida = itens.map((x: any) => {
+    const c = porCod.get(String(x.cod || "").trim().toUpperCase());
+    if (!c) return null;
+    return { id: c.id, nome: c.nome, cirurgiao: c.cirurgiao, etapa: c.etapa, chance: curto(x.chance, 10), nota: Math.max(0, Math.min(100, Number(x.nota) || 0)),
+      motivo: curto(x.motivo, 220), acao: curto(x.acao, 160), quem: curto(x.quem, 20) };
+  }).filter(Boolean).filter((x: any, i: number, a: any[]) => a.findIndex((y: any) => y.id === x.id) === i)
+    .sort((a: any, b: any) => b.nota - a.nota);
+  // 2) visão geral da carteira a partir das avaliações
+  let visao = "";
+  const tv = await perguntarIA("IAV" + Date.now(), contexto
+    + "Abaixo, a avaliação de cada caso em andamento (etapa · cirurgião · chance · nota de atenção · motivo). Escreva a visão geral para o diretor. "
+    + 'Responda SOMENTE com um JSON válido: {"visao":"4 a 6 frases curtas: como está a carteira, onde está o gargalo (etapa ou cirurgião), quais casos atacar primeiro e o que fazer esta semana"}\n\n'
+    + saida.map((x: any) => `${x.nome.split(" ")[0]} · ${ETAPA_TXT[x.etapa] || x.etapa} · ${x.cirurgiao} · ${x.chance} · ${x.nota} · ${x.motivo}`).join("\n"));
+  if (tv) visao = lerJson(tv).visao || "";
+  const res = { ok: true, em: new Date().toISOString(), por: quem, total: casos.length, visao: visao.replace(/\\n/g, "\n"), casos: saida };
+  await dbs("funil_config?on_conflict=k", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ k: "analise_ia", v: JSON.stringify(res) }) });
+  return res;
+}
+// manda um pedido ao agente "Resumo de Consultas" numa conversa auxiliar, espera a resposta e apaga a conversa
+async function perguntarIA(ctx: string, prompt: string): Promise<string> {
+  let txt = "", tmp: string | null = null;
+  try {
+    const r = await gm(`/agent/${AGENTE_RESUMO}/conversation`, { method: "POST", body: JSON.stringify({ contextId: ctx, chatName: ctx, prompt }) });
+    txt = String(r?.message || "").trim();
+  } catch { /* tenta buscar a resposta abaixo */ }
+  for (let t = 0; t < 30 && !txt; t++) {
     await espera(3000);
     try {
       const cs = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=3&query=${ctx}`);
@@ -606,29 +644,7 @@ async function analiseIA(quem: string) {
     if (!tmp) { const cs = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=3&query=${ctx}`); tmp = (Array.isArray(cs) ? cs : []).find((x: any) => x.name === ctx)?.id || null; }
     if (tmp) await gm(`/chat/${tmp}`, { method: "DELETE" });
   } catch { /* ok */ }
-  if (!txt) return { ok: false, erro: "a IA não respondeu a tempo; tente de novo em um minuto" };
-  // lê o JSON (mesmo se vier cortado ou com texto em volta)
-  let visao = "", itens: any[] = [];
-  const bruto = txt.replace(/```(json)?/g, "");
-  try {
-    const j = JSON.parse(bruto.slice(bruto.indexOf("{"), bruto.lastIndexOf("}") + 1));
-    visao = String(j.visao || ""); itens = Array.isArray(j.casos) ? j.casos : [];
-  } catch {
-    visao = (bruto.match(/"visao"\s*:\s*"((?:[^"\\]|\\.)*)"/) || [])[1] || "";
-    for (const m of bruto.matchAll(/\{[^{}]*"cod"[^{}]*\}/g)) { try { itens.push(JSON.parse(m[0])); } catch { /* pula */ } }
-  }
-  const porCod = new Map(casos.map((c) => [c.cod, c]));
-  const saida = itens.map((x: any) => {
-    const c = porCod.get(String(x.cod || "").trim().toUpperCase());
-    if (!c) return null;
-    return { id: c.id, nome: c.nome, cirurgiao: c.cirurgiao, etapa: c.etapa, chance: curto(x.chance, 10), prioridade: Number(x.prioridade) || 99,
-      motivo: curto(x.motivo, 220), acao: curto(x.acao, 160), quem: curto(x.quem, 20) };
-  }).filter(Boolean).sort((a: any, b: any) => a.prioridade - b.prioridade);
-  if (!saida.length && !visao) return { ok: false, erro: "a resposta da IA veio num formato que não consegui ler", detalhe: txt.slice(0, 500) };
-  const res = { ok: true, em: new Date().toISOString(), por: quem, total: casos.length, visao: visao.replace(/\\n/g, "\n"), casos: saida };
-  await dbs("funil_config?on_conflict=k", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify({ k: "analise_ia", v: JSON.stringify(res) }) });
-  return res;
+  return txt;
 }
 
 // ---------- comercial: confere se a conversa/telefone é de um paciente dele ----------

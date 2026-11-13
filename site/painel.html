@@ -2281,18 +2281,28 @@ async function abrirAnaliseIA(){
   document.body.append(scrim,m);
   const mostrar = (a)=>{
     b.innerHTML = "";
-    if(!a){ b.appendChild(el("div","hint","Ainda não há nenhuma análise. Clique em “Gerar nova análise” — a IA lê os casos em andamento (exames, retorno, proposta, convênio) e diz quais têm mais chance de operar e o que fazer em cada um. Leva cerca de 1 minuto.")); quando.textContent=""; return; }
+    if(!a){ b.appendChild(el("div","hint","Ainda não há nenhuma análise. Clique em “Gerar nova análise” — a IA lê os casos em andamento (exames, retorno, proposta, convênio) e diz quais têm mais chance de operar e o que fazer em cada um. Leva de 1 a 2 minutos.")); quando.textContent=""; return; }
     const dt = new Date(a.em);
     quando.textContent = "Análise de " + dt.toLocaleDateString("pt-BR") + " às " + dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) + " · " + (a.total||0) + " casos lidos";
     const cont = {alta:0,media:0,baixa:0};
     (a.casos||[]).forEach(c=>{ const k=String(c.chance||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase(); if(k in cont) cont[k]++; });
     const ms = el("div","mini-stats");
-    for(const [v,l] of [[a.total||0,"casos em andamento"],[cont.alta,"chance alta"],[cont.media,"chance média"],[cont.baixa,"em risco / baixa"]]){ const d=el("div"); d.append(el("b",null,String(v)), el("span",null,l)); ms.appendChild(d); }
+    for(const [v,l] of [[a.total||0,"casos em andamento"],[cont.alta,"chance alta"],[cont.media,"chance média"],[cont.baixa,"chance baixa"]]){ const d=el("div"); d.append(el("b",null,String(v)), el("span",null,l)); ms.appendChild(d); }
     b.appendChild(ms);
     if(a.visao){ b.append(el("div","legend","Visão geral"), el("div","ia-visao",a.visao)); }
     if((a.casos||[]).length){
-      b.appendChild(el("div","legend","Casos para olhar agora (em ordem de prioridade)"));
-      a.casos.forEach((c,i)=>{
+      b.appendChild(el("div","legend","Todos os casos, do que mais pede atenção agora para o que menos pede"));
+      const chips = el("div"); chips.style.cssText="display:flex;gap:6px;flex-wrap:wrap";
+      const lista = el("div"); lista.style.cssText="display:flex;flex-direction:column;gap:8px";
+      let filtro = "";
+      [["","Todos"],["alta","Chance alta"],["media","Chance média"],["baixa","Chance baixa"]].forEach(([k,l])=>{
+        const c = el("button","btn btn-sm"+(k===""?" btn-primary":""),l);
+        c.addEventListener("click",()=>{ filtro=k; chips.querySelectorAll("button").forEach(x=>x.classList.remove("btn-primary")); c.classList.add("btn-primary"); desenhar(); });
+        chips.appendChild(c);
+      });
+      b.append(chips, lista);
+      const desenhar = ()=>{ lista.innerHTML="";
+      a.casos.filter(c=>!filtro || String(c.chance||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()===filtro).forEach((c,i)=>{
         const k=String(c.chance||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
         const card = el("div","ia-caso");
         const t = el("div","topo");
@@ -2301,13 +2311,15 @@ async function abrirAnaliseIA(){
         nm.addEventListener("click",()=>{ if(pacientes.has(c.id)){ fecharOverlays(); abrirDrawer(c.id); } else toast("Essa ficha não está mais no funil."); });
         const nb = el("b"); nb.appendChild(nm); t.appendChild(nb);
         if(c.chance) t.appendChild(el("span","ia-ch "+k,"chance "+c.chance));
+        if(c.nota!=null) t.appendChild(el("span","meta","atenção "+c.nota+"/100"));
         card.appendChild(t);
         const etq = STAGES.find(e=>e.k===c.etapa)||{};
         card.appendChild(el("div","meta",[c.cirurgiao, etq.l||c.etapa].filter(Boolean).join(" · ")));
         if(c.motivo) card.appendChild(el("div",null,c.motivo));
         if(c.acao) card.appendChild(el("div","acao","👉 "+c.acao+(c.quem?" — "+c.quem:"")));
-        b.appendChild(card);
-      });
+        lista.appendChild(card);
+      }); };
+      desenhar();
     }
     b.appendChild(el("div","hint","A IA lê só o que está escrito nas fichas (etapa, resumo, consulta, histórico). Confira antes de agir."));
   };
@@ -2317,7 +2329,7 @@ async function abrirAnaliseIA(){
     mostrar(data && data.v ? JSON.parse(data.v) : null);
   }catch(e){ mostrar(null); }
   gerar.addEventListener("click", async ()=>{
-    gerar.disabled = true; const t0 = gerar.textContent; gerar.textContent = "A IA está analisando… (cerca de 1 min)";
+    gerar.disabled = true; const t0 = gerar.textContent; gerar.textContent = "A IA está analisando… (1 a 2 min)";
     try{
       const { data, error } = await FUNIL.sb.functions.invoke("whats", { body:{ acao:"analise_ia" } });
       if(error || !data || !data.ok) throw new Error((data&&data.erro) || (error&&error.message) || "falhou");
