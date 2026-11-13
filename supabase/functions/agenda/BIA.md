@@ -196,3 +196,7 @@ Outros ajustes feitos na Bia:
 
 ## Teleconsulta: médico e paciente na mesma sala
 - O botão de teleconsulta do painel e da área do médico (teleSala) agora usa a sala da própria consulta (a do link que o paciente recebeu na confirmação e no lembrete). Antes, se a consulta tinha sido marcada há mais de 12 h, o médico abria uma sala nova e cada um ficava esperando numa sala diferente.
+
+## Análise da IA para o diretor (painel → "🤖 Análise da IA")
+- Botão no painel (só administradores). Mostra a última análise salva (funil_config k=analise_ia) e "Gerar nova análise".
+- A função whats (acao "analise_ia", só admin) lê os casos em compareceu, exames_sol, exames_ok, retorno, proposta, docs_conv, autorizacao e autorizado (sem os de demonstração), monta um texto com etapa, dias parado, convênio, resumo do caso/consulta, próxima ação e últimas 4 linhas do histórico, e pede ao agente "Resumo de Consultas" (GPT Maker) um JSON com visão geral + até 20 casos prioritários (chance, motivo, ação, quem). A conversa auxiliar é apagada depois.

@@ -540,6 +540,97 @@ async function resumoComercial() {
   return { ok: true, casos: r.grupos.reduce((a: number, g: any) => a + g.casos.length, 0) };
 }
 
+// ---------- análise da IA para o diretor: lê os casos com potencial e diz onde agir ----------
+const ETAPA_TXT: Record<string, string> = {
+  compareceu: "consultou, sem próximo passo", exames_sol: "exames pedidos", exames_ok: "exames prontos",
+  retorno: "retorno com o cirurgião", proposta: "proposta enviada", docs_conv: "documentos para o convênio",
+  autorizacao: "aguardando autorização do convênio", autorizado: "autorizado pelo convênio",
+};
+async function analiseIA(quem: string) {
+  const etapas = Object.keys(ETAPA_TXT);
+  const [rf, rp] = await Promise.all([
+    dbs(`funil_pacientes?select=id,dados,cirurgiao_email&dados->>etapa=in.(${etapas.join(",")})&limit=2000`),
+    dbs("perfis?select=email,nome"),
+  ]);
+  const fichas: any[] = (rf.ok ? await rf.json() : []).filter((f: any) => !f.dados?.demo);
+  const nomeCir = new Map(((rp.ok ? await rp.json() : []) as any[]).map((x: any) => [x.email, x.nome]));
+  if (!fichas.length) return { ok: false, erro: "não há casos em andamento para analisar" };
+  const hoje = hojeBR();
+  const dias = (a: string) => a && /^\d{4}-\d{2}-\d{2}/.test(a) ? Math.max(0, Math.round((Date.parse(hoje) - Date.parse(a.slice(0, 10))) / 864e5)) : null;
+  const curto = (s: unknown, n: number) => String(s || "").replace(/\s+/g, " ").trim().slice(0, n);
+  const casos = fichas.map((f, i) => {
+    const d = f.dados || {};
+    const hist = (Array.isArray(d.historico) ? d.historico : []).slice(-4);
+    const conv = d.convenio === "Sim" ? (d.nomeConvenio || "convênio") : d.convenio === "Não" ? "particular" : "não informado";
+    return { cod: "C" + (i + 1), id: f.id, nome: d.nome || "Sem nome", cirurgiao: nomeCir.get(f.cirurgiao_email) || "sem cirurgião", etapa: d.etapa,
+      texto: [
+        `C${i + 1} | ${curto(d.nome, 40) || "sem nome"} | ${nomeCir.get(f.cirurgiao_email) || "sem cirurgião"} | etapa: ${ETAPA_TXT[d.etapa] || d.etapa}`
+          + ` | parado há ${dias(String(d.atualizadoEm || "")) ?? "?"} dias | convênio: ${conv} | tratamento: ${curto(d.tratamento, 40) || "?"}`
+          + (Number(d.valorProposta) ? ` | proposta R$ ${Math.round(Number(d.valorProposta))}` : "") + (d.cidade ? ` | ${curto(d.cidade, 30)}` : ""),
+        d.resumoCaso ? "  caso: " + curto(d.resumoCaso, 260) : "",
+        d.resumoConsulta ? "  consulta: " + curto(d.resumoConsulta, 380) : "",
+        d.proximaAcao ? `  próxima ação: ${curto(d.proximaAcao, 120)}${d.dataProximaAcao ? " (" + d.dataProximaAcao + ")" : ""}` : "",
+        hist.length ? "  histórico: " + hist.map((h: any) => `${h.data || ""} ${curto(h.texto, 110)}`).join(" / ") : "",
+      ].filter(Boolean).join("\n"),
+    };
+  });
+  let lista = casos.map((c) => c.texto).join("\n");
+  if (lista.length > 45000) lista = lista.slice(0, 45000);
+  const prompt = "TAREFA DIFERENTE (não é resumo de consulta): ANÁLISE COMERCIAL PARA O DIRETOR\n\n"
+    + "Você é um analista comercial da Alinha Face, empresa que conecta pacientes com problemas de mordida/face (cirurgia ortognática, ATM etc.) "
+    + "a cirurgiões parceiros e cuida do caminho até a cirurgia (consulta, exames, retorno, proposta, convênio). A Ana Clara é a atendente; o diretor é o Claudemir.\n"
+    + `Hoje é ${hoje}. Abaixo estão os casos em andamento. Avalie cada um e escolha os até 20 casos que mais merecem a atenção do diretor agora: `
+    + "os com maior chance de virar cirurgia e os que estão em risco de esfriar (parados, sem retorno). Use só o que está escrito; não invente fatos.\n\n"
+    + "Responda SOMENTE com um JSON válido, sem texto antes ou depois, neste formato:\n"
+    + '{"visao":"3 a 5 frases curtas: como está a carteira, onde está o gargalo e o que fazer esta semana",'
+    + '"casos":[{"cod":"C1","chance":"alta|média|baixa","prioridade":1,"motivo":"até 140 caracteres: por que pode operar ou por que está em risco",'
+    + '"acao":"até 110 caracteres: a próxima ação concreta","quem":"Ana|Cirurgião|Diretor|Paciente"}]}\n'
+    + "Ordene por prioridade (1 = mais urgente). \n\nCasos:\n" + lista;
+  const ctx = "IA" + Date.now();
+  const r = await gm(`/agent/${AGENTE_RESUMO}/conversation`, { method: "POST", body: JSON.stringify({ contextId: ctx, chatName: ctx, prompt }) });
+  let txt = String(r?.message || "").trim();
+  let tmp: string | null = null;
+  for (let t = 0; t < 35 && !txt; t++) {
+    await espera(3000);
+    try {
+      const cs = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=3&query=${ctx}`);
+      const c = (Array.isArray(cs) ? cs : []).find((x: any) => x.name === ctx);
+      if (!c) continue;
+      tmp = c.id;
+      const ms = await gm(`/chat/${c.id}/messages?page=1&pageSize=5`);
+      const a = (Array.isArray(ms) ? ms : []).find((m: any) => m.role === "assistant" && String(m.text || "").length > 20);
+      if (a) txt = String(a.text).trim();
+    } catch { /* tenta de novo */ }
+  }
+  try {
+    if (!tmp) { const cs = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=3&query=${ctx}`); tmp = (Array.isArray(cs) ? cs : []).find((x: any) => x.name === ctx)?.id || null; }
+    if (tmp) await gm(`/chat/${tmp}`, { method: "DELETE" });
+  } catch { /* ok */ }
+  if (!txt) return { ok: false, erro: "a IA não respondeu a tempo; tente de novo em um minuto" };
+  // lê o JSON (mesmo se vier cortado ou com texto em volta)
+  let visao = "", itens: any[] = [];
+  const bruto = txt.replace(/```(json)?/g, "");
+  try {
+    const j = JSON.parse(bruto.slice(bruto.indexOf("{"), bruto.lastIndexOf("}") + 1));
+    visao = String(j.visao || ""); itens = Array.isArray(j.casos) ? j.casos : [];
+  } catch {
+    visao = (bruto.match(/"visao"\s*:\s*"((?:[^"\\]|\\.)*)"/) || [])[1] || "";
+    for (const m of bruto.matchAll(/\{[^{}]*"cod"[^{}]*\}/g)) { try { itens.push(JSON.parse(m[0])); } catch { /* pula */ } }
+  }
+  const porCod = new Map(casos.map((c) => [c.cod, c]));
+  const saida = itens.map((x: any) => {
+    const c = porCod.get(String(x.cod || "").trim().toUpperCase());
+    if (!c) return null;
+    return { id: c.id, nome: c.nome, cirurgiao: c.cirurgiao, etapa: c.etapa, chance: curto(x.chance, 10), prioridade: Number(x.prioridade) || 99,
+      motivo: curto(x.motivo, 220), acao: curto(x.acao, 160), quem: curto(x.quem, 20) };
+  }).filter(Boolean).sort((a: any, b: any) => a.prioridade - b.prioridade);
+  if (!saida.length && !visao) return { ok: false, erro: "a resposta da IA veio num formato que não consegui ler", detalhe: txt.slice(0, 500) };
+  const res = { ok: true, em: new Date().toISOString(), por: quem, total: casos.length, visao: visao.replace(/\\n/g, "\n"), casos: saida };
+  await dbs("funil_config?on_conflict=k", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ k: "analise_ia", v: JSON.stringify(res) }) });
+  return res;
+}
+
 // ---------- comercial: confere se a conversa/telefone é de um paciente dele ----------
 const ACOES_COMERCIAL = ["mensagens", "enviar", "assumir", "devolver", "iniciar"];
 async function podeComercial(auth: string, p: any): Promise<boolean> {
@@ -885,6 +976,7 @@ Deno.serve(async (req) => {
         return json({ ok: true, apagadas });
       }
       case "comercial": return json(await relatorioComercial());
+      case "analise_ia": return json(await analiseIA(String(eu.email || "")));
       case "situacao_canal": {
         const lista = await gm(`/workspace/${WORKSPACE}/chats?page=1&pageSize=5`);
         const canal = (Array.isArray(lista) ? lista : []).map((c: any) => c.channelId).find(Boolean);
