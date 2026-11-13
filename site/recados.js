@@ -332,7 +332,7 @@ function rcRenderFicha(pid){
 const rcEhComercial = r => /\(comercial\)/i.test(r.de_nome||"") || (RC.equipe.find(p=>p.email===r.de)||{}).papel === "comercial";
 function rcComercialTopo(){
   const box = document.getElementById("comercialTopo"); if(!box) return;
-  const pend = RC.lista.filter(r => r.para === RC.eu && !r.feito_em && rcEhComercial(r));
+  const pend = RC.lista.filter(r => rcRecebidoAberto(r) && rcEhComercial(r));   // some quando ela responde ou marca feito
   const aberto = box.querySelector("textarea:focus");
   if(aberto) return;   // não apaga o que a pessoa está respondendo
   box.textContent = "";
