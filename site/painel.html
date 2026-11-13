@@ -539,7 +539,7 @@
     <div class="seg" role="group" aria-label="Modo de visualização">
       <button id="viewNovos" aria-pressed="false">Novos</button>
       <button id="viewWhats" aria-pressed="false">WhatsApp</button>
-      <button id="viewExames" aria-pressed="false">Exames pedidos</button>
+      <button id="viewExames" aria-pressed="false">Exames em andamento</button>
       <button id="viewCir" aria-pressed="false">Cirurgias</button>
       <button id="viewCal" aria-pressed="false">Calendário</button>
       <button id="viewAg" aria-pressed="false">Agendas</button>
@@ -900,7 +900,8 @@ function render(){
   const ba = document.getElementById("viewAfo");
   if(ba){ const n = casosMedico(MEDICOS.afo).length; ba.textContent = n ? "Dr. Afonso · "+n : "Dr. Afonso"; }
   const bx = document.getElementById("viewExames");
-  if(bx){ const n = examesPendentes().length; bx.textContent = n ? "Exames pedidos · "+n : "Exames pedidos"; bx.classList.toggle("alerta", n>0); }
+  if(bx){ const and = examesAndamento(), n = and.length, venc = and.filter(p=>exPrazo(p).resta<0).length + examesPendentes().length;
+    bx.textContent = n ? "Exames em andamento · "+n : "Exames em andamento"; bx.classList.toggle("alerta", venc>0); }
   const bc = document.getElementById("viewCir");
   if(bc){ const n = cirGrupo("aut").length; bc.textContent = n ? "Cirurgias · "+n+" aguardando" : "Cirurgias"; }
   const bh = document.getElementById("viewHoje");
@@ -1174,6 +1175,21 @@ function examesPendentes(){
   return [...pacientes.values()].filter(p=>p.consultaPediuExames && !p.examesVistoEm)
     .sort((a,b)=>String(a.examesPedidosEm||"").localeCompare(String(b.examesPedidosEm||"")));
 }
+/* exames em andamento: precisa agendar, agendado, fez e precisa apresentar o resultado */
+function examesAndamento(){
+  return [...pacientes.values()].filter(p => p.etapa==="exames_sol" || (p.consultaPediuExames && p.etapa==="compareceu"));
+}
+function exStatus(p){
+  if(p.exameRealizadoEm) return "apresentar";
+  if(p.exameAgendadoPara) return p.exameAgendadoPara < hoje() ? "apresentar" : "agendado";
+  return "agendar";
+}
+function exPrazo(p){   // regra: no máximo 10 dias para fazer o exame
+  const base = String(p.examesPedidosEm || p.dataExames || p.consultaRegistradaEm || "").slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(base)) return { base:"", prazo:"", resta:99 };
+  const prazo = new Date(Date.parse(base) + 10*864e5).toISOString().slice(0,10);
+  return { base, prazo, resta: Math.round((Date.parse(prazo) - Date.parse(hoje()))/864e5) };
+}
 function examesVistos(){
   return [...pacientes.values()].filter(p=>p.consultaPediuExames && p.examesVistoEm && diasDesde(p.examesVistoEm)<=30)
     .sort((a,b)=>String(b.examesVistoEm).localeCompare(String(a.examesVistoEm)));
@@ -1195,6 +1211,10 @@ function linhaExame(p, pendente){
   const nm = el("button",null,p.nome||"Sem nome"); nm.title="Abrir ficha"; nm.addEventListener("click",()=>abrirDrawer(p.id));
   t1.append(el("span","step","Exames"), nm);
   const sv = situacaoVoucher(p); if(sv){ t1.appendChild(el("span","tag-v "+sv[1], sv[0])); }
+  const pz = exPrazo(p);
+  if(pz.prazo && exStatus(p)!=="apresentar") t1.appendChild(el("span","tag-v "+(pz.resta<0||pz.resta<=3?"warn":"neu"), pz.resta<0 ? "prazo vencido há "+(-pz.resta)+"d" : pz.resta===0 ? "prazo vence hoje" : "prazo: "+dataBR(pz.prazo)+" ("+pz.resta+"d)"));
+  if(p.exameAgendadoPara) t1.appendChild(el("span","tag-v ok", (p.exameAgendadoPara<hoje()?"exame foi em ":"exame agendado: ")+dataBR(p.exameAgendadoPara)));
+  if(p.exameRealizadoEm) t1.appendChild(el("span","tag-v ok","fez o exame em "+dataBR(p.exameRealizadoEm)));
   const t2 = el("div","t2");
   t2.textContent = [nomeCirurgiao(p.consultaRegistradaPor||p.cirurgiao),
     p.examesPedidosEm ? "pedido em "+dataBR(p.examesPedidosEm) : "",
@@ -1227,6 +1247,32 @@ function linhaExame(p, pendente){
     });
     ops.appendChild(v);
   }
+  // andamento do exame
+  const st = exStatus(p);
+  const salvaEx = (mud, hist, msg)=>{ const q = Object.assign({}, pacientes.get(p.id), mud); registrarHistorico(q, hist); salvar(q); toast(msg); };
+  if(st==="agendar"){
+    const b = el("button","btn btn-sm","Agendou o exame");
+    b.addEventListener("click",()=>{
+      if(row.querySelector(".ex-data")) return;
+      const w = el("span","ex-data"); w.style.cssText = "display:inline-flex;gap:4px;align-items:center";
+      const d = el("input"); d.type = "date"; d.value = hoje(); d.style.cssText = "border:1px solid var(--line-strong);border-radius:6px;padding:3px 6px;background:var(--surface);color:var(--ink)";
+      const okb = el("button","btn btn-sm btn-primary","OK");
+      okb.addEventListener("click",()=>{ if(!d.value) return; salvaEx({ exameAgendadoPara: d.value, examesVistoEm: p.examesVistoEm || hoje() }, "Exame agendado para "+dataBR(d.value), "Exame agendado para "+dataBR(d.value)+"."); });
+      w.append(d, okb); ops.prepend(w); d.focus();
+    });
+    ops.appendChild(b);
+  }
+  if(st==="agendado" || st==="agendar"){
+    const f = el("button","btn btn-sm","Já fez o exame");
+    f.addEventListener("click",()=>salvaEx({ exameRealizadoEm: hoje(), examesVistoEm: p.examesVistoEm || hoje() }, "Paciente fez o exame — falta apresentar o resultado", "Marcado: fez o exame. Agora falta apresentar o resultado."));
+    ops.appendChild(f);
+  }
+  if(st==="apresentar"){
+    const e = el("button","btn btn-sm btn-primary","Resultado entregue");
+    e.title = "O paciente apresentou o resultado: o caso passa para Exames entregues";
+    e.addEventListener("click",()=>salvaEx({ etapa:"exames_ok", dataExamesOk: hoje(), examesVistoEm: p.examesVistoEm || hoje() }, "Etapa → Exames entregues (resultado apresentado)", "Resultado entregue. O caso foi para Exames entregues."));
+    ops.appendChild(e);
+  }
   if(pendente){
     const ok = el("button","btn btn-sm","Visto");
     ok.title = "Tira da lista de pendentes";
@@ -1241,32 +1287,35 @@ function linhaExame(p, pendente){
 }
 function renderExames(){
   const box = $("#examesview"); box.textContent = "";
-  const pend = examesPendentes(), vistos = examesVistos();
+  const todos = examesAndamento();
+  const grupos = { agendar:[], agendado:[], apresentar:[] };
+  todos.forEach(p=>grupos[exStatus(p)].push(p));
+  const porPrazo = (a,b)=> exPrazo(a).resta - exPrazo(b).resta;
+  Object.values(grupos).forEach(g=>g.sort(porPrazo));
+  const vencidos = todos.filter(p=>exStatus(p)!=="apresentar" && exPrazo(p).resta<0);
   const head = el("div","hoje-head"); const hl = el("div");
-  hl.append(el("h2",null,"Exames pedidos"), el("div","dt","O que os cirurgiões pediram nas consultas. Fica aqui até alguém marcar como visto."));
+  hl.append(el("h2",null,"Exames em andamento"), el("div","dt","Todos os pacientes que precisam agendar, fazer ou apresentar exame. O prazo para fazer é de 10 dias a partir do pedido do cirurgião."));
   head.append(hl); box.appendChild(head);
 
-  const semEnvio = pend.concat(vistos).filter(p=>p.voucherEmitido && (p.voucherStatus||"Aguardando uso")==="Aguardando uso" && !(p.regua||{}).d0);
-  const semVoucher = pend.filter(p=>!p.voucherEmitido && temRessonancia(p));
   const k = el("div","kpis");
-  [{l:"Pedidos novos", v:pend.length, h:"ainda não vistos", c:pend.length?"alert":""},
-   {l:"Voucher a enviar", v:semEnvio.length, h:"emitido, falta mandar ao paciente", c:semEnvio.length?"alert":""},
-   {l:"Ressonância sem voucher", v:semVoucher.length, h:"fora de SP ou cidade em branco"}
+  [{l:"Precisa agendar", v:grupos.agendar.length, h:"ainda não marcou o exame", c:grupos.agendar.length?"alert":""},
+   {l:"Exame agendado", v:grupos.agendado.length, h:"com data marcada"},
+   {l:"Apresentar resultado", v:grupos.apresentar.length, h:"já fez, falta trazer o resultado", c:grupos.apresentar.length?"alert":""},
+   {l:"Prazo de 10 dias vencido", v:vencidos.length, h:"ainda sem fazer o exame", c:vencidos.length?"alert":""}
   ].forEach(t=>{ const d = el("div","kpi"+(t.c?" "+t.c:"")); d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",t.h)); k.appendChild(d); });
   box.appendChild(k);
 
-  const p1 = el("section","panel");
-  const h1 = el("div","panel-head"); h1.append(el("h3",null,"Pedidos novos"), el("span","n",String(pend.length))); p1.appendChild(h1);
-  if(!pend.length){ const e = el("div","done-empty"); e.append(el("strong",null,"Nada novo"), document.createTextNode("Quando um cirurgião registrar que pediu exames, o paciente aparece aqui.")); p1.appendChild(e); }
-  pend.forEach(p=>p1.appendChild(linhaExame(p,true)));
-  box.appendChild(p1);
-
-  if(vistos.length){
-    const p2 = el("section","panel"); p2.style.marginTop = "16px";
-    const h2 = el("div","panel-head"); h2.append(el("h3",null,"Vistos nos últimos 30 dias"), el("span","n",String(vistos.length))); p2.appendChild(h2);
-    vistos.forEach(p=>p2.appendChild(linhaExame(p,false)));
-    box.appendChild(p2);
-  }
+  [["agendar","Precisa agendar o exame","Ajudar o paciente a marcar. Quando marcar, clique em \"Agendou o exame\" e coloque a data."],
+   ["agendado","Exame agendado","Confirmar se fez na data. Depois do exame, clique em \"Já fez o exame\"."],
+   ["apresentar","Fez o exame — apresentar o resultado","Cobrar o resultado e enviar ao cirurgião. Quando chegar, clique em \"Resultado entregue\"."]
+  ].forEach(([key, titulo, dica], i)=>{
+    const sec = el("section","panel"); if(i) sec.style.marginTop = "16px";
+    const h = el("div","panel-head"); h.append(el("h3",null,titulo), el("span","n",String(grupos[key].length))); sec.appendChild(h);
+    const dd = el("div","hint"); dd.style.padding = "6px 14px"; dd.textContent = dica; sec.appendChild(dd);
+    if(!grupos[key].length){ const e = el("div","done-empty"); e.append(el("strong",null,"Ninguém aqui agora")); sec.appendChild(e); }
+    grupos[key].forEach(p=>sec.appendChild(linhaExame(p, p.consultaPediuExames && !p.examesVistoEm)));
+    box.appendChild(sec);
+  });
 }
 
 /* ============ novos: falaram com a gente e ninguém decidiu o próximo passo ============ */

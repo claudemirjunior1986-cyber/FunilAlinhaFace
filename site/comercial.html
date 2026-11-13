@@ -224,6 +224,19 @@ function situacao(p){
         : resta!=null && resta < 0 ? "Prazo estourado: falar hoje com o paciente, agendar o exame junto com ele e avisar o cirurgião."
         : "Garantir que o paciente agende e faça o exame dentro dos 10 dias; cobrar o resultado.";
       s.alerta = (s.dias ?? 0) >= 1 || p.voucherStatus==="Venceu";
+      // andamento marcado pela equipe na tela "Exames em andamento"
+      const fezOuPassou = p.exameRealizadoEm || (p.exameAgendadoPara && p.exameAgendadoPara < h);
+      if(fezOuPassou){
+        s.prazoExame = null; s.tom = "warn";
+        s.falta = (p.exameRealizadoEm ? `Fez o exame em ${dataBR(p.exameRealizadoEm)}` : `O exame estava marcado para ${dataBR(p.exameAgendadoPara)}`) + ". Falta apresentar o resultado.";
+        s.ajuda = "Cobrar o resultado do paciente e enviar ao cirurgião.";
+        s.msg = `Oi, ${N}! Aqui é o Joaquim, da Alinha Face. Seu exame já ficou pronto? Se puder, me manda o resultado por aqui que eu já encaminho ao doutor para dar sequência.`;
+      } else if(p.exameAgendadoPara){
+        s.falta = `Exame agendado para ${dataBR(p.exameAgendadoPara)} (${ex}).` + (prazo && p.exameAgendadoPara > prazo ? ` Atenção: depois do prazo de 10 dias (${dataBR(prazo)}).` : "");
+        s.ajuda = "Confirmar com o paciente que ele vai fazer o exame na data.";
+        s.alerta = p.exameAgendadoPara === h || (prazo && p.exameAgendadoPara > prazo);
+        s.tom = s.alerta ? "warn" : "ok";
+      }
       s.tom = (resta!=null && resta <= 3) || p.voucherStatus==="Venceu" ? "crit" : "warn";
       s.msg = `Oi, ${N}! Aqui é o Joaquim, da Alinha Face. Já conseguiu agendar ${ex.toLowerCase().includes("resson")?"a sua ressonância":"os seus exames"}? O ideal é fazer${prazo && resta>=0?" até "+dataBR(prazo):" o quanto antes"} para o doutor dar sequência ao seu tratamento. Se precisar, te ajudo a marcar agora. Assim que ficar pronto, me manda por aqui que eu já encaminho ao doutor.`;
       break; }
