@@ -208,3 +208,6 @@ Outros ajustes feitos na Bia:
 - Quem não chega pelo quiz do site faz o quiz com a Bia: treinamento de texto "QUIZ WHATSAPP" no GPT Maker (P1 incômodo, P2 tempo, P3 tratamentos, P4 quando resolver; P5 plano de saúde só DEPOIS de agendar). Comportamento: linha "Sem quiz: faça o QUIZ WHATSAPP do treinamento" (seção 4) e "Plano: pergunte só DEPOIS de confirmar o agendamento" (seção 6).
 - A função whats (sincronização, passo 5 do vigiar, conversas dos últimos 20 min) acha as perguntas da Bia (regex QUIZ_WA), pega a resposta seguinte do paciente (número → texto da opção) e grava na ficha: quizWhats, resumoCaso ("Avaliação pelo WhatsApp:"), tratamento (se "A definir") e convênio (se "Não sabe"). O cirurgião vê no resumo do caso.
 - O funil reconhece as perguntas mesmo reescritas pela Bia (ex.: "O que você gostaria de avaliar?", "Há quanto tempo...", "Já tentou...", "Quando... resolver", "Tem plano de saúde/convênio?").
+
+## Apresentação (16/11)
+- Toda conversa nova que não vem do quiz do site começa com a APRESENTAÇÃO (treinamento de texto, copiada exatamente), que termina com "o que te trouxe até nós hoje?" — vale como P1 do quiz. Comportamento seção 4: "Conversa nova sem quiz: 1ª mensagem = APRESENTAÇÃO... pule a P1". O funil reconhece "o que te trouxe" como P1.

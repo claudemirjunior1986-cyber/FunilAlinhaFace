@@ -433,7 +433,7 @@ async function vigiar(arr: any[], fora: Set<string>) {
 
 // ---------- quiz pelo WhatsApp: a Bia faz as perguntas do quiz do site; o funil grava as respostas na ficha ----------
 const QUIZ_WA: { k: string; t: string; re: RegExp; ops: string[]; multi?: boolean }[] = [
-  { k: "problema", t: "Principal incômodo", re: /principal inc[oô]modo|gostaria de avaliar|o que (mais )?(te )?incomoda|qual (é )?(o )?(seu )?(problema|inc[oô]modo|queixa)/i, ops: ["Dor na mandíbula, têmporas ou cabeça", "Dificuldade para abrir a boca / travamento",
+  { k: "problema", t: "Principal incômodo", re: /principal inc[oô]modo|o que te trouxe|gostaria de avaliar|o que (mais )?(te )?incomoda|qual (é )?(o )?(seu )?(problema|inc[oô]modo|queixa)/i, ops: ["Dor na mandíbula, têmporas ou cabeça", "Dificuldade para abrir a boca / travamento",
     "Queixo muito para frente ou para trás", "Ronco, apneia ou cansaço ao acordar", "Mordida errada ou dificuldade para mastigar", "Incômodo com o perfil do rosto"] },
   { k: "tempo", t: "Há quanto tempo convive com o problema", re: /h[aá] quanto tempo/i, ops: ["Menos de 6 meses", "Entre 6 meses e 2 anos", "Mais de 2 anos", "A vida toda"] },
   { k: "tentou", t: "Tratamentos já tentados", re: /tentou algum tratamento|j[aá] (fez|tentou)|tratamento antes/i, multi: true,
