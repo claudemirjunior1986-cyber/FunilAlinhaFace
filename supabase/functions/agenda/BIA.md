@@ -211,3 +211,6 @@ Outros ajustes feitos na Bia:
 
 ## Apresentação (16/11)
 - Toda conversa nova que não vem do quiz do site começa com a APRESENTAÇÃO (treinamento de texto, copiada exatamente), que termina com "o que te trouxe até nós hoje?" — vale como P1 do quiz. Comportamento seção 4: "Conversa nova sem quiz: 1ª mensagem = APRESENTAÇÃO... pule a P1". O funil reconhece "o que te trouxe" como P1.
+
+## Cópia dos avisos (038, 16/11)
+- Tudo o que entra na fila de avisos para o Dr. Victor (nova consulta, remarcação, cancelamento, lembrete, presencial) ganha uma cópia para a Fernanda (5521964290798). Tabela funil_avisos_copia (email do cirurgião, telefone, nome); gatilho zz_copia_aviso_medico. A cópia usa o e-mail "admvictorssa@gmail.com#fernanda" para não ser descartada pela regra "só vale o aviso mais recente". Para incluir outra pessoa/cirurgião, é só inserir na tabela.
