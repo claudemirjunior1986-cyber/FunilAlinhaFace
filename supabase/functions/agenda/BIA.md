@@ -218,3 +218,7 @@ Outros ajustes feitos na Bia:
 ## Resumo para o diretor (039, 16/11)
 - Quando o cirurgião registra (ou corrige) a consulta no funil, sai um WhatsApp para o Claudemir (funil_config k='diretor_whatsapp'): paciente, cirurgião, data, resultado, convênio e o resumo do cirurgião (ou o da IA da teleconsulta, se ele não escreveu). Fila funil_avisos_medico, email 'diretor', tipo 'resumo_diretor'.
 - 16/11 à tarde: reduzido para 3 min (paciente espera no máximo ~5 min).
+
+## Modelo e comportamento (16/11)
+- A Bia passou para Claude 5.5 Sonnet com contexto 2x (10 créditos por resposta; 6 mil caracteres de comportamento, 40 mensagens de histórico).
+- Comportamento reescrito (cópia em docs/bia_comportamento.txt). O GPT Maker guarda as versões anteriores em "Histórico" (ao lado do campo Comportamento).
