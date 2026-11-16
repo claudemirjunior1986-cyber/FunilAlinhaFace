@@ -425,7 +425,68 @@ async function vigiar(arr: any[], fora: Set<string>) {
     }
   }
   res.frases_conferidas = conferidas; res.frases_alertadas = frases;
+
+  // 5) quiz feito pela Bia no WhatsApp: grava as respostas na ficha (resumo do caso, que o cirurgião vê)
+  try { res.quiz_whats = await quizWhats(arr, fora); } catch (e) { res.quiz_whats = "erro: " + String((e as Error).message || e).slice(0, 80); }
   return res;
+}
+
+// ---------- quiz pelo WhatsApp: a Bia faz as perguntas do quiz do site; o funil grava as respostas na ficha ----------
+const QUIZ_WA: { k: string; t: string; re: RegExp; ops: string[]; multi?: boolean }[] = [
+  { k: "problema", t: "Principal incômodo", re: /principal inc[oô]modo/i, ops: ["Dor na mandíbula, têmporas ou cabeça", "Dificuldade para abrir a boca / travamento",
+    "Queixo muito para frente ou para trás", "Ronco, apneia ou cansaço ao acordar", "Mordida errada ou dificuldade para mastigar", "Incômodo com o perfil do rosto"] },
+  { k: "tempo", t: "Há quanto tempo convive com o problema", re: /quanto tempo (voc[eê] )?convive/i, ops: ["Menos de 6 meses", "Entre 6 meses e 2 anos", "Mais de 2 anos", "A vida toda"] },
+  { k: "tentou", t: "Tratamentos já tentados", re: /tentou algum tratamento|j[aá] tentou/i, multi: true,
+    ops: ["Placa de mordida", "Remédio para dor", "Fisioterapia/RPG", "Aparelho ortodôntico", "Nenhum ainda"] },
+  { k: "urgencia", t: "Quando gostaria de resolver", re: /quando (voc[eê] )?gostaria de resolver/i, ops: ["O quanto antes", "Nos próximos 3 meses", "Sem pressa, pesquisando"] },
+  { k: "plano", t: "Plano de saúde", re: /voc[eê] tem plano de sa[uú]de/i, ops: ["Sim", "Tem, mas não sabe se cobre", "Não, seria particular", "Vai verificar"] },
+];
+function respostaQuiz(q: typeof QUIZ_WA[number], txt: string): string {
+  const t = String(txt || "").trim();
+  const nums = [...t.matchAll(/\b([1-9])\b|([1-9])️?⃣/g)].map((m) => Number(m[1] || m[2])).filter((n) => n >= 1 && n <= q.ops.length);
+  const soNumeros = /^[\s\d,e/.;-]*$/i.test(t.replace(/️?⃣/g, ""));
+  if (nums.length && (soNumeros || t.length <= 12)) return (q.multi ? [...new Set(nums)] : nums.slice(0, 1)).map((n) => q.ops[n - 1]).join(", ");
+  return t.replace(/\s+/g, " ").slice(0, 160);
+}
+async function quizWhats(arr: any[], fora: Set<string>) {
+  const agora = Date.now();
+  const alvo = arr.filter((c: any) => c.ultima_em && agora - Date.parse(c.ultima_em) < 20 * 60000 && c.tel8 && !fora.has(c.tel8)).slice(0, 12);
+  let gravadas = 0;
+  for (const c of alvo) {
+    let ms: any[] = [];
+    try { ms = (await gm(`/chat/${encodeURIComponent(c.chat_id)}/messages?page=1&pageSize=60`) || []).map(mensagem).filter(Boolean)
+      .filter((m: any) => m.texto).sort((a: any, b: any) => String(a.em).localeCompare(String(b.em))); } catch { continue; }
+    if (ms.some((m: any) => m.de === "paciente" && /avalia[cç][aã]o (no|do) site|site da alinha face/i.test(m.texto))) continue;   // veio do quiz do site
+    const resp: Record<string, string> = {};
+    for (const q of QUIZ_WA) {
+      for (let i = ms.length - 1; i >= 0; i--) {
+        if (ms[i].de === "bia" && q.re.test(ms[i].texto)) {
+          const r = ms.slice(i + 1).find((m: any) => m.de === "paciente");
+          if (r) resp[q.k] = respostaQuiz(q, r.texto);
+          break;
+        }
+      }
+    }
+    if (Object.keys(resp).length < 2) continue;
+    const fichas: any[] = await dbs(`funil_pacientes?select=id,dados&dados->>telefone=like.*${c.tel8}&order=atualizado_em.desc&limit=1`).then((r) => r.ok ? r.json() : []);
+    const f = fichas[0];
+    if (!f) continue;
+    const d = f.dados || {};
+    const texto = QUIZ_WA.filter((q) => resp[q.k]).map((q) => "• " + q.t + ": " + resp[q.k]).join("\n");
+    if (d.quizWhats === texto) continue;
+    const novo: any = { quizWhats: texto, quizWhatsEm: new Date().toISOString() };
+    const caso = String(d.resumoCaso || "").replace(/\n?Avaliação pelo WhatsApp:\n[\s\S]*$/, "").trim();
+    novo.resumoCaso = (caso ? caso + "\n" : "") + "Avaliação pelo WhatsApp:\n" + texto;
+    if ((!d.tratamento || d.tratamento === "A definir") && resp.problema) {
+      novo.tratamento = /dor na mand|travamento/i.test(resp.problema) ? "DTM / ATM" : /queixo|mordida|perfil/i.test(resp.problema) ? "Ortognática" : d.tratamento || "A definir";
+    }
+    if (resp.plano && (!d.convenio || d.convenio === "Não sabe")) {
+      novo.convenio = /^sim|tem, mas/i.test(resp.plano) ? "Sim" : /^n[aã]o/i.test(resp.plano) ? "Não" : d.convenio || "Não sabe";
+    }
+    const w = await dbs("funil_pacientes?id=eq." + encodeURIComponent(f.id), { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ dados: { ...d, ...novo } }) });
+    if (w.ok) gravadas++;
+  }
+  return gravadas;
 }
 
 // ---------- gasto com anúncios do Meta (Facebook/Instagram) -> funil_gastos ----------

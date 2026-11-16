@@ -203,3 +203,8 @@ Outros ajustes feitos na Bia:
 
 ## Bia calada (16/11)
 - O GPT Maker às vezes simplesmente não responde uma mensagem do paciente (não aparece interação nem log). A vigia já fazia a Bia retomar sozinha (biaRetoma), mas só depois de 15 min. Agora é depois de 5 min (a sincronização roda a cada 2 min, então o paciente espera no máximo ~7 min).
+
+## Quiz pelo WhatsApp (16/11)
+- Quem não chega pelo quiz do site faz o quiz com a Bia: treinamento de texto "QUIZ WHATSAPP" no GPT Maker (P1 incômodo, P2 tempo, P3 tratamentos, P4 quando resolver; P5 plano de saúde só DEPOIS de agendar). Comportamento: linha "Sem quiz: faça o QUIZ WHATSAPP do treinamento" (seção 4) e "Plano: pergunte só DEPOIS de confirmar o agendamento" (seção 6).
+- A função whats (sincronização, passo 5 do vigiar, conversas dos últimos 20 min) acha as perguntas da Bia (regex QUIZ_WA), pega a resposta seguinte do paciente (número → texto da opção) e grava na ficha: quizWhats, resumoCaso ("Avaliação pelo WhatsApp:"), tratamento (se "A definir") e convênio (se "Não sabe"). O cirurgião vê no resumo do caso.
+- Se mudar o texto das perguntas no treinamento, mantenha as palavras-chave: "principal incômodo", "quanto tempo você convive", "tentou algum tratamento", "quando você gostaria de resolver", "você tem plano de saúde".
