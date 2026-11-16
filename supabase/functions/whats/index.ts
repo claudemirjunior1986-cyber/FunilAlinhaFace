@@ -433,13 +433,13 @@ async function vigiar(arr: any[], fora: Set<string>) {
 
 // ---------- quiz pelo WhatsApp: a Bia faz as perguntas do quiz do site; o funil grava as respostas na ficha ----------
 const QUIZ_WA: { k: string; t: string; re: RegExp; ops: string[]; multi?: boolean }[] = [
-  { k: "problema", t: "Principal incômodo", re: /principal inc[oô]modo/i, ops: ["Dor na mandíbula, têmporas ou cabeça", "Dificuldade para abrir a boca / travamento",
+  { k: "problema", t: "Principal incômodo", re: /principal inc[oô]modo|gostaria de avaliar|o que (mais )?(te )?incomoda|qual (é )?(o )?(seu )?(problema|inc[oô]modo|queixa)/i, ops: ["Dor na mandíbula, têmporas ou cabeça", "Dificuldade para abrir a boca / travamento",
     "Queixo muito para frente ou para trás", "Ronco, apneia ou cansaço ao acordar", "Mordida errada ou dificuldade para mastigar", "Incômodo com o perfil do rosto"] },
-  { k: "tempo", t: "Há quanto tempo convive com o problema", re: /quanto tempo (voc[eê] )?convive/i, ops: ["Menos de 6 meses", "Entre 6 meses e 2 anos", "Mais de 2 anos", "A vida toda"] },
-  { k: "tentou", t: "Tratamentos já tentados", re: /tentou algum tratamento|j[aá] tentou/i, multi: true,
+  { k: "tempo", t: "Há quanto tempo convive com o problema", re: /h[aá] quanto tempo/i, ops: ["Menos de 6 meses", "Entre 6 meses e 2 anos", "Mais de 2 anos", "A vida toda"] },
+  { k: "tentou", t: "Tratamentos já tentados", re: /tentou algum tratamento|j[aá] (fez|tentou)|tratamento antes/i, multi: true,
     ops: ["Placa de mordida", "Remédio para dor", "Fisioterapia/RPG", "Aparelho ortodôntico", "Nenhum ainda"] },
-  { k: "urgencia", t: "Quando gostaria de resolver", re: /quando (voc[eê] )?gostaria de resolver/i, ops: ["O quanto antes", "Nos próximos 3 meses", "Sem pressa, pesquisando"] },
-  { k: "plano", t: "Plano de saúde", re: /voc[eê] tem plano de sa[uú]de/i, ops: ["Sim", "Tem, mas não sabe se cobre", "Não, seria particular", "Vai verificar"] },
+  { k: "urgencia", t: "Quando gostaria de resolver", re: /quando .{0,25}resolver/i, ops: ["O quanto antes", "Nos próximos 3 meses", "Sem pressa, pesquisando"] },
+  { k: "plano", t: "Plano de saúde", re: /(tem|possui).{0,15}(plano de sa[uú]de|conv[eê]nio)|qual .{0,20}(plano|conv[eê]nio)/i, ops: ["Sim", "Tem, mas não sabe se cobre", "Não, seria particular", "Vai verificar"] },
 ];
 function respostaQuiz(q: typeof QUIZ_WA[number], txt: string): string {
   const t = String(txt || "").trim();
