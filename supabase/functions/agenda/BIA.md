@@ -200,3 +200,6 @@ Outros ajustes feitos na Bia:
 ## Análise da IA para o diretor (painel → "🤖 Análise da IA")
 - Botão no painel (só administradores). Mostra a última análise salva (funil_config k=analise_ia) e "Gerar nova análise".
 - A função whats (acao "analise_ia", só admin) lê os casos em compareceu, exames_sol, exames_ok, retorno, proposta, docs_conv, autorizacao e autorizado (sem os de demonstração), monta um texto com etapa, dias parado, convênio, resumo do caso/consulta, próxima ação e últimas 4 linhas do histórico, e pede ao agente "Resumo de Consultas" (GPT Maker) um JSON com visão geral + até 20 casos prioritários (chance, motivo, ação, quem). A conversa auxiliar é apagada depois.
+
+## Bia calada (16/11)
+- O GPT Maker às vezes simplesmente não responde uma mensagem do paciente (não aparece interação nem log). A vigia já fazia a Bia retomar sozinha (biaRetoma), mas só depois de 15 min. Agora é depois de 5 min (a sincronização roda a cada 2 min, então o paciente espera no máximo ~7 min).
