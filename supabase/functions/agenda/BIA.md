@@ -217,3 +217,4 @@ Outros ajustes feitos na Bia:
 
 ## Resumo para o diretor (039, 16/11)
 - Quando o cirurgião registra (ou corrige) a consulta no funil, sai um WhatsApp para o Claudemir (funil_config k='diretor_whatsapp'): paciente, cirurgião, data, resultado, convênio e o resumo do cirurgião (ou o da IA da teleconsulta, se ele não escreveu). Fila funil_avisos_medico, email 'diretor', tipo 'resumo_diretor'.
+- 16/11 à tarde: reduzido para 3 min (paciente espera no máximo ~5 min).

@@ -372,8 +372,8 @@ async function vigiar(arr: any[], fora: Set<string>) {
   }
   if (res.canal === "desconectado" || res.canal === "suspeito") return res;   // com o canal fora, o resto não faz sentido
 
-  // 2) paciente sem resposta da Bia (conversa com a Bia, última mensagem do paciente entre 5 min e 6 h atrás)
-  //    o GPT Maker às vezes não responde uma mensagem (sem erro nenhum): depois de 5 min a própria função faz a Bia responder
+  // 2) paciente sem resposta da Bia (conversa com a Bia, última mensagem do paciente entre 3 min e 6 h atrás)
+  //    o GPT Maker às vezes não responde uma mensagem (sem erro nenhum): depois de 3 min a própria função faz a Bia responder
   const abertos: any[] = await dbs("funil_alertas?select=id,chave,chat_id&tipo=eq.bia_sem_resposta&resolvido_em=is.null").then((r) => r.ok ? r.json() : []);
   const porChat = new Map(arr.map((c: any) => [c.chat_id, c]));
   for (const a of abertos) {   // já respondeu ou a equipe assumiu: fecha
@@ -384,7 +384,7 @@ async function vigiar(arr: any[], fora: Set<string>) {
   for (const c of arr) {
     if (c.humano || c.ultima_de !== "user" || !c.ultima_em || !c.tel8 || fora.has(c.tel8)) continue;
     const idade = agora - Date.parse(c.ultima_em);
-    if (idade < 5 * 60000 || idade > 6 * 3600000) continue;
+    if (idade < 3 * 60000 || idade > 6 * 3600000) continue;
     semResposta++;
     const novo = await rpc("abrir_alerta", { p_tipo: "bia_sem_resposta", p_chave: "semresp:" + c.chat_id,
       p_titulo: (c.nome || "Paciente") + " está sem resposta da Bia desde " + horaBR(new Date(c.ultima_em)).slice(-5),
