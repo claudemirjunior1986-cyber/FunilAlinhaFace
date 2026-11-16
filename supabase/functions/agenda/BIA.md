@@ -214,3 +214,6 @@ Outros ajustes feitos na Bia:
 
 ## Cópia dos avisos (038, 16/11)
 - Tudo o que entra na fila de avisos para o Dr. Victor (nova consulta, remarcação, cancelamento, lembrete, presencial) ganha uma cópia para a Fernanda (5521964290798). Tabela funil_avisos_copia (email do cirurgião, telefone, nome); gatilho zz_copia_aviso_medico. A cópia usa o e-mail "admvictorssa@gmail.com#fernanda" para não ser descartada pela regra "só vale o aviso mais recente". Para incluir outra pessoa/cirurgião, é só inserir na tabela.
+
+## Resumo para o diretor (039, 16/11)
+- Quando o cirurgião registra (ou corrige) a consulta no funil, sai um WhatsApp para o Claudemir (funil_config k='diretor_whatsapp'): paciente, cirurgião, data, resultado, convênio e o resumo do cirurgião (ou o da IA da teleconsulta, se ele não escreveu). Fila funil_avisos_medico, email 'diretor', tipo 'resumo_diretor'.

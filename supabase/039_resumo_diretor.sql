@@ -44,7 +44,7 @@ begin
     || case when tg_op = 'UPDATE' and coalesce(old.dados->>'consultaRegistradaEm','') <> '' then '(registro corrigido)' || chr(10) else '' end
     || '*Paciente:* ' || coalesce(nullif(d->>'nome',''), 'Paciente') || chr(10)
     || '*Cirurgião:* ' || coalesce(nomec, nomeq, 'cirurgião') || chr(10)
-    || coalesce('*Consulta:* ' || nullif(d->>'dataConsulta','') || coalesce(' ' || nullif(d->>'horaConsulta',''), '')
+    || coalesce('*Consulta:* ' || regexp_replace(nullif(d->>'dataConsulta',''), '^(\d{4})-(\d{2})-(\d{2}).*$', '\3/\2') || coalesce(' ' || nullif(d->>'horaConsulta',''), '')
                 || coalesce(' · ' || nullif(d->>'modalidade',''), '') || chr(10), '')
     || '*Resultado:* ' || case when (d->>'consultaCompareceu') = 'false' then 'paciente NÃO compareceu'
                                when (d->>'consultaPediuExames') = 'true' then 'atendeu e pediu exames' || coalesce(' (' || exames || ')', '')
