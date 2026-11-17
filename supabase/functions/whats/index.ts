@@ -460,12 +460,21 @@ async function dadosExame() {
     await dbs("funil_pacientes?id=eq." + encodeURIComponent(f.id), { method: "PATCH", headers: { Prefer: "return=minimal" },
       body: JSON.stringify({ dados: { ...d, dadosExame: texto, dadosExameEm: em,
         historico: [...(Array.isArray(d.historico) ? d.historico : []), { data: em.slice(0, 10), texto: "Paciente enviou os dados para o pedido de exames (repassados ao cirurgião)" }] } }) });
-    if (f.cirurgiao_email) {
-      const pr = await dbs("perfis?select=whatsapp&email=eq." + encodeURIComponent(f.cirurgiao_email));
-      const tel = pr.ok ? ((await pr.json())[0]?.whatsapp || "") : "";
+    {
+      // vai para o cirurgião da ficha; sem cirurgião (ou sem WhatsApp dele), vai para o diretor
+      let tel = "", email = f.cirurgiao_email || "";
+      if (email) {
+        const pr = await dbs("perfis?select=whatsapp&email=eq." + encodeURIComponent(email));
+        tel = pr.ok ? ((await pr.json())[0]?.whatsapp || "") : "";
+      }
+      if (!tel) {
+        const cf = await dbs("funil_config?select=v&k=eq.diretor_whatsapp");
+        tel = cf.ok ? ((await cf.json())[0]?.v || "") : "";
+        email = "diretor";
+      }
       if (tel) {
         await dbs("funil_avisos_medico", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({
-          email: f.cirurgiao_email, telefone: tel, paciente_id: f.id, tipo: "dados_exame_recebidos",
+          email, telefone: tel, paciente_id: f.id, tipo: "dados_exame_recebidos",
           texto: "📋 *Dados para o pedido de exames — Alinha Face*\n*Paciente:* " + (d.nome || "Paciente") + "\n\n" + texto
             + "\n\nFicha: https://funil-alinhaface.pages.dev/medico.html?abrir=" + f.id }) });
         enviados++;

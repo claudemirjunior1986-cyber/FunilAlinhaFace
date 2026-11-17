@@ -2915,7 +2915,7 @@ function abrirDrawer(id, pre){
     }
     const bd = el("button", p.pedidoDadosEm ? "btn btn-sm" : "btn btn-sm btn-primary", p.pedidoDadosEm ? "Pedir os dados de novo" : "📋 Pedir dados ao paciente pelo WhatsApp");
     bd.type = "button"; bd.style.marginTop = "6px";
-    if(!p.cirurgiao){ bd.disabled = true; bd.title = "Defina o cirurgião da ficha primeiro"; }
+    if(!p.cirurgiao) fsD.appendChild(el("div","hint","Esta ficha ainda não tem cirurgião: a resposta do paciente vai para o WhatsApp do Claudemir."));
     bd.addEventListener("click", async ()=>{
       if(!confirm("Enviar agora, pelo WhatsApp da Alinha Face, a mensagem pedindo os dados para " + (p.nome||"o paciente") + "?")) return;
       bd.disabled = true; bd.textContent = "Enviando…";
