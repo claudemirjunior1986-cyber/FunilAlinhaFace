@@ -231,3 +231,4 @@ Outros ajustes feitos na Bia:
 ## Recados separados (041, 17/11)
 - Recado automático de "consulta registrada" (009) só vai para quem tem perfis.recebe_registros = true (Claudemir = false; ele recebe o resumo no WhatsApp pelo 039).
 - Todo recado novo para o Claudemir (funil_config diretor_email) gera um WhatsApp para ele (diretor_whatsapp), tipo 'alerta', com remetente, paciente e texto.
+- 042: recados gerais para a equipe (cirurgião→equipe, resposta à equipe, comercial→equipe) também respeitam recebe_registros; o Claudemir só recebe recados mandados direto para ele. Recados antigos automáticos/cópias dele foram fechados (17/11).
