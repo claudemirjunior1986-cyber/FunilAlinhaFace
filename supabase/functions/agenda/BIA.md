@@ -227,3 +227,7 @@ Outros ajustes feitos na Bia:
 - Na ficha do cirurgião (medico.html) há o bloco "📋 Dados para o pedido de exames": o botão chama pedir_dados_exame(p_id) (cirurgião do paciente, equipe dele ou admin), que põe na fila (funil_avisos_medico, email 'paciente', tipo 'dados_exame') a mensagem pedindo nome completo, CPF, nascimento, nome da mãe, endereço com CEP, telefone com WhatsApp e e-mail, e marca a ficha (pedidoDadosEm).
 - A função whats (vigiar, passo 6) olha as fichas com pedido nos últimos 5 dias e sem dadosExameEm; quando o paciente responde (texto com CPF/nascimento/CEP/mãe/endereço/@) e para de escrever há 2 min, grava dadosExame na ficha e manda ao cirurgião (tipo 'dados_exame_recebidos'; a Fernanda recebe cópia dos do Dr. Victor).
 - Comportamento da Bia: ao receber esses dados, agradece, diz que foi repassado e não repete os dados.
+
+## Recados separados (041, 17/11)
+- Recado automático de "consulta registrada" (009) só vai para quem tem perfis.recebe_registros = true (Claudemir = false; ele recebe o resumo no WhatsApp pelo 039).
+- Todo recado novo para o Claudemir (funil_config diretor_email) gera um WhatsApp para ele (diretor_whatsapp), tipo 'alerta', com remetente, paciente e texto.
