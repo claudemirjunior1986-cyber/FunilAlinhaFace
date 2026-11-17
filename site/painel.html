@@ -2898,6 +2898,35 @@ function abrirDrawer(id, pre){
   }
 
   if(id && typeof teleSecaoFicha === "function") b.appendChild(teleSecaoFicha(p, "painel"));
+  if(id){
+    // dados do paciente para o pedido de exames (pedidos pelo WhatsApp da Alinha Face)
+    const fsD = el("fieldset"); fsD.append(el("div","legend","📋 Dados para o pedido de exames"));
+    const fmtDH = v => { const x = new Date(v); return isNaN(x) ? "" : x.toLocaleDateString("pt-BR") + " às " + x.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
+    if(p.dadosExame){
+      fsD.appendChild(el("div","hint","Recebidos em " + fmtDH(p.dadosExameEm) + " (já enviados ao cirurgião):"));
+      const bx = el("div"); bx.style.cssText = "white-space:pre-wrap;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)"; bx.textContent = p.dadosExame; fsD.appendChild(bx);
+      const cp = el("button","btn btn-sm","Copiar dados"); cp.type = "button"; cp.style.marginTop = "6px";
+      cp.addEventListener("click", ()=>{ navigator.clipboard?.writeText(p.dadosExame).then(()=>toast("Dados copiados.")); });
+      fsD.appendChild(cp);
+    }else if(p.pedidoDadosEm){
+      fsD.appendChild(el("div","hint","Pedido enviado ao paciente em " + fmtDH(p.pedidoDadosEm) + ". Quando ele responder, os dados aparecem aqui e vão para o WhatsApp do cirurgião."));
+    }else{
+      fsD.appendChild(el("div","hint","Manda pelo WhatsApp da Alinha Face a mensagem pedindo: nome completo, CPF, nascimento, nome da mãe, endereço com CEP, telefone com WhatsApp e e-mail. A resposta vai para a ficha e para o WhatsApp do cirurgião."));
+    }
+    const bd = el("button", p.pedidoDadosEm ? "btn btn-sm" : "btn btn-sm btn-primary", p.pedidoDadosEm ? "Pedir os dados de novo" : "📋 Pedir dados ao paciente pelo WhatsApp");
+    bd.type = "button"; bd.style.marginTop = "6px";
+    if(!p.cirurgiao){ bd.disabled = true; bd.title = "Defina o cirurgião da ficha primeiro"; }
+    bd.addEventListener("click", async ()=>{
+      if(!confirm("Enviar agora, pelo WhatsApp da Alinha Face, a mensagem pedindo os dados para " + (p.nome||"o paciente") + "?")) return;
+      bd.disabled = true; bd.textContent = "Enviando…";
+      const { data, error } = await FUNIL.sb.rpc("pedir_dados_exame", { p_id: id });
+      if(error || !data || !data.ok){ bd.disabled = false; bd.textContent = "📋 Pedir dados ao paciente pelo WhatsApp"; toast("Não consegui enviar" + (data && data.motivo ? ": " + data.motivo : "") + "."); return; }
+      toast(data.ja_enviado ? "O pedido já tinha sido enviado agora há pouco." : "Pedido enviado. Sai pelo WhatsApp em até 1 minuto.");
+      bd.textContent = "Pedido enviado ✔";
+    });
+    fsD.appendChild(bd);
+    b.appendChild(fsD);
+  }
   if(id) b.appendChild(rcSecaoFicha(p));
 
   const fs6 = el("fieldset"); fs6.append(el("div","legend","Hist\u00f3rico de contatos"));
