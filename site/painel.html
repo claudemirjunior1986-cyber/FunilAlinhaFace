@@ -270,6 +270,13 @@
     .seg::-webkit-scrollbar{display:none}
     .seg button{flex:0 0 auto;white-space:nowrap}
   }
+  /* celular: nas listas (Rotina, Exames…) os botões descem para uma linha própria e o texto usa a largura toda */
+  @media (max-width:760px){
+    .task{grid-template-columns:auto minmax(0,1fr);padding:10px 12px}
+    .task .ops{grid-column:1 / -1;justify-content:flex-start}
+    .task .t1{overflow-wrap:break-word}
+    .tag-v{white-space:nowrap;margin:2px 4px 2px 0}
+  }
   @media (max-width:640px){
     .shell{padding:14px 12px 50px}
     .grid2,.grid3{grid-template-columns:1fr}
