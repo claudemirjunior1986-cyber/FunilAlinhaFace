@@ -19,7 +19,7 @@ begin
   end loop;
   -- mensagem do comercial com destino "equipe"
   for f in select p.oid::regprocedure::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-            where n.nspname = 'public' and pg_get_functiondef(p.oid) like '%p_destino = ''equipe''    and p.papel = ''admin'' and p.recebe_avisos)%' loop
+            where n.nspname = 'public' and p.prokind = 'f' and pg_get_functiondef(p.oid) like '%p_destino = ''equipe''    and p.papel = ''admin'' and p.recebe_avisos)%' loop
     d := pg_get_functiondef(f::regprocedure);
     d := replace(d, 'p_destino = ''equipe''    and p.papel = ''admin'' and p.recebe_avisos)', 'p_destino = ''equipe''    and p.papel = ''admin'' and p.recebe_avisos and p.recebe_registros)');
     execute d;
