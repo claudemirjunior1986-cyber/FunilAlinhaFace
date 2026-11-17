@@ -565,6 +565,35 @@ function abrir(id){
   b.appendChild(tb);
   b.appendChild(teleSecaoFicha(p, "medico"));
 
+  // dados do paciente para o pedido de exames (pedidos pelo WhatsApp da Alinha Face)
+  const dx = el("div","bloco");
+  dx.appendChild(el("h3",null,"📋 Dados para o pedido de exames"));
+  const fmtDH = s => { const x = new Date(s); return isNaN(x) ? "" : x.toLocaleDateString("pt-BR") + " às " + x.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
+  if(p.dadosExame){
+    dx.appendChild(el("div","vazio","Recebidos em " + fmtDH(p.dadosExameEm) + ":"));
+    const pre = el("div","registrado", p.dadosExame); dx.appendChild(pre);
+    const cp = el("button","btn btn-sm","Copiar dados"); cp.style.marginTop = "8px";
+    cp.addEventListener("click", ()=>{ navigator.clipboard?.writeText(p.dadosExame).then(()=>toast("Dados copiados.")); });
+    dx.appendChild(cp);
+  }else if(p.pedidoDadosEm){
+    dx.appendChild(el("div","vazio","Pedido enviado ao paciente em " + fmtDH(p.pedidoDadosEm) + ". Quando ele responder, os dados aparecem aqui e chegam no seu WhatsApp."));
+  }else{
+    dx.appendChild(el("div","vazio","Manda pelo WhatsApp da Alinha Face uma mensagem pedindo ao paciente: nome completo, CPF, data de nascimento, nome da mãe, endereço com CEP, telefone com WhatsApp e e-mail. A resposta aparece aqui e chega no seu WhatsApp."));
+  }
+  const bd = el("button", p.pedidoDadosEm ? "btn btn-sm" : "btn btn-primary", p.pedidoDadosEm ? "Pedir os dados de novo" : "📋 Pedir dados ao paciente pelo WhatsApp");
+  bd.style.marginTop = "8px";
+  bd.addEventListener("click", async ()=>{
+    if(!confirm("Enviar agora, pelo WhatsApp da Alinha Face, a mensagem pedindo os dados para " + (p.nome||"o paciente") + "?")) return;
+    bd.disabled = true; bd.textContent = "Enviando…";
+    const { data, error } = await sb.rpc("pedir_dados_exame", { p_id: p.id });
+    bd.disabled = false;
+    if(error || !data || !data.ok){ bd.textContent = "Pedir dados ao paciente pelo WhatsApp"; toast("Não consegui enviar" + (data && data.motivo ? ": " + data.motivo : "") + "."); return; }
+    toast(data.ja_enviado ? "O pedido já tinha sido enviado agora há pouco." : "Pedido enviado. Sai pelo WhatsApp em até 1 minuto.");
+    await carregar(); abrir(p.id);
+  });
+  dx.appendChild(bd);
+  b.appendChild(dx);
+
   const bloco = el("div","bloco");
   if(p.consultaRegistradaEm){
     bloco.appendChild(el("h3",null,"Seu registro da consulta"));

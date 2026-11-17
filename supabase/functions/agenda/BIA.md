@@ -222,3 +222,8 @@ Outros ajustes feitos na Bia:
 ## Modelo e comportamento (16/11)
 - A Bia passou para Claude 5.5 Sonnet com contexto 2x (10 créditos por resposta; 6 mil caracteres de comportamento, 40 mensagens de histórico).
 - Comportamento reescrito (cópia em docs/bia_comportamento.txt). O GPT Maker guarda as versões anteriores em "Histórico" (ao lado do campo Comportamento).
+
+## Dados para o pedido de exames (040, 17/11)
+- Na ficha do cirurgião (medico.html) há o bloco "📋 Dados para o pedido de exames": o botão chama pedir_dados_exame(p_id) (cirurgião do paciente, equipe dele ou admin), que põe na fila (funil_avisos_medico, email 'paciente', tipo 'dados_exame') a mensagem pedindo nome completo, CPF, nascimento, nome da mãe, endereço com CEP, telefone com WhatsApp e e-mail, e marca a ficha (pedidoDadosEm).
+- A função whats (vigiar, passo 6) olha as fichas com pedido nos últimos 5 dias e sem dadosExameEm; quando o paciente responde (texto com CPF/nascimento/CEP/mãe/endereço/@) e para de escrever há 2 min, grava dadosExame na ficha e manda ao cirurgião (tipo 'dados_exame_recebidos'; a Fernanda recebe cópia dos do Dr. Victor).
+- Comportamento da Bia: ao receber esses dados, agradece, diz que foi repassado e não repete os dados.

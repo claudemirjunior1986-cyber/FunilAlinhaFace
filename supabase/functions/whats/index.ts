@@ -184,7 +184,7 @@ async function processarAvisos() {
   // por paciente + cirurgião, só vale o aviso mais recente
   const ultimo = new Map<string, any>();
   const classe = (a: any) => a.tipo === "alerta" ? "alerta" + a.id
-    : String(a.tipo || "").startsWith("lembrete") || a.tipo === "presencial" || a.tipo === "confirmacao_paciente" ? a.tipo : (a.tipo === "cancelada" ? "c" : "m");
+    : String(a.tipo || "").startsWith("lembrete") || String(a.tipo || "").startsWith("dados_exame") || a.tipo === "presencial" || a.tipo === "confirmacao_paciente" ? a.tipo : (a.tipo === "cancelada" ? "c" : "m");
   for (const a of fila) ultimo.set(a.paciente_id + "|" + a.email + "|" + classe(a), a);
   let enviados = 0;
   const canalDe = async () => {
@@ -193,8 +193,8 @@ async function processarAvisos() {
   };
   let canal: string | undefined;
   for (const a of fila) {
-    const lembrete = String(a.tipo || "").startsWith("lembrete") || a.tipo === "presencial" || a.tipo === "alerta";   // sem minuto de espera
-    const doPaciente = a.tipo === "lembrete_paciente" || a.tipo === "confirmacao_paciente";   // não tira a conversa da Bia
+    const lembrete = String(a.tipo || "").startsWith("lembrete") || String(a.tipo || "").startsWith("dados_exame") || a.tipo === "presencial" || a.tipo === "alerta";   // sem minuto de espera
+    const doPaciente = a.tipo === "lembrete_paciente" || a.tipo === "confirmacao_paciente" || a.tipo === "dados_exame";   // não tira a conversa da Bia
     const chave = a.paciente_id + "|" + a.email + "|" + classe(a);
     if (ultimo.get(chave) !== a) {
       await db("funil_avisos_medico?id=eq." + a.id, { method: "PATCH", body: JSON.stringify({ situacao: "substituido" }) });
@@ -428,7 +428,51 @@ async function vigiar(arr: any[], fora: Set<string>) {
 
   // 5) quiz feito pela Bia no WhatsApp: grava as respostas na ficha (resumo do caso, que o cirurgião vê)
   try { res.quiz_whats = await quizWhats(arr, fora); } catch (e) { res.quiz_whats = "erro: " + String((e as Error).message || e).slice(0, 80); }
+  // 6) dados para o pedido de exames que o paciente respondeu
+  try { res.dados_exame = await dadosExame(); } catch (e) { res.dados_exame = "erro: " + String((e as Error).message || e).slice(0, 80); }
   return res;
+}
+
+// ---------- dados para o pedido de exames: lê a resposta do paciente e manda ao cirurgião ----------
+async function dadosExame() {
+  const desde = new Date(Date.now() - 5 * 86400000).toISOString();
+  const r = await dbs(`funil_pacientes?select=id,dados,cirurgiao_email&dados->>pedidoDadosEm=gte.${desde}&dados->>dadosExameEm=is.null&limit=30`);
+  const fichas: any[] = r.ok ? await r.json() : [];
+  let enviados = 0;
+  for (const f of fichas) {
+    const d = f.dados || {};
+    const t8 = String(d.telefone || "").replace(/\D/g, "").slice(-8);
+    if (t8.length < 8) continue;
+    const cw = await dbs("funil_whats?select=chat_id&tel8=eq." + t8 + "&limit=1");
+    const chatId = cw.ok ? ((await cw.json())[0]?.chat_id || null) : null;
+    if (!chatId) continue;
+    let ms: any[] = [];
+    try { ms = (await gm(`/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=40`) || []).map(mensagem).filter(Boolean)
+      .sort((a: any, b: any) => String(a.em).localeCompare(String(b.em))); } catch { continue; }
+    const doPac = ms.filter((m: any) => m.de === "paciente" && String(m.em) > String(d.pedidoDadosEm) && (m.texto || m.transcricao));
+    if (!doPac.length) continue;
+    const ultima = Date.parse(doPac[doPac.length - 1].em);
+    if (Date.now() - ultima < 2 * 60000) continue;   // espera o paciente terminar de mandar
+    const texto = doPac.map((m: any) => String(m.texto || m.transcricao || "").trim()).join("\n").slice(0, 2500);
+    const pareceDados = /\d{3}\.?\d{3}\.?\d{3}-?\d{2}/.test(texto) || /cpf|nascimento|\bcep\b|m[aã]e|endere[cç]o|@/i.test(texto);
+    if (!pareceDados) continue;
+    const em = new Date().toISOString();
+    await dbs("funil_pacientes?id=eq." + encodeURIComponent(f.id), { method: "PATCH", headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ dados: { ...d, dadosExame: texto, dadosExameEm: em,
+        historico: [...(Array.isArray(d.historico) ? d.historico : []), { data: em.slice(0, 10), texto: "Paciente enviou os dados para o pedido de exames (repassados ao cirurgião)" }] } }) });
+    if (f.cirurgiao_email) {
+      const pr = await dbs("perfis?select=whatsapp&email=eq." + encodeURIComponent(f.cirurgiao_email));
+      const tel = pr.ok ? ((await pr.json())[0]?.whatsapp || "") : "";
+      if (tel) {
+        await dbs("funil_avisos_medico", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({
+          email: f.cirurgiao_email, telefone: tel, paciente_id: f.id, tipo: "dados_exame_recebidos",
+          texto: "📋 *Dados para o pedido de exames — Alinha Face*\n*Paciente:* " + (d.nome || "Paciente") + "\n\n" + texto
+            + "\n\nFicha: https://funil-alinhaface.pages.dev/medico.html?abrir=" + f.id }) });
+        enviados++;
+      }
+    }
+  }
+  return enviados;
 }
 
 // ---------- quiz pelo WhatsApp: a Bia faz as perguntas do quiz do site; o funil grava as respostas na ficha ----------
