@@ -980,7 +980,7 @@ Deno.serve(async (req) => {
       const ultimaHumana = async (chatId: string) => {
         try {
           const ms = (await gm(`/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=30`) || []).map(mensagem).filter(Boolean);
-          const env = await dbs(`funil_whats_envios?select=texto&chat_id=eq.${encodeURIComponent(chatId)}&por=in.(avisos@alinhaface,bia@alinhaface)&order=criado_em.desc&limit=30`)
+          const env = await dbs(`funil_whats_envios?select=texto&chat_id=eq.${encodeURIComponent(chatId)}&por=in.(avisos@alinhaface,bia@alinhaface)&order=em.desc&limit=30`)
             .then((r) => r.ok ? r.json() : []).catch(() => []);
           const auto = new Set((env as any[]).map((x) => String(x.texto || "").trim().slice(0, 120)));
           return ms.filter((m: any) => m.de === "equipe" && m.em && !auto.has(String(m.texto || "").trim().slice(0, 120)))
