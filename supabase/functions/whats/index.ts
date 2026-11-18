@@ -433,7 +433,54 @@ async function vigiar(arr: any[], fora: Set<string>) {
   try { res.dados_exame = await dadosExame(); } catch (e) { res.dados_exame = "erro: " + String((e as Error).message || e).slice(0, 80); }
   // 7) "SIM" ao lembrete de 24 h
   try { res.confirmacoes = await confirmacoes24h(); } catch (e) { res.confirmacoes = "erro: " + String((e as Error).message || e).slice(0, 80); }
+  // 8) resposta à pesquisa de opinião pós-consulta
+  try { res.opinioes = await opinioes(); } catch (e) { res.opinioes = "erro: " + String((e as Error).message || e).slice(0, 80); }
   return res;
+}
+
+// ---------- pesquisa de opinião pós-consulta: lê a resposta, grava na ficha e avisa a equipe se for negativa ----------
+async function opinioes() {
+  const desde = new Date(Date.now() - 4 * 86400000).toISOString();
+  const r = await dbs(`funil_pacientes?select=id,dados,cirurgiao_email&dados->opiniao->>pedidaEm=gte.${desde}&dados->opiniao->>classe=is.null&limit=30`);
+  const fichas: any[] = r.ok ? await r.json() : [];
+  let n = 0;
+  for (const f of fichas) {
+    if (n >= 3) break;   // a classificação usa a IA: no máximo 3 por rodada
+    const d = f.dados || {};
+    const op = d.opiniao || {};
+    const t8 = String(d.telefone || "").replace(/\D/g, "").slice(-8);
+    if (t8.length < 8) continue;
+    const cw = await dbs("funil_whats?select=chat_id&tel8=eq." + t8 + "&limit=1");
+    const chatId = cw.ok ? ((await cw.json())[0]?.chat_id || null) : null;
+    if (!chatId) continue;
+    let ms: any[] = [];
+    try { ms = (await gm(`/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=20`) || []).map(mensagem).filter(Boolean)
+      .sort((a: any, b: any) => String(a.em).localeCompare(String(b.em))); } catch { continue; }
+    const resp = ms.filter((m: any) => m.de === "paciente" && String(m.em) > String(op.pedidaEm) && (m.texto || m.transcricao));
+    if (!resp.length) continue;
+    if (Date.now() - Date.parse(resp[resp.length - 1].em) < 2 * 60000) continue;   // espera terminar de escrever
+    const texto = resp.map((m: any) => String(m.texto || m.transcricao).trim()).join(" / ").slice(0, 800);
+    let classe = "";
+    try {
+      const t = await perguntarIA("OP" + t8 + Date.now(), "TAREFA DIFERENTE (classificação, não é resumo de consulta). Um paciente respondeu à pergunta "
+        + "\"Como foi sua avaliação com o especialista?\". Classifique a resposta como POSITIVA, NEGATIVA ou NEUTRA. Reclamação, atraso, médico não entrou, "
+        + "problema técnico, insatisfação = NEGATIVA. Responda só com uma palavra.\n\nResposta do paciente: " + texto);
+      classe = /NEGATIV/i.test(t) ? "negativa" : /POSITIV/i.test(t) ? "positiva" : /NEUTR/i.test(t) ? "neutra" : "";
+    } catch { /* usa as palavras abaixo */ }
+    if (!classe) classe = /(ruim|péssim|pessim|demor|atras|não entrou|nao entrou|não gostei|nao gostei|problema|horr|decepc|insatisf)/i.test(texto) ? "negativa"
+      : /(ótim|otim|excelente|gostei|maravilh|muito bom|muito boa|amei|top|perfeit|bom|boa)/i.test(texto) ? "positiva" : "neutra";
+    const em = new Date().toISOString();
+    await dbs("funil_pacientes?id=eq." + encodeURIComponent(f.id), { method: "PATCH", headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ dados: { ...d, opiniao: { ...op, resposta: texto, classe, em },
+        historico: [...(Array.isArray(d.historico) ? d.historico : []), { data: em.slice(0, 10), texto: "Opinião sobre a consulta (" + classe + "): " + texto.slice(0, 200) }] } }) });
+    if (classe === "negativa") {
+      const pr = await dbs("perfis?select=nome&email=eq." + encodeURIComponent(f.cirurgiao_email || "")).then((x) => x.ok ? x.json() : []);
+      await avisarEquipe("⚠️ *Opinião negativa sobre a consulta — Alinha Face*\n*Paciente:* " + (d.nome || "Paciente") + (pr[0]?.nome ? "\n*Cirurgião:* " + pr[0].nome : "")
+        + "\n\n\"" + texto + "\"\n\nVale ligar para entender e resolver. Ficha: https://funil-alinhaface.pages.dev/painel.html");
+    }
+    n++;
+  }
+  return n;
 }
 
 // ---------- lembrete de 24 h: lê o "SIM" do paciente e marca a consulta como confirmada na Rotina ----------

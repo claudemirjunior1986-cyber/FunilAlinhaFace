@@ -243,3 +243,8 @@ Outros ajustes feitos na Bia:
 ## Lembretes 24 h / 30 min e régua dos exames (044/045, 18/11)
 - 044: lembretes_24h() (cron a cada 10 min): 23–24 h antes da consulta, o paciente recebe "Pode confirmar respondendo SIM?" (tipo lembrete_24h; não sai se a confirmação do agendamento foi nas últimas 12 h). A função whats (vigiar passo 7) lê o SIM e marca regua.conf = dataConsulta (a Rotina mostra "confirmado"). gerar_lembretes: paciente 30 min antes (lembrete30), cirurgião 15 min antes (lembrete15). Texto da confirmação: "30 minutos antes".
 - 045: regua_exames() (cron seg–sáb 10h23): pedido de exame sem exame agendado/feito → D+2 "já conseguiu agendar?" (+ voucher), D+5 lembrete do prazo de 10 dias, D+8 recado para a Ana ligar. Só pedidos dos últimos 12 dias; marca dados.reguaExame. Gatilho exame_feito_pede_laudo: ao marcar exameRealizadoEm, pede laudo/imagens ao paciente.
+
+## Pesquisa de opinião pós-consulta (046, 18/11)
+- pedir_opiniao() (cron diário 10h03): consulta de 1 a 3 dias atrás, registrada e com comparecimento → "Como foi sua avaliação com o Dr. X ontem?" (tipo regua_opiniao). Uma vez por paciente (dados.opiniao).
+- A Bia responde pelo treinamento PESQUISA DE OPINIÃO: positiva/neutra → agradece e manda o link do Google (https://g.page/r/CQ179zbf70_VEAI/review); negativa → acolhe, diz que a equipe vai chamar e transfere para a Ana.
+- whats (vigiar passo 8) classifica a resposta com a IA (POSITIVA/NEGATIVA/NEUTRA, até 3 por rodada), grava em dados.opiniao e, se negativa, avisa Claudemir e Ana no WhatsApp.
