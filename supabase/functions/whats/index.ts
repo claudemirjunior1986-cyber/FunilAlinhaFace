@@ -68,6 +68,7 @@ async function registrarEnvio(auth: string, chatId: string, texto: string, email
 }
 
 const AGENTE_BIA = "3F666308EBFC10E017FACE855605F1BA";
+const CANAL_BIA = "3F6791F13320F0B1D9489ADC800E9477";   // canal do WhatsApp da Bia no GPT Maker
 // A conversa voltou para a Bia: ela lê as últimas mensagens e responde o que ficou pendente.
 // O GPT Maker só faz a Bia falar quando chega mensagem nova; aqui pedimos a resposta ao agente
 // numa conversa à parte (com o histórico) e enviamos o texto na conversa do paciente.
@@ -431,6 +432,50 @@ async function vigiar(arr: any[], fora: Set<string>) {
   // 6) dados para o pedido de exames que o paciente respondeu
   try { res.dados_exame = await dadosExame(); } catch (e) { res.dados_exame = "erro: " + String((e as Error).message || e).slice(0, 80); }
   return res;
+}
+
+// ---------- relatório semanal (segunda 8h) para o WhatsApp do diretor ----------
+async function relatorioSemanal(teste = false) {
+  const desde = new Date(Date.now() - 7 * 86400000).toISOString();
+  const hojeS = hojeBR();
+  const conta = async (q: string) => { const r = await dbs(q, { headers: { Prefer: "count=exact", Range: "0-0" } }); return Number((r.headers.get("content-range") || "/0").split("/")[1]) || 0; };
+  const linhas: string[] = [];
+  // canal e créditos
+  let canalTxt = "não consegui verificar";
+  try { const st: any = await situacaoDoCanal(CANAL_BIA); canalTxt = st.conectado === true ? "✅ conectado" : st.conectado === false ? "❌ DESCONECTADO" : "não consegui verificar"; } catch { /* ok */ }
+  linhas.push("*WhatsApp da Bia:* " + canalTxt);
+  try {
+    const w: any = await gm(`/workspace/${WORKSPACE}`);
+    const cr = w?.credits ?? w?.credit ?? w?.balance ?? w?.creditos;
+    if (cr != null) linhas.push("*Créditos no GPT Maker:* " + cr + (Number(cr) < 500 ? " ⚠️ (recarregue)" : ""));
+  } catch { /* sem créditos no retorno */ }
+  // movimento da semana
+  const novos = await conta(`funil_pacientes?select=id&dados->>criadoEm=gte.${desde}`);
+  const regs = await conta(`funil_pacientes?select=id&dados->>consultaRegistradaEm=gte.${desde}`);
+  const exames = await conta(`funil_pacientes?select=id&dados->>consultaRegistradaEm=gte.${desde}&dados->>consultaPediuExames=eq.true`);
+  linhas.push("", "*Semana:* " + novos + " pacientes novos · " + regs + " consultas registradas · " + exames + " com pedido de exames");
+  // pendências
+  const semReg = await dbs(`funil_pacientes?select=id,dados&dados->>etapa=eq.agendou&dados->>dataConsulta=lt.${hojeS}&dados->>dataConsulta=gte.${desde.slice(0, 10)}`)
+    .then((r) => r.ok ? r.json() : []).then((a: any[]) => a.filter((f) => !f.dados?.consultaRegistradaEm && !f.dados?.demo).length);
+  const errosAviso = await conta(`funil_avisos_medico?select=id&situacao=eq.erro&criado_em=gte.${desde}`);
+  const enviados = await conta(`funil_avisos_medico?select=id&situacao=eq.enviado&criado_em=gte.${desde}`);
+  const semResp = await conta(`funil_alertas?select=id&tipo=eq.bia_sem_resposta&criado_em=gte.${desde}`);
+  const quedas = await conta(`funil_alertas?select=id&tipo=eq.canal&criado_em=gte.${desde}`);
+  const frases = await conta(`funil_alertas?select=id&tipo=eq.bia_frase&criado_em=gte.${desde}`);
+  linhas.push("", "*Atenção:*",
+    (semReg ? "⚠️ " : "✅ ") + semReg + " consulta(s) passada(s) sem registro do cirurgião",
+    (errosAviso ? "⚠️ " : "✅ ") + errosAviso + " aviso(s) de WhatsApp com erro (de " + (enviados + errosAviso) + ")",
+    (semResp ? "⚠️ " : "✅ ") + semResp + " vez(es) a Bia deixou paciente sem resposta (retomada automática)",
+    (quedas ? "⚠️ " : "✅ ") + quedas + " queda(s) do WhatsApp",
+    (frases ? "⚠️ " : "✅ ") + frases + " frase(s) suspeita(s) da Bia (ex.: \"falha no sistema\")");
+  const texto = "📊 *Relatório semanal — Alinha Face*\n\n" + linhas.join("\n") + "\n\nPainel: https://funil-alinhaface.pages.dev/painel.html";
+  const cf = await dbs("funil_config?select=v&k=eq.diretor_whatsapp");
+  const tel = cf.ok ? ((await cf.json())[0]?.v || "") : "";
+  if (!tel) return { ok: false, motivo: "sem diretor_whatsapp" };
+  if (teste) return { ok: true, teste: true, texto };
+  await dbs("funil_avisos_medico", { method: "POST", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ email: "diretor", telefone: tel, tipo: "alerta", texto }) });
+  return { ok: true, texto };
 }
 
 // ---------- dados para o pedido de exames: lê a resposta do paciente e manda ao cirurgião ----------
@@ -894,6 +939,10 @@ Deno.serve(async (req) => {
     const ch = await chaveComercial();
     if (!ch || String(p.k) !== ch) return json({ erro: "link inválido" }, 403);
     try { return json(await relatorioComercial()); } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
+  }
+  if (p.acao === "relatorio_semanal") {
+    // agendador (segunda 8h): resumo da saúde do sistema no WhatsApp do diretor
+    try { return json(await relatorioSemanal(p.teste === true)); } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }
   }
   if (p.acao === "processar_avisos") {
     try { return json(await processarAvisos()); } catch (e) { return json({ erro: String((e as Error).message || e) }, 500); }

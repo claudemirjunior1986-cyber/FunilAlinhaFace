@@ -235,3 +235,7 @@ Outros ajustes feitos na Bia:
 
 ## Ações de inatividade do GPT Maker (18/11)
 - São do GPT Maker (não do funil): 30 min, 1 dia, 3 dias e 6 dias sem resposta → "Interagir com cliente"; 7 dias → finalizar. Em 18/11 a Bia (Sonnet) mandou ao paciente uma explicação de por que não ia mandar a retomada. Instruções reescritas: se já agendou/presencial/recusou, escrever só "Qualquer dúvida, é só chamar 😊" e nunca explicar. Regra igual no comportamento ("TUDO o que você escreve vai direto para o paciente...").
+
+## Cobrança de registro e relatório semanal (043, 18/11)
+- cobrar_registros() (cron a cada 30 min, :07 e :37): consulta 'agendou' sem registro 3 h depois do horário (últimos 3 dias) → WhatsApp ao cirurgião (tipo 'cobrar_registro') + recado à Ana; marca cobrarRegistroEm (uma vez por consulta).
+- relatorio_semanal (cron segunda 8h13): whats manda ao diretor canal, créditos (se o GPT Maker informar), movimento da semana e pendências (consultas sem registro, avisos com erro, Bia sem resposta, quedas, frases suspeitas). {"acao":"relatorio_semanal","teste":true} devolve o texto sem enviar.
