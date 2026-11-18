@@ -252,3 +252,6 @@ Outros ajustes feitos na Bia:
 ## Bia retoma conversas "presas" e entende a resposta da régua (18/11)
 - Conversa com a equipe volta para a Bia (stop-human + biaRetoma) quando o paciente espera ≥ 3 min (até 6 h) e: ninguém da equipe escreveu (fora do horário da Ana na hora; no horário, depois de 30 min) OU a última mensagem humana da equipe tem mais de 12 h. Mensagens automáticas do funil (funil_whats_envios por avisos@/bia@) não contam como equipe — nem para assumir a conversa (regra dos 10 min), nem para segurar.
 - respostasRegua() (vigiar passo 9): resposta do paciente à régua dos exames é lida pela IA (agendado / vai_fazer / ja_fez / outro + data). agendado → exameAgendadoPara; vai_fazer → dataProximaAcao (ex.: "mês que vem" = dia 15 do próximo mês) com "Cobrar o exame…", régua pausada; ja_fez → ação para a Ana confirmar e pedir laudo.
+
+## Celular do paciente no aviso ao cirurgião (047, 18/11)
+- Avisos de nova consulta, remarcação e lembrete de 15 min ao cirurgião trazem 'WhatsApp: (DD) NNNNN-NNNN · https://wa.me/55…' (função tel_paciente). Sugestão do Dr. Gustavo.
