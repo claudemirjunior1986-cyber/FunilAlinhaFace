@@ -272,7 +272,10 @@
   }
   /* celular: nas listas (Rotina, Exames…) os botões descem para uma linha própria e o texto usa a largura toda */
   @media (max-width:760px){
-    .task{grid-template-columns:auto minmax(0,1fr);padding:10px 12px}
+    .leads-bia{border-top:1px solid var(--line);margin-top:6px}
+.leads-bia>summary{cursor:pointer;padding:12px 14px;font-weight:600;color:var(--muted,#6C7A8C);list-style:revert}
+.leads-bia>.hint{padding:0 14px 8px}
+.task{grid-template-columns:auto minmax(0,1fr);padding:10px 12px}
     .task .ops{grid-column:1 / -1;justify-content:flex-start}
     .task .t1{overflow-wrap:break-word}
     .tag-v{white-space:nowrap;margin:2px 4px 2px 0}
@@ -2062,7 +2065,11 @@ function painelPresencial(){
 function renderHoje(){
   const box = $("#hojeview"); box.textContent = "";
   const todos = [...pacientes.values()];
-  const tarefas = todos.flatMap(tarefasDe);
+  // foco da Ana: casos em andamento (consulta marcada em diante). Leads ficam com a Bia
+  // (follow-up automático do WhatsApp) e aparecem recolhidos no fim da lista.
+  const todasTarefas = todos.flatMap(tarefasDe);
+  const tarefas = todasTarefas.filter(x=>x.p.etapa!=="lead");
+  const tarefasLead = todasTarefas.filter(x=>x.p.etapa==="lead");
   const encAbertos = [...encaminhamentos.values()].filter(e=>!ENC_FECHADOS.includes(e.status));
   const encParados = encAbertos.filter(e=>estadoEnc(e).cls!=="ok");
   const vouVencendo = todos.filter(p=>p.voucherEmitido && (p.voucherStatus||"Aguardando uso")==="Aguardando uso" && diasDesde(p.voucherEmitido)>=3);
@@ -2081,7 +2088,7 @@ function renderHoje(){
   // kpis
   const k = el("div","kpis");
   const tiles = [
-    {l:"Tarefas de hoje", v:tarefas.filter(x=>!x.feito).length, h:"contatos a fazer"},
+    {l:"Tarefas de hoje", v:tarefas.filter(x=>!x.feito).length, h:"casos em andamento"+(tarefasLead.length?" · +"+tarefasLead.length+" leads com a Bia":"")},
     {l:"Consultas hoje/amanhã", v:tarefas.filter(x=>x.g==="conf").length, h:tarefas.filter(x=>x.g==="conf"&&!x.feito).length+" a confirmar"},
     {l:"Atrasadas", v:tarefas.filter(x=>x.late).length, h:"passaram do dia", c:tarefas.some(x=>x.late)?"alert":""},
     {l:"Vouchers vencendo", v:vouVencendo.length, h:"3+ dias sem uso", c:vouVencendo.length?"warnk":""},
@@ -2137,6 +2144,20 @@ function renderHoje(){
     if(!lista.length) continue;
     pt.appendChild(el("div","grp",l+" · "+lista.length));
     for(const tk of lista) pt.appendChild(linhaTarefa(tk));
+  }
+  if(tarefasLead.length){
+    const det = document.createElement("details"); det.className = "leads-bia";
+    const sm = document.createElement("summary");
+    sm.textContent = "Leads · a Bia cuida do follow-up · "+tarefasLead.length;
+    det.appendChild(sm);
+    det.appendChild(el("div","hint","Quem ainda não agendou consulta. A Bia faz a retomada pelo WhatsApp sozinha; abra só se quiser dar um toque pessoal."));
+    for(const [g,l] of [["acao","Próximas ações marcadas"],["lead","Leads parados"],["conf","Consultas"],["pos","Outros"]]){
+      const lista = tarefasLead.filter(x=>x.g===g).sort((a,b)=>(b.late-a.late)||((a.p.nome||"")<(b.p.nome||"")?-1:1));
+      if(!lista.length) continue;
+      det.appendChild(el("div","grp",l+" · "+lista.length));
+      for(const tk of lista) det.appendChild(linhaTarefa(tk));
+    }
+    pt.appendChild(det);
   }
   grid.appendChild(pt);
 
