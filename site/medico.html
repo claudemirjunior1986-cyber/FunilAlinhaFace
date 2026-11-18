@@ -522,7 +522,21 @@ function abrir(id){
   campo("Tratamento", p.tratamento);
   campo("Convênio", p.convenio==="Sim" ? (p.nomeConvenio||"Sim") : (p.convenio==="Não" ? "Não · particular" : p.convenio));
   campo("Cidade", p.cidade);
-  campo("WhatsApp", p.telefone);
+  if(p.telefone){
+    // WhatsApp do paciente: número formatado + botão que abre a conversa
+    const dig = String(p.telefone).replace(/\D/g,""); const num = dig.length===10||dig.length===11 ? "55"+dig : dig;
+    const fmt = /^55\d{10,11}$/.test(num) ? "(" + num.slice(2,4) + ") " + num.slice(4,-4) + "-" + num.slice(-4) : p.telefone;
+    const x = el("div"); x.appendChild(el("span",null,"WhatsApp"));
+    const linha = el("div"); linha.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
+    linha.appendChild(document.createTextNode(fmt));
+    if(num.length >= 12 && !/@lid/.test(p.telefone)){
+      const a = document.createElement("a"); a.href = "https://wa.me/" + num; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = "💬 Abrir no WhatsApp"; a.title = "Abrir a conversa com o paciente no WhatsApp";
+      a.style.cssText = "background:#1f9d55;color:#fff;border-radius:99px;padding:4px 12px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap";
+      linha.appendChild(a);
+    }
+    x.appendChild(linha); f.appendChild(x);
+  }
   campo("Etapa", ETAPAS[p.etapa]);
   campo("Resumo do caso", p.resumoCaso, true);
   campo("Observações da equipe", p.observacoes, true);

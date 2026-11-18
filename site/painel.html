@@ -2781,7 +2781,16 @@ function abrirDrawer(id, pre){
 
   const fs1 = el("fieldset"); fs1.append(el("div","legend","Contato"));
   const g1 = el("div","grid2");
-  g1.append(campo("Nome", inp("f_nome","text",p.nome||"","Nome do paciente")), campo("WhatsApp", inp("f_tel","tel",p.telefone||"","(11) 90000-0000")));
+  const campoTel = campo("WhatsApp", inp("f_tel","tel",p.telefone||"","(11) 90000-0000"));
+  {
+    // botão que abre a conversa com o paciente no WhatsApp (usa o número digitado no campo)
+    const ab = document.createElement("a"); ab.textContent = "💬 Abrir no WhatsApp"; ab.target = "_blank"; ab.rel = "noopener";
+    ab.style.cssText = "display:inline-block;margin-top:6px;background:#1f9d55;color:#fff;border-radius:99px;padding:3px 10px;font-size:12px;font-weight:600;text-decoration:none";
+    const atual = () => { const d = String(campoTel.querySelector("input").value||"").replace(/\D/g,""); const n = d.length===10||d.length===11 ? "55"+d : d; ab.href = "https://wa.me/"+n; ab.style.display = n.length>=12 ? "inline-block" : "none"; };
+    campoTel.querySelector("input").addEventListener("input", atual); atual();
+    campoTel.appendChild(ab);
+  }
+  g1.append(campo("Nome", inp("f_nome","text",p.nome||"","Nome do paciente")), campoTel);
   const g1b = el("div","grid2");
   g1b.append(campo("Cidade / UF", inp("f_cidade","text",p.cidade||"","São Paulo · SP")), campo("Origem do lead", sel("f_origem",ORIGENS,p.origem,"Selecione")));
   fs1.append(g1,g1b); b.appendChild(fs1);
