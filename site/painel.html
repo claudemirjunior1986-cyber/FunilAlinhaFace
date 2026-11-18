@@ -921,7 +921,7 @@ function render(){
   const ba = document.getElementById("viewAfo");
   if(ba){ const n = casosMedico(MEDICOS.afo).length; ba.textContent = n ? "Dr. Afonso · "+n : "Dr. Afonso"; }
   const bx = document.getElementById("viewExames");
-  if(bx){ const and = examesAndamento(), n = and.length, venc = and.filter(p=>exPrazo(p).resta<0).length + examesPendentes().length;
+  if(bx){ const and = examesAndamento().filter(p=>!(p.dataProximaAcao && p.dataProximaAcao > hoje())), n = and.length, venc = and.filter(p=>exPrazo(p).resta<0).length + examesPendentes().length;
     bx.textContent = n ? "Exames em andamento · "+n : "Exames em andamento"; bx.classList.toggle("alerta", venc>0); }
   const bc = document.getElementById("viewCir");
   if(bc){ const n = cirGrupo("aut").length; bc.textContent = n ? "Cirurgias · "+n+" aguardando" : "Cirurgias"; }
@@ -1294,6 +1294,35 @@ function linhaExame(p, pendente){
     e.addEventListener("click",()=>salvaEx({ etapa:"exames_ok", dataExamesOk: hoje(), examesVistoEm: p.examesVistoEm || hoje() }, "Etapa → Exames entregues (resultado apresentado)", "Resultado entregue. O caso foi para Exames entregues."));
     ops.appendChild(e);
   }
+  // tirar da lista até a data da próxima cobrança
+  const futura = p.dataProximaAcao && p.dataProximaAcao > hoje();
+  if(futura){
+    const tg = el("span","tag-v neu","volta em "+dataBR(p.dataProximaAcao));
+    tg.title = p.proximaAcao || "";
+    ops.prepend(tg);
+    const vh = el("button","btn btn-sm btn-ghost","Trazer de volta");
+    vh.title = "Volta para a lista agora";
+    vh.addEventListener("click",()=>salvaEx({ dataProximaAcao: hoje() }, "Cobrança do exame trazida para hoje", "O caso voltou para a lista."));
+    ops.appendChild(vh);
+  }else{
+    const cd = el("button","btn btn-sm btn-primary","Cobrar depois");
+    cd.title = "Já falei com o paciente: tira o caso da lista e traz de volta na data escolhida";
+    cd.addEventListener("click",()=>{
+      if(row.querySelector(".ex-cob")) return;
+      const w = el("span","ex-cob"); w.style.cssText = "display:inline-flex;gap:4px;align-items:center;flex-wrap:wrap";
+      const d = el("input"); d.type = "date"; d.min = amanha(); d.value = amanha();
+      d.style.cssText = "border:1px solid var(--line-strong);border-radius:6px;padding:3px 6px;background:var(--surface);color:var(--ink)";
+      const okb = el("button","btn btn-sm btn-primary","OK");
+      okb.addEventListener("click",()=>{
+        if(!d.value || d.value<=hoje()) { toast("Escolha uma data a partir de amanhã."); return; }
+        salvaEx({ proximaAcao:"Cobrar o exame com o paciente", dataProximaAcao:d.value, examesVistoEm: p.examesVistoEm || hoje() },
+          "Falou com o paciente sobre o exame — cobrar de novo em "+dataBR(d.value),
+          "Saiu da lista. Volta em "+dataBR(d.value)+".");
+      });
+      w.append(el("span","hint","cobrar em"), d, okb); ops.prepend(w); d.focus();
+    });
+    ops.appendChild(cd);
+  }
   if(pendente){
     const ok = el("button","btn btn-sm","Visto");
     ok.title = "Tira da lista de pendentes";
@@ -1308,7 +1337,11 @@ function linhaExame(p, pendente){
 }
 function renderExames(){
   const box = $("#examesview"); box.textContent = "";
-  const todos = examesAndamento();
+  const todosEx = examesAndamento();
+  // cobrança marcada para depois: sai da lista e volta sozinho na data
+  const depois = todosEx.filter(p=>p.dataProximaAcao && p.dataProximaAcao > hoje())
+    .sort((a,b)=>a.dataProximaAcao.localeCompare(b.dataProximaAcao));
+  const todos = todosEx.filter(p=>!depois.includes(p));
   const grupos = { agendar:[], agendado:[], apresentar:[] };
   todos.forEach(p=>grupos[exStatus(p)].push(p));
   const porPrazo = (a,b)=> exPrazo(a).resta - exPrazo(b).resta;
@@ -1322,7 +1355,8 @@ function renderExames(){
   [{l:"Precisa agendar", v:grupos.agendar.length, h:"ainda não marcou o exame", c:grupos.agendar.length?"alert":""},
    {l:"Exame agendado", v:grupos.agendado.length, h:"com data marcada"},
    {l:"Apresentar resultado", v:grupos.apresentar.length, h:"já fez, falta trazer o resultado", c:grupos.apresentar.length?"alert":""},
-   {l:"Prazo de 10 dias vencido", v:vencidos.length, h:"ainda sem fazer o exame", c:vencidos.length?"alert":""}
+   {l:"Prazo de 10 dias vencido", v:vencidos.length, h:"ainda sem fazer o exame", c:vencidos.length?"alert":""},
+   {l:"Cobrar depois", v:depois.length, h:"já falamos · voltam na data marcada"}
   ].forEach(t=>{ const d = el("div","kpi"+(t.c?" "+t.c:"")); d.append(el("span","lbl",t.l), el("span","val",String(t.v)), el("span","hint",t.h)); k.appendChild(d); });
   box.appendChild(k);
 
@@ -1337,6 +1371,14 @@ function renderExames(){
     grupos[key].forEach(p=>sec.appendChild(linhaExame(p, p.consultaPediuExames && !p.examesVistoEm)));
     box.appendChild(sec);
   });
+  if(depois.length){
+    const det = document.createElement("details"); det.className = "panel leads-bia"; det.style.marginTop = "16px";
+    const sm = document.createElement("summary"); sm.textContent = "Cobrança marcada para depois · "+depois.length;
+    det.appendChild(sm);
+    det.appendChild(el("div","hint","Casos que você já tratou. Cada um volta sozinho para a lista (e para a Rotina) no dia marcado."));
+    depois.forEach(p=>det.appendChild(linhaExame(p, false)));
+    box.appendChild(det);
+  }
 }
 
 /* ============ novos: falaram com a gente e ninguém decidiu o próximo passo ============ */
