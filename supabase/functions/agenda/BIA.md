@@ -248,3 +248,7 @@ Outros ajustes feitos na Bia:
 - pedir_opiniao() (cron diário 10h03): consulta de 1 a 3 dias atrás, registrada e com comparecimento → "Como foi sua avaliação com o Dr. X ontem?" (tipo regua_opiniao). Uma vez por paciente (dados.opiniao).
 - A Bia responde pelo treinamento PESQUISA DE OPINIÃO: positiva/neutra → agradece e manda o link do Google (https://g.page/r/CQ179zbf70_VEAI/review); negativa → acolhe, diz que a equipe vai chamar e transfere para a Ana.
 - whats (vigiar passo 8) classifica a resposta com a IA (POSITIVA/NEGATIVA/NEUTRA, até 3 por rodada), grava em dados.opiniao e, se negativa, avisa Claudemir e Ana no WhatsApp.
+
+## Bia retoma conversas "presas" e entende a resposta da régua (18/11)
+- Conversa com a equipe volta para a Bia (stop-human + biaRetoma) quando o paciente espera ≥ 3 min (até 6 h) e: ninguém da equipe escreveu (fora do horário da Ana na hora; no horário, depois de 30 min) OU a última mensagem humana da equipe tem mais de 12 h. Mensagens automáticas do funil (funil_whats_envios por avisos@/bia@) não contam como equipe — nem para assumir a conversa (regra dos 10 min), nem para segurar.
+- respostasRegua() (vigiar passo 9): resposta do paciente à régua dos exames é lida pela IA (agendado / vai_fazer / ja_fez / outro + data). agendado → exameAgendadoPara; vai_fazer → dataProximaAcao (ex.: "mês que vem" = dia 15 do próximo mês) com "Cobrar o exame…", régua pausada; ja_fez → ação para a Ana confirmar e pedir laudo.

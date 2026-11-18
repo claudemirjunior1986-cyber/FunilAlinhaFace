@@ -435,7 +435,64 @@ async function vigiar(arr: any[], fora: Set<string>) {
   try { res.confirmacoes = await confirmacoes24h(); } catch (e) { res.confirmacoes = "erro: " + String((e as Error).message || e).slice(0, 80); }
   // 8) resposta à pesquisa de opinião pós-consulta
   try { res.opinioes = await opinioes(); } catch (e) { res.opinioes = "erro: " + String((e as Error).message || e).slice(0, 80); }
+  // 9) resposta do paciente à régua dos exames
+  try { res.regua_respostas = await respostasRegua(); } catch (e) { res.regua_respostas = "erro: " + String((e as Error).message || e).slice(0, 80); }
   return res;
+}
+
+// ---------- régua dos exames: entende a resposta do paciente ("vou fazer mês que vem", "marquei dia 10") ----------
+async function respostasRegua() {
+  const r = await dbs(`funil_pacientes?select=id,dados&dados->reguaExame=not.is.null&dados->reguaExame->>resposta=is.null&dados->>exameAgendadoPara=is.null&dados->>exameRealizadoEm=is.null&limit=40`);
+  const fichas: any[] = r.ok ? await r.json() : [];
+  let n = 0;
+  for (const f of fichas) {
+    if (n >= 3) break;   // usa a IA: no máximo 3 por rodada
+    const d = f.dados || {};
+    const rg = d.reguaExame || {};
+    const av = await dbs(`funil_avisos_medico?select=enviado_em&paciente_id=eq.${encodeURIComponent(f.id)}&tipo=like.regua_exame_d*&situacao=eq.enviado&order=enviado_em.desc&limit=1`)
+      .then((x) => x.ok ? x.json() : []);
+    const enviadoEm = av[0]?.enviado_em;
+    if (!enviadoEm || Date.now() - Date.parse(enviadoEm) > 5 * 86400000) continue;
+    const t8 = String(d.telefone || "").replace(/\D/g, "").slice(-8);
+    const cw = await dbs("funil_whats?select=chat_id&tel8=eq." + t8 + "&limit=1");
+    const chatId = cw.ok ? ((await cw.json())[0]?.chat_id || null) : null;
+    if (!chatId) continue;
+    let ms: any[] = [];
+    try { ms = (await gm(`/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=20`) || []).map(mensagem).filter(Boolean)
+      .sort((a: any, b: any) => String(a.em).localeCompare(String(b.em))); } catch { continue; }
+    const resp = ms.filter((m: any) => m.de === "paciente" && String(m.em) > new Date(enviadoEm).toISOString() && (m.texto || m.transcricao));
+    if (!resp.length || Date.now() - Date.parse(resp[resp.length - 1].em) < 2 * 60000) continue;
+    const texto = resp.map((m: any) => String(m.texto || m.transcricao).trim()).join(" / ").slice(0, 600);
+    const hoje = hojeBR();
+    let sit = "outro", data = "";
+    try {
+      const t = await perguntarIA("RG" + t8 + Date.now(), "TAREFA DIFERENTE (extração, não é resumo de consulta). Hoje é " + hoje + ". A equipe perguntou ao paciente "
+        + "se ele já agendou o exame pedido pelo cirurgião. Leia a resposta e responda SOMENTE um JSON: "
+        + '{"situacao":"agendado|vai_fazer|ja_fez|outro","data":"AAAA-MM-DD ou vazio"}. '
+        + "agendado = tem data marcada (data = a data do exame). vai_fazer = pretende fazer mais adiante (data = estimativa: se disser um mês, use o dia 15 desse mês; "
+        + "\"mês que vem\" = dia 15 do próximo mês; \"semana que vem\" = 7 dias depois de hoje). ja_fez = já fez o exame. outro = qualquer outra coisa.\n\nResposta do paciente: " + texto);
+      const j = JSON.parse(String(t).slice(String(t).indexOf("{"), String(t).lastIndexOf("}") + 1));
+      sit = ["agendado", "vai_fazer", "ja_fez", "outro"].includes(j.situacao) ? j.situacao : "outro";
+      data = /^\d{4}-\d{2}-\d{2}$/.test(String(j.data || "")) && String(j.data) >= hoje ? String(j.data) : "";
+    } catch { /* fica "outro" */ }
+    const dataBR = (x: string) => x.slice(8, 10) + "/" + x.slice(5, 7);
+    const novo: any = { ...d, reguaExame: { ...rg, resposta: texto, situacao: sit, respostaEm: new Date().toISOString() } };
+    let hist = "Respondeu à régua do exame: \"" + texto.slice(0, 160) + "\"";
+    if (sit === "agendado" && data) {
+      novo.exameAgendadoPara = data; hist += " — exame agendado para " + dataBR(data);
+    } else if (sit === "vai_fazer" && data) {
+      novo.dataProximaAcao = data; novo.proximaAcao = "Cobrar o exame: o paciente disse que faria por volta de " + dataBR(data) + " (\"" + texto.slice(0, 80) + "\")";
+      novo.reguaExame = { ...novo.reguaExame, pausaAte: data, d2: rg.d2 || hoje, d5: rg.d5 || hoje, d8: rg.d8 || hoje };
+      hist += " — cobrança marcada para " + dataBR(data);
+    } else if (sit === "ja_fez") {
+      novo.dataProximaAcao = hoje; novo.proximaAcao = "Paciente diz que já fez o exame: confirmar e pedir o laudo/imagens";
+      hist += " — diz que já fez o exame";
+    }
+    novo.historico = [...(Array.isArray(d.historico) ? d.historico : []), { data: hoje, texto: hist }];
+    await dbs("funil_pacientes?id=eq." + encodeURIComponent(f.id), { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ dados: novo }) });
+    n++;
+  }
+  return n;
 }
 
 // ---------- pesquisa de opinião pós-consulta: lê a resposta, grava na ficha e avisa a equipe se for negativa ----------
@@ -920,33 +977,44 @@ Deno.serve(async (req) => {
       ]);
       const foraS = new Set<string>([...pfS.map((x: any) => so8(x.whatsapp)), ...igS.map((x: any) => String(x.id).replace(/^k/, ""))]);
       // quando alguém da equipe escreve numa conversa, a Bia sai dela na hora (fica com a equipe até alguém clicar "Devolver para a Bia")
-      const ultimasDaEquipe = async (chatId: string) => {
+      const ultimaHumana = async (chatId: string) => {
         try {
-          const ms = (await gm(`/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=20`) || []).map(mensagem).filter(Boolean);
-          return ms.filter((m: any) => m.de === "equipe" && m.em).map((m: any) => Date.parse(m.em)).sort((a: number, b: number) => b - a)[0] || 0;
+          const ms = (await gm(`/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=30`) || []).map(mensagem).filter(Boolean);
+          const env = await dbs(`funil_whats_envios?select=texto&chat_id=eq.${encodeURIComponent(chatId)}&por=in.(avisos@alinhaface,bia@alinhaface)&order=criado_em.desc&limit=30`)
+            .then((r) => r.ok ? r.json() : []).catch(() => []);
+          const auto = new Set((env as any[]).map((x) => String(x.texto || "").trim().slice(0, 120)));
+          return ms.filter((m: any) => m.de === "equipe" && m.em && !auto.has(String(m.texto || "").trim().slice(0, 120)))
+            .map((m: any) => Date.parse(m.em)).sort((a: number, b: number) => b - a)[0] || 0;
         } catch { return -1; }
       };
       let assumidas = 0;
       for (const c of arr.filter((c: any) => !c.humano && c.ultima_em && Date.now() - Date.parse(c.ultima_em) < 10 * 60000).slice(0, 15)) {
         if (!c.tel8 || foraS.has(c.tel8)) continue;
-        const t = await ultimasDaEquipe(c.chat_id);
+        const t = await ultimaHumana(c.chat_id);
         if (t > 0 && Date.now() - t < 10 * 60000) {
           try { await gm(`/chat/${encodeURIComponent(c.chat_id)}/start-human`, { method: "PUT" }); c.humano = true; assumidas++; } catch { /* próxima rodada */ }
         }
       }
-      // fora do horário da Ana (ter a sex, 14h às 18h): conversa que ficou com a equipe SEM ninguém da equipe ter escrito
-      // (ex.: a Bia transferiu e ninguém respondeu) volta para a Bia se o paciente está esperando. Se alguém da equipe
-      // escreveu nas últimas 24 h, a conversa fica com a equipe até alguém clicar "Devolver para a Bia".
+      // conversa que está com a equipe volta para a Bia quando o paciente está esperando e ninguém da equipe está cuidando:
+      //  - ninguém da equipe escreveu nela (ex.: a Bia transferiu e ninguém respondeu): fora do horário da Ana na hora;
+      //    no horário da Ana, depois de 30 min sem ninguém assumir
+      //  - alguém da equipe escreveu, mas há mais de 12 h (a conversa ficou "presa" com a equipe)
+      // Mensagens automáticas do funil (lembretes, régua, avisos) não contam como "alguém da equipe".
       let devolvidas = 0;
-      if (!horarioDaEquipe() && arr.some((c: any) => c.humano)) {
+      if (arr.some((c: any) => c.humano)) {
+        const foraDoHorario = !horarioDaEquipe();
         for (const c of arr) {
           if (!c.humano || !c.tel8 || foraS.has(c.tel8)) continue;               // cirurgiões e contatos ignorados ficam com a equipe
-          if (c.ultima_de !== "user" || !c.ultima_em || Date.parse(c.ultima_em) < Date.now() - 6 * 3600000) continue;   // só paciente esperando
-          const t = await ultimasDaEquipe(c.chat_id);
-          if (t !== 0) continue;   // a equipe falou nessa conversa (ou não deu para conferir): não mexe
+          if (c.ultima_de !== "user" || !c.ultima_em) continue;                   // só paciente esperando
+          const espera = Date.now() - Date.parse(c.ultima_em);
+          if (espera < 3 * 60000 || espera > 6 * 3600000) continue;
+          const t = await ultimaHumana(c.chat_id);
+          if (t < 0) continue;                                                    // não deu para conferir
+          if (t === 0 && !foraDoHorario && espera < 30 * 60000) continue;         // transferida agora há pouco: dá tempo da Ana assumir
+          if (t > 0 && Date.now() - t < 12 * 3600000) continue;                   // a equipe está cuidando
           try {
             await gm(`/chat/${encodeURIComponent(c.chat_id)}/stop-human`, { method: "PUT" }); c.humano = false; devolvidas++;
-            if (devolvidas <= 5) emSegundoPlano(biaRetoma(c.chat_id, "Bia (fora do horário)"));
+            if (devolvidas <= 5) emSegundoPlano(biaRetoma(c.chat_id, "Bia (retomou sozinha)"));
           } catch { /* tenta na próxima */ }
           if (devolvidas >= 10) break;
         }
