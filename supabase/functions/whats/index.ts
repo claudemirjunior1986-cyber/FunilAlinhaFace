@@ -185,7 +185,7 @@ async function processarAvisos() {
   // por paciente + cirurgião, só vale o aviso mais recente
   const ultimo = new Map<string, any>();
   const classe = (a: any) => a.tipo === "alerta" ? "alerta" + a.id
-    : String(a.tipo || "").startsWith("lembrete") || String(a.tipo || "").startsWith("dados_exame") || a.tipo === "presencial" || a.tipo === "confirmacao_paciente" ? a.tipo : (a.tipo === "cancelada" ? "c" : "m");
+    : String(a.tipo || "").startsWith("lembrete") || String(a.tipo || "").startsWith("dados_exame") || String(a.tipo || "").startsWith("regua_") || a.tipo === "presencial" || a.tipo === "confirmacao_paciente" ? a.tipo : (a.tipo === "cancelada" ? "c" : "m");
   for (const a of fila) ultimo.set(a.paciente_id + "|" + a.email + "|" + classe(a), a);
   let enviados = 0;
   const canalDe = async () => {
@@ -194,8 +194,8 @@ async function processarAvisos() {
   };
   let canal: string | undefined;
   for (const a of fila) {
-    const lembrete = String(a.tipo || "").startsWith("lembrete") || String(a.tipo || "").startsWith("dados_exame") || a.tipo === "presencial" || a.tipo === "alerta";   // sem minuto de espera
-    const doPaciente = a.tipo === "lembrete_paciente" || a.tipo === "confirmacao_paciente" || a.tipo === "dados_exame";   // não tira a conversa da Bia
+    const lembrete = String(a.tipo || "").startsWith("lembrete") || String(a.tipo || "").startsWith("dados_exame") || String(a.tipo || "").startsWith("regua_") || a.tipo === "presencial" || a.tipo === "alerta";   // sem minuto de espera
+    const doPaciente = a.tipo === "lembrete_paciente" || a.tipo === "lembrete_24h" || a.tipo === "confirmacao_paciente" || a.tipo === "dados_exame" || String(a.tipo || "").startsWith("regua_");   // não tira a conversa da Bia
     const chave = a.paciente_id + "|" + a.email + "|" + classe(a);
     if (ultimo.get(chave) !== a) {
       await db("funil_avisos_medico?id=eq." + a.id, { method: "PATCH", body: JSON.stringify({ situacao: "substituido" }) });
@@ -431,7 +431,38 @@ async function vigiar(arr: any[], fora: Set<string>) {
   try { res.quiz_whats = await quizWhats(arr, fora); } catch (e) { res.quiz_whats = "erro: " + String((e as Error).message || e).slice(0, 80); }
   // 6) dados para o pedido de exames que o paciente respondeu
   try { res.dados_exame = await dadosExame(); } catch (e) { res.dados_exame = "erro: " + String((e as Error).message || e).slice(0, 80); }
+  // 7) "SIM" ao lembrete de 24 h
+  try { res.confirmacoes = await confirmacoes24h(); } catch (e) { res.confirmacoes = "erro: " + String((e as Error).message || e).slice(0, 80); }
   return res;
+}
+
+// ---------- lembrete de 24 h: lê o "SIM" do paciente e marca a consulta como confirmada na Rotina ----------
+async function confirmacoes24h() {
+  const desde = new Date(Date.now() - 30 * 3600000).toISOString();
+  const r = await dbs(`funil_pacientes?select=id,dados&dados->>lembrete24Em=gte.${desde}&limit=40`);
+  const fichas: any[] = r.ok ? await r.json() : [];
+  let n = 0;
+  for (const f of fichas) {
+    const d = f.dados || {};
+    if ((d.regua || {}).conf === d.dataConsulta) continue;          // já confirmada
+    if (!String(d.lembrete24 || "").startsWith(String(d.dataConsulta || "x"))) continue;   // consulta mudou
+    const t8 = String(d.telefone || "").replace(/\D/g, "").slice(-8);
+    if (t8.length < 8) continue;
+    const cw = await dbs("funil_whats?select=chat_id&tel8=eq." + t8 + "&limit=1");
+    const chatId = cw.ok ? ((await cw.json())[0]?.chat_id || null) : null;
+    if (!chatId) continue;
+    let ms: any[] = [];
+    try { ms = (await gm(`/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=20`) || []).map(mensagem).filter(Boolean); } catch { continue; }
+    const resp = ms.filter((m: any) => m.de === "paciente" && String(m.em) > String(d.lembrete24Em) && (m.texto || m.transcricao))
+      .map((m: any) => String(m.texto || m.transcricao).trim().toLowerCase());
+    if (!resp.some((t: string) => /^(sim|s|ss|confirm\w*|ok|okay|pode confirmar|estarei|vou sim|com certeza|claro)\b/.test(t) || /\bconfirm/.test(t))) continue;
+    const hj = hojeBR();
+    await dbs("funil_pacientes?id=eq." + encodeURIComponent(f.id), { method: "PATCH", headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ dados: { ...d, regua: { ...(d.regua || {}), conf: d.dataConsulta },
+        historico: [...(Array.isArray(d.historico) ? d.historico : []), { data: hj, texto: "Paciente confirmou a consulta pelo WhatsApp (lembrete de 24 h)" }] } }) });
+    n++;
+  }
+  return n;
 }
 
 // ---------- relatório semanal (segunda 8h) para o WhatsApp do diretor ----------

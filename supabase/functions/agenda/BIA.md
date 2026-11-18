@@ -239,3 +239,7 @@ Outros ajustes feitos na Bia:
 ## Cobrança de registro e relatório semanal (043, 18/11)
 - cobrar_registros() (cron a cada 30 min, :07 e :37): consulta 'agendou' sem registro 3 h depois do horário (últimos 3 dias) → WhatsApp ao cirurgião (tipo 'cobrar_registro') + recado à Ana; marca cobrarRegistroEm (uma vez por consulta).
 - relatorio_semanal (cron segunda 8h13): whats manda ao diretor canal, créditos (se o GPT Maker informar), movimento da semana e pendências (consultas sem registro, avisos com erro, Bia sem resposta, quedas, frases suspeitas). {"acao":"relatorio_semanal","teste":true} devolve o texto sem enviar.
+
+## Lembretes 24 h / 30 min e régua dos exames (044/045, 18/11)
+- 044: lembretes_24h() (cron a cada 10 min): 23–24 h antes da consulta, o paciente recebe "Pode confirmar respondendo SIM?" (tipo lembrete_24h; não sai se a confirmação do agendamento foi nas últimas 12 h). A função whats (vigiar passo 7) lê o SIM e marca regua.conf = dataConsulta (a Rotina mostra "confirmado"). gerar_lembretes: paciente 30 min antes (lembrete30), cirurgião 15 min antes (lembrete15). Texto da confirmação: "30 minutos antes".
+- 045: regua_exames() (cron seg–sáb 10h23): pedido de exame sem exame agendado/feito → D+2 "já conseguiu agendar?" (+ voucher), D+5 lembrete do prazo de 10 dias, D+8 recado para a Ana ligar. Só pedidos dos últimos 12 dias; marca dados.reguaExame. Gatilho exame_feito_pede_laudo: ao marcar exameRealizadoEm, pede laudo/imagens ao paciente.
