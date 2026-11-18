@@ -72,7 +72,24 @@ const CANAL_BIA = "3F6791F13320F0B1D9489ADC800E9477";   // canal do WhatsApp da 
 // A conversa voltou para a Bia: ela lê as últimas mensagens e responde o que ficou pendente.
 // O GPT Maker só faz a Bia falar quando chega mensagem nova; aqui pedimos a resposta ao agente
 // numa conversa à parte (com o histórico) e enviamos o texto na conversa do paciente.
+// trava: a mesma conversa não pode ser retomada duas vezes ao mesmo tempo
+// (ex.: "devolver para a Bia" e "Bia sem resposta" na mesma rodada, ou clique duplo)
+const retomandoDesde = new Map<string, number>();
 async function biaRetoma(chatId: string, quem = "Bia") {
+  const ja = retomandoDesde.get(chatId);
+  if (ja && Date.now() - ja < 5 * 60000) return { ok: false, motivo: "ja_retomando" };
+  retomandoDesde.set(chatId, Date.now());
+  try {
+    // a Bia já mandou algo nesta conversa nos últimos 5 min (outra instância): não repete
+    const SRk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const desde = new Date(Date.now() - 5 * 60000).toISOString();
+    const rr = await fetch(SB_URL + "/rest/v1/funil_whats_envios?select=em&por=eq.bia@alinhaface&chat_id=eq." + encodeURIComponent(chatId) + "&em=gte." + desde + "&limit=1",
+      { headers: { apikey: SRk, Authorization: "Bearer " + SRk } });
+    if (rr.ok && ((await rr.json()) as any[]).length) return { ok: false, motivo: "ja_respondeu" };
+  } catch { /* segue */ }
+  return await biaRetomaAgora(chatId, quem);
+}
+async function biaRetomaAgora(chatId: string, quem: string) {
   const brutas = await gm(`/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=40`);
   const ms = (Array.isArray(brutas) ? brutas : []).map(mensagem).filter(Boolean)
     .filter((m: any) => m.de !== "sistema" && (m.texto || m.transcricao))
@@ -106,6 +123,14 @@ async function biaRetoma(chatId: string, quem = "Bia") {
     if (tmp) await gm(`/chat/${tmp}`, { method: "DELETE" });
   } catch { /* ok */ }
   if (!texto) return { ok: false, motivo: "sem_resposta" };
+  // enquanto a resposta era escrita, a Bia (GPT Maker) ou a equipe pode ter respondido: confere antes de enviar
+  try {
+    const ag = await gm(`/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=10`);
+    const ul = (Array.isArray(ag) ? ag : []).map(mensagem).filter(Boolean)
+      .filter((m: any) => m.de !== "sistema" && (m.texto || m.transcricao))
+      .sort((a: any, b: any) => String(a.em).localeCompare(String(b.em)));
+    if (ul.length && ul[ul.length - 1].de !== "paciente") return { ok: false, motivo: "ja_respondida" };
+  } catch { /* segue */ }
   await gm(`/chat/${encodeURIComponent(chatId)}/send-message`, { method: "POST", body: JSON.stringify({ message: texto.slice(0, 3000) }) });
   try {
     const SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
