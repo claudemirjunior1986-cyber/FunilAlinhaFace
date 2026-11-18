@@ -232,3 +232,6 @@ Outros ajustes feitos na Bia:
 - Recado automático de "consulta registrada" (009) só vai para quem tem perfis.recebe_registros = true (Claudemir = false; ele recebe o resumo no WhatsApp pelo 039).
 - Todo recado novo para o Claudemir (funil_config diretor_email) gera um WhatsApp para ele (diretor_whatsapp), tipo 'alerta', com remetente, paciente e texto.
 - 042: recados gerais para a equipe (cirurgião→equipe, resposta à equipe, comercial→equipe) também respeitam recebe_registros; o Claudemir só recebe recados mandados direto para ele. Recados antigos automáticos/cópias dele foram fechados (17/11).
+
+## Ações de inatividade do GPT Maker (18/11)
+- São do GPT Maker (não do funil): 30 min, 1 dia, 3 dias e 6 dias sem resposta → "Interagir com cliente"; 7 dias → finalizar. Em 18/11 a Bia (Sonnet) mandou ao paciente uma explicação de por que não ia mandar a retomada. Instruções reescritas: se já agendou/presencial/recusou, escrever só "Qualquer dúvida, é só chamar 😊" e nunca explicar. Regra igual no comportamento ("TUDO o que você escreve vai direto para o paciente...").
