@@ -258,3 +258,4 @@ Outros ajustes feitos na Bia:
 - (048) Equipe do Dr. Afonso: equipeafonso@alinhaface.com.br → dr.aptrindadefilho@gmail.com.
 - (049) Jéssica (5511981050594) recebe cópia dos avisos do Dr. Afonso (funil_avisos_copia).
 - (050) Presencial: confirmação ao paciente leva o link do Google Maps (função link_maps); a mensagem de confirmação do painel também.
+- (051, 19/11/2026) Presencial SP: sai a Vila Mariana do Dr. Afonso. Entra Moema com a Dra. Kathye Bomfim (equipe do Dr. Victor), ter/sex 9h–17h, Av. Iraí, 300, sala 207 (pertinho do metrô e ao lado do shopping). Dr. Gustavo segue em Moema às quartas (Av. Jandira, 257). Rota: SP+Moema → equipe do Dr. Victor, a não ser que a preferência seja só quarta (→ Gustavo). Local gravado: "SP · Moema (Av. Iraí, 300, sala 207) · Dra. Kathye". link_maps cobre Iraí, Jandira (Moema), Porto Alegre, Mooca e Salvador.

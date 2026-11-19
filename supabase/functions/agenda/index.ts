@@ -90,18 +90,22 @@ const quando = (d: string, h: string) => {
 // presencial: a Bia não marca; o caso vai por WhatsApp para o cirurgião, que passa à secretária
 const MEDICOS: Record<string, { nome: string; email: string; unidades: string }> = {
   victor: { nome: "Dr. Victor", email: "admvictorssa@gmail.com", unidades: "Salvador" },
-  afonso: { nome: "Dr. Afonso", email: "dr.aptrindadefilho@gmail.com", unidades: "Mooca ou Vila Mariana" },
-  gustavo: { nome: "Dr. Gustavo", email: "gu.martins00@gmail.com", unidades: "Porto Alegre ou Moema (SP)" },
+  afonso: { nome: "Dr. Afonso", email: "dr.aptrindadefilho@gmail.com", unidades: "Mooca" },
+  gustavo: { nome: "Dr. Gustavo", email: "gu.martins00@gmail.com", unidades: "Porto Alegre ou Moema (SP, às quartas)" },
 };
-function medicoPresencial(estado: string, local: string): string | null {
+// Moema (SP): Dra. Kathye Bomfim (equipe do Dr. Victor) às terças e sextas, 9h–17h, Av. Iraí, 300, sala 207;
+// o Dr. Gustavo atende em Moema às quartas. Quem pediu quarta vai para o Gustavo; o resto, para a equipe do Dr. Victor.
+const MOEMA_KATHYE = "SP · Moema (Av. Iraí, 300, sala 207) · Dra. Kathye";
+function moemaGustavo(pref: string) { return /quarta/.test(semAcento(pref || "")) && !/terca|sexta/.test(semAcento(pref || "")); }
+function medicoPresencial(estado: string, local: string, pref = ""): string | null {
   if (NORDESTE.includes(estado)) return "victor";
-  if (estado === "SP") return /moema/.test(semAcento(local)) ? "gustavo" : "afonso";
+  if (estado === "SP") return /moema|irai|kathye/.test(semAcento(local)) ? (moemaGustavo(pref) ? "gustavo" : "victor") : "afonso";
   if (estado === "RS") return "gustavo";
   return null;
 }
 function unidadesDe(estado: string) {
   if (NORDESTE.includes(estado)) return "Salvador";
-  if (estado === "SP") return "Mooca, Vila Mariana (Dr. Afonso) ou Moema (Dr. Gustavo)";
+  if (estado === "SP") return "Mooca (Dr. Afonso, terça, quinta e sexta, 9h–17h) ou Moema (Dra. Kathye Bomfim, da equipe do Dr. Victor, terça e sexta, 9h–17h, na Av. Iraí, 300, sala 207, pertinho do metrô e ao lado do shopping; às quartas, Moema com o Dr. Gustavo)";
   if (estado === "RS") return "Porto Alegre";
   return "";
 }
@@ -495,11 +499,11 @@ Deno.serve(async (req) => {
       const cidade = respostaA(ms, /cidade|estado|onde (voc[eê] )?mora/i);
       const est2 = uf(cidade) || uf(p.estado || "");
       const tudo = pac.join(" ");
-      const local = /moema/i.test(tudo) ? "Moema" : /mooca/i.test(tudo) ? "Mooca" : /vila mariana/i.test(tudo) ? "Vila Mariana" : "";
-      const chave = medicoPresencial(est2, local);
+      const pref = respostaA(ms, /dias|per[ií]odo|hor[áa]rio/i);
+      const chave = medicoPresencial(est2, /moema|ira[ií]/i.test(tudo) ? "Moema" : /mooca/i.test(tudo) ? "Mooca" : "", pref);
+      const local = /moema|ira[ií]/i.test(tudo) ? (chave === "victor" ? MOEMA_KATHYE : "Moema") : /mooca/i.test(tudo) ? "Mooca" : "";
       if (!chave) return json({ ok: false, motivo: "sem_estado", cidade });
       const med = MEDICOS[chave];
-      const pref = respostaA(ms, /dias|per[ií]odo|hor[áa]rio/i);
       const quiz = quizDe(pac);
       const nome = (pac.join(" ").match(/\*Nome:\*\s*([^*\n]+)/)?.[1] || p.nome || "").trim();
       const res = await rpc("encaminhar_presencial", {
@@ -512,8 +516,11 @@ Deno.serve(async (req) => {
       return json({ ok: !!res?.ok, medico: med.nome, ...res });
     }
     if (acao === "presencial") {
-      const local = p.local || p.unidade || "";
-      const chave = medicoPresencial(est, local);
+      const pref0 = p.preferencia || p.preferencia_horario || "";
+      const chave = medicoPresencial(est, p.local || p.unidade || "", pref0);
+      const local0 = p.local || p.unidade || "";
+      const kathye = chave === "victor" && est === "SP";
+      const local = kathye ? MOEMA_KATHYE : local0;
       if (!chave) return json({ ok: false, instrucao: rota(est, "Presencial").instrucao });
       const med = MEDICOS[chave];
       const tel = p.telefone || p.contact_phone || p.phone || "";
@@ -526,7 +533,10 @@ Deno.serve(async (req) => {
       });
       if (!res?.ok) return json({ ok: false, motivo: res?.motivo, instrucao: "Não consegui encaminhar agora. Transfira para a Ana Clara." });
       return json({ ok: true, medico: med.nome,
-        instrucao: `Pronto, o caso foi enviado ao ${med.nome}. Diga à pessoa: "Passei seu caso para o ${med.nome}. `
+        instrucao: kathye
+          ? "Pronto, o caso foi enviado à equipe do Dr. Victor. Diga à pessoa: \"Passei seu caso para a Dra. Kathye Bomfim, da equipe do Dr. Victor, que atende em Moema (Av. Iraí, 300, sala 207, pertinho do metrô e ao lado do shopping) às terças e sextas, das 9h às 17h. "
+            + "A equipe dela vai entrar em contato para marcar o melhor dia e horário da sua consulta presencial.\" "
+          : `Pronto, o caso foi enviado ao ${med.nome}. Diga à pessoa: "Passei seu caso para o ${med.nome}. `
           + "A secretária dele vai entrar em contato para marcar o melhor dia e horário da sua consulta presencial.\" "
           + "Não ofereça horários nem envie link da Ana Clara." });
     }
