@@ -293,6 +293,7 @@
   .hoje-head .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
   .hoje-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;align-items:start}
   @media (max-width:980px){.hoje-grid{grid-template-columns:1fr}}
+  .hoje-grid.so-um{grid-template-columns:1fr}
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
   .panel-head{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);background:var(--surface-2)}
   .panel-head h3{margin:0;font-size:13px;font-weight:600;letter-spacing:-.01em}
@@ -1839,15 +1840,17 @@ function diasUteisDesde(d){
 const primeiroNome = p => (p.nome||"").trim().split(/\s+/)[0] || "tudo bem";
 const vencVoucher = p => p.voucherEmitido ? somaDias(p.voucherEmitido, VOUCHER_DIAS) : "";
 
+// nome do cirurgião do paciente (Dr. Gustavo, Dr. Victor, Dr. Afonso…) — nunca fixo
+const drDe = p => p && p.cirurgiao ? nomeCirurgiao(p.cirurgiao) : (EQUIPE ? nomeCirurgiao(EQUIPE) : "Dr. Gustavo");
 const MSG = {
   d0: p=>`Oi, ${primeiroNome(p)}! Como cortesia da Alinha Face, você ganhou um voucher para a ressonância magnética na Blume Medicina Diagnóstica, sem nenhum custo. Ele é no seu nome e vale até ${dataBR(vencVoucher(p)||somaDias(hoje(),VOUCHER_DIAS))}. Segue em anexo com o endereço da clínica. Qualquer dúvida pra agendar, me chama!`,
-  d1: p=>`Oi, ${primeiroNome(p)}! Tudo bem? Aqui é da Alinha Face. Passando pra saber como você se sentiu na consulta com o Dr. Gustavo e se ficou alguma dúvida. Se puder, deixa sua avaliação pra gente no Google, ajuda muito: [link]`,
-  d3: p=>`Oi, ${primeiroNome(p)}! Conseguiu agendar os exames que o Dr. Gustavo pediu? Se precisar de ajuda pra encontrar um laboratório perto de você, me avisa que eu te ajudo.`,
-  d7: p=>`Oi, ${primeiroNome(p)}! Os exames já ficaram prontos? Pode me mandar por aqui mesmo que eu encaminho pro Dr. Gustavo e já deixo seu retorno agendado.`,
+  d1: p=>`Oi, ${primeiroNome(p)}! Tudo bem? Aqui é da Alinha Face. Passando pra saber como você se sentiu na consulta com o ${drDe(p)} e se ficou alguma dúvida. Se puder, deixa sua avaliação pra gente no Google, ajuda muito: [link]`,
+  d3: p=>`Oi, ${primeiroNome(p)}! Conseguiu agendar os exames que o ${drDe(p)} pediu? Se precisar de ajuda pra encontrar um laboratório perto de você, me avisa que eu te ajudo.`,
+  d7: p=>`Oi, ${primeiroNome(p)}! Os exames já ficaram prontos? Pode me mandar por aqui mesmo que eu encaminho pro ${drDe(p)} e já deixo seu retorno agendado.`,
   d15: p=>`Oi, ${primeiroNome(p)}, tudo certo? Notei que ainda não conseguimos seguir com os exames. Aconteceu alguma coisa? Me conta que a gente vê juntos o melhor caminho.`,
   d30: p=>`Oi, ${primeiroNome(p)}! Vou pausar o acompanhamento por aqui pra não te incomodar. Quando quiser retomar, é só me chamar que seguimos de onde paramos.`,
   v2: p=>`Oi, ${primeiroNome(p)}! Já conseguiu agendar sua ressonância na Blume? Lembrando que o voucher vale até ${dataBR(vencVoucher(p))}. Se quiser, te ajudo a marcar agora.`,
-  v4: p=>`Oi, ${primeiroNome(p)}! Passando só pra lembrar que seu voucher da ressonância vence amanhã (${dataBR(vencVoucher(p))}). Não deixa passar, tá? É cortesia e ajuda o Dr. Gustavo a seguir com seu caso.`,
+  v4: p=>`Oi, ${primeiroNome(p)}! Passando só pra lembrar que seu voucher da ressonância vence amanhã (${dataBR(vencVoucher(p))}). Não deixa passar, tá? É cortesia e ajuda o ${drDe(p)} a seguir com seu caso.`,
   conf: p=>`Oi, ${primeiroNome(p)}! Passando pra confirmar sua avaliação na Alinha Face ${p.dataConsulta===hoje()?"hoje":"amanhã"}${p.horaConsulta?" às "+p.horaConsulta:""}. ${p.modalidade==="Presencial"?"O endereço é "+(p.local||"")+".":"Vou te mandar o link da chamada um pouco antes."} Posso confirmar?`,
   reat: p=>`Oi, ${primeiroNome(p)}! Aqui é da Alinha Face. Vi que a gente não conseguiu terminar de conversar. Sua primeira avaliação é uma cortesia nossa — quer que eu veja um horário pra você essa semana?`,
   gus: p=>`Dr. Gustavo, tudo bem? Sobre o paciente ${p.nome||""}${p.dataConsulta?", que passou em consulta em "+dataBR(p.dataConsulta):""}: consegue me dar um retorno para eu atualizar aqui? Obrigado!`,
@@ -1889,7 +1892,7 @@ function tarefasDe(p){
     const dias = diasDesde(p.dataConsulta);
     // D+0: registrar pedido e emitir voucher
     if(!p.voucherEmitido && !r.d0 && dias>=0 && dias<=VOUCHER_DIAS && !agendadaFrente){
-      out.push({g:"pos", k:"d0", step:"D+0", cls:"v", txt:"Registrar o pedido do Dr. Gustavo e emitir o voucher Blume",
+      out.push({g:"pos", k:"d0", step:"D+0", cls:"v", txt:"Registrar o pedido do "+drDe(p)+" e emitir o voucher Blume",
         sub:"consulta em "+dataBR(p.dataConsulta), late:dias>=1, msg:"d0", voucher:true});
     }
     // régua: só o passo mais recente que ainda vale
@@ -2124,7 +2127,7 @@ function renderHoje(){
   const bDia = el("button","btn","Resumo do dia"); bDia.addEventListener("click",abrirResumoDia);
   const bSem = el("button","btn","Resumo da semana"); bSem.addEventListener("click",abrirResumoSemana);
   const bGus = el("button","btn","Lista de sexta · Dr. Gustavo"); bGus.addEventListener("click",copiarListaGustavo);
-  acts.append(bDia,bSem,bGus);
+  acts.append(bDia,bSem); if(!EQUIPE) acts.appendChild(bGus);
   head.append(hl,acts); box.appendChild(head);
 
   // kpis
@@ -2150,7 +2153,7 @@ function renderHoje(){
     return {k, m, n:l.length, parados};
   }).filter(x=>x.n);
   const respostas = todos.filter(p=>/^retorno d[oa] /.test(semAcento(p.proximaAcao).trim()) && p.dataProximaAcao && p.dataProximaAcao<=hoje()).length;
-  if(comMed.length || respostas){
+  if(!EQUIPE && (comMed.length || respostas)){
     const pm = el("section","panel pend-med");
     const phm = el("div","panel-head"); phm.append(el("h3",null,"Pendências com os cirurgiões"));
     pm.appendChild(phm);
@@ -2221,7 +2224,7 @@ function renderHoje(){
   const regra = el("div","hint"); regra.style.padding="10px 14px"; regra.style.borderTop="1px solid var(--line)";
   regra.textContent = "Prazo: cobrar com 2 dias úteis sem retorno, 2ª cobrança com 4, avisar o Junior com 5.";
   pe.appendChild(regra);
-  grid.appendChild(pe);
+  if(!EQUIPE) grid.appendChild(pe); else grid.classList.add("so-um");
 
   box.appendChild(grid);
 }
@@ -2925,7 +2928,7 @@ function abrirDrawer(id, pre){
     if(!campoOutro.hidden) inpAcao.focus();
   });
   g4.append(campo("Próxima ação", selAcao), campo("Quando", inp("f_dpacao","date",p.dataProximaAcao||"")));
-  const obs = el("textarea"); obs.id="f_obs"; obs.value = p.observacoes||""; obs.placeholder="Queixa principal, o que o Dr. Gustavo pediu, objeções…";
+  const obs = el("textarea"); obs.id="f_obs"; obs.value = p.observacoes||""; obs.placeholder="Queixa principal, o que o cirurgião pediu, objeções…";
   const resumo = el("textarea"); resumo.id="f_resumo"; resumo.value = p.resumoCaso||""; resumo.rows = 2;
   resumo.placeholder="Ex.: Dor na mandíbula há 2 anos, já usou placa. Unimed, Porto Alegre. Quer resolver logo.";
   fs4.append(g4, campoOutro, campo("Observações", obs), campo("Resumo do caso (aparece para o cirurgião)", resumo)); b.appendChild(fs4);
