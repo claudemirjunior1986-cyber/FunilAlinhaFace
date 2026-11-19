@@ -257,3 +257,4 @@ Outros ajustes feitos na Bia:
 - Avisos de nova consulta, remarcação e lembrete de 15 min ao cirurgião trazem 'WhatsApp: (DD) NNNNN-NNNN · https://wa.me/55…' (função tel_paciente). Sugestão do Dr. Gustavo.
 - (048) Equipe do Dr. Afonso: equipeafonso@alinhaface.com.br → dr.aptrindadefilho@gmail.com.
 - (049) Jéssica (5511981050594) recebe cópia dos avisos do Dr. Afonso (funil_avisos_copia).
+- (050) Presencial: confirmação ao paciente leva o link do Google Maps (função link_maps); a mensagem de confirmação do painel também.

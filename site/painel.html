@@ -1842,6 +1842,8 @@ const vencVoucher = p => p.voucherEmitido ? somaDias(p.voucherEmitido, VOUCHER_D
 
 // nome do cirurgião do paciente (Dr. Gustavo, Dr. Victor, Dr. Afonso…) — nunca fixo
 const drDe = p => p && p.cirurgiao ? nomeCirurgiao(p.cirurgiao) : (EQUIPE ? nomeCirurgiao(EQUIPE) : "Dr. Gustavo");
+// link do Google Maps a partir do endereço (sem chave nem integração: é só um endereço de busca)
+const linkMaps = end => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(String(end||"").replace(/[()]/g," ").replace(/\s+/g," ").trim());
 const MSG = {
   d0: p=>`Oi, ${primeiroNome(p)}! Como cortesia da Alinha Face, você ganhou um voucher para a ressonância magnética na Blume Medicina Diagnóstica, sem nenhum custo. Ele é no seu nome e vale até ${dataBR(vencVoucher(p)||somaDias(hoje(),VOUCHER_DIAS))}. Segue em anexo com o endereço da clínica. Qualquer dúvida pra agendar, me chama!`,
   d1: p=>`Oi, ${primeiroNome(p)}! Tudo bem? Aqui é da Alinha Face. Passando pra saber como você se sentiu na consulta com o ${drDe(p)} e se ficou alguma dúvida. Se puder, deixa sua avaliação pra gente no Google, ajuda muito: [link]`,
@@ -1851,7 +1853,7 @@ const MSG = {
   d30: p=>`Oi, ${primeiroNome(p)}! Vou pausar o acompanhamento por aqui pra não te incomodar. Quando quiser retomar, é só me chamar que seguimos de onde paramos.`,
   v2: p=>`Oi, ${primeiroNome(p)}! Já conseguiu agendar sua ressonância na Blume? Lembrando que o voucher vale até ${dataBR(vencVoucher(p))}. Se quiser, te ajudo a marcar agora.`,
   v4: p=>`Oi, ${primeiroNome(p)}! Passando só pra lembrar que seu voucher da ressonância vence amanhã (${dataBR(vencVoucher(p))}). Não deixa passar, tá? É cortesia e ajuda o ${drDe(p)} a seguir com seu caso.`,
-  conf: p=>`Oi, ${primeiroNome(p)}! Passando pra confirmar sua avaliação na Alinha Face ${p.dataConsulta===hoje()?"hoje":"amanhã"}${p.horaConsulta?" às "+p.horaConsulta:""}. ${p.modalidade==="Presencial"?"O endereço é "+(p.local||"")+".":"Vou te mandar o link da chamada um pouco antes."} Posso confirmar?`,
+  conf: p=>`Oi, ${primeiroNome(p)}! Passando pra confirmar sua avaliação na Alinha Face ${p.dataConsulta===hoje()?"hoje":"amanhã"}${p.horaConsulta?" às "+p.horaConsulta:""}. ${p.modalidade==="Presencial"?"O endereço é "+(p.local||"")+"."+(p.local?" Localização: "+linkMaps(p.local):""):"Vou te mandar o link da chamada um pouco antes."} Posso confirmar?`,
   reat: p=>`Oi, ${primeiroNome(p)}! Aqui é da Alinha Face. Vi que a gente não conseguiu terminar de conversar. Sua primeira avaliação é uma cortesia nossa — quer que eu veja um horário pra você essa semana?`,
   gus: p=>`Dr. Gustavo, tudo bem? Sobre o paciente ${p.nome||""}${p.dataConsulta?", que passou em consulta em "+dataBR(p.dataConsulta):""}: consegue me dar um retorno para eu atualizar aqui? Obrigado!`,
   enc: e=>`${e.parceiro||"Doutor"}, tudo bem? Sobre o paciente ${e.paciente}, encaminhado em ${dataBR(e.dataEnvio)}: conseguiu falar com ele? Me passa o status pra eu atualizar aqui. Obrigada!`
