@@ -150,6 +150,7 @@
       </svg>
       <div><h1>Alinha Face</h1><div class="sub" id="ola">Carregando…</div></div>
     </div>
+    <a class="btn btn-sm" id="bImplantes" href="implantes.html" hidden>🦷 Alinha Implantes</a>
     <button class="btn btn-sm btn-ghost" id="bSenha">Trocar senha</button>
     <button class="btn btn-sm" id="bSair">Sair</button>
   </div>
@@ -716,6 +717,7 @@ document.addEventListener("keydown", e => { if(e.key === "Escape") fechar(); });
 
 (async ()=>{
   eu = await FUNIL.exigir(["cirurgiao"]);
+  if(String(eu.email||"").toLowerCase() === "admvictorssa@gmail.com") document.getElementById("bImplantes").hidden = false;
   $("#ola").textContent = "Olá, " + eu.nome;
   await carregar();
   await carregarAvisos();

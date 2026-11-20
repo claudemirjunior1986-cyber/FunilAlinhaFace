@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#234F64">
+<link rel="icon" type="image/png" sizes="32x32" href="icones/favicon-32.png">
+<title>Funil · Alinha Implantes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="base.css">
+<style>
+  :root{ --im:#245366; --im-gold:#B88F4A; }
+  .shell{max-width:1400px;margin:0 auto;padding:18px 16px 60px}
+  .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .top .brand{margin-right:auto}
+  .brand h1 span{color:var(--im-gold);font-weight:500}
+  .resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+  .kpi{padding:12px 14px}
+  .kpi b{display:block;font-family:var(--font-display);font-size:24px;line-height:1.1}
+  .kpi span{font-size:12.5px;color:var(--ink-3)}
+  .barra{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .barra input{max-width:320px}
+  .board{display:flex;gap:10px;overflow-x:auto;padding-bottom:10px;align-items:flex-start}
+  .col{flex:0 0 250px;background:var(--surface-2);border-radius:12px;padding:8px;min-height:120px}
+  .col.alvo{outline:2px dashed var(--im-gold)}
+  .col h3{font-size:13.5px;display:flex;justify-content:space-between;align-items:center;padding:4px 6px 8px;font-family:var(--font-body);font-weight:600}
+  .col h3 i{font-style:normal;background:var(--surface);border-radius:99px;padding:0 8px;font-size:12px;color:var(--ink-2)}
+  .col h3 .pt{width:9px;height:9px;border-radius:99px;display:inline-block;margin-right:6px}
+  .cartao{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 10px;margin-bottom:7px;cursor:pointer;display:flex;flex-direction:column;gap:3px}
+  .cartao:hover{border-color:var(--im)}
+  .cartao b{font-size:14px}
+  .cartao .l{font-size:12px;color:var(--ink-3)}
+  .tag{align-self:flex-start;font-size:11.5px;border-radius:99px;padding:1px 8px;background:var(--accent-soft);color:var(--ink-2)}
+  .tag.z{background:#F4E9D5;color:#7A5A1C}
+  .vazio{font-size:12.5px;color:var(--ink-3);padding:6px}
+  .scrim{position:fixed;inset:0;background:rgba(10,18,32,.45);z-index:50}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--surface);z-index:51;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+  .drawer header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .drawer header h2{font-size:19px;margin-right:auto}
+  .drawer .corpo{padding:14px 16px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .bloco{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;white-space:pre-wrap;line-height:1.45;background:var(--surface-2)}
+  .hist{display:flex;flex-direction:column;gap:6px;font-size:13px}
+  .hist div{border-left:2px solid var(--line-strong);padding-left:8px}
+  .hist span{color:var(--ink-3);margin-right:6px}
+  .drawer footer{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+  .wa{background:#1f9d55;color:#fff;border-color:#1f9d55;text-decoration:none}
+  @media (max-width:640px){ .grid2{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+        <circle cx="17" cy="17" r="16" fill="#245366"></circle>
+        <path d="M13.5 7h7v11l-1.6 9h-3.8l-1.6-9z" fill="#B88F4A"></path>
+        <path d="M12.5 12.5l9-1.6M12.5 16.5l9-1.6M13 20.5l8-1.4" stroke="#245366" stroke-width="1.3"></path>
+      </svg>
+      <div><h1>Alinha <span>Implantes</span></h1><div class="sub" id="ola">Carregando…</div></div>
+    </div>
+    <a class="btn btn-sm" id="bVoltar" href="painel.html" hidden>← Alinha Face</a>
+    <button class="btn btn-sm btn-ghost" id="bSenha">Trocar senha</button>
+    <button class="btn btn-sm" id="bSair">Sair</button>
+  </div>
+
+  <div class="resumo" id="resumo"></div>
+  <div class="barra">
+    <input type="text" id="busca" placeholder="Buscar por nome, telefone ou cidade">
+    <span class="muted" id="contagem" style="font-size:13px"></span>
+  </div>
+  <div class="board" id="board"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>
+const VICTOR = "admvictorssa@gmail.com";
+const ETAPAS = [
+  {k:"triagem",      l:"A classificar",            c:"#6C7A8C"},
+  {k:"lead",         l:"Lead novo",                c:"#2C5A93"},
+  {k:"agendou",      l:"Avaliação agendada",       c:"#34689E"},
+  {k:"compareceu",   l:"Avaliado",                 c:"#3F79A8"},
+  {k:"exames_sol",   l:"Tomografia pedida",        c:"#4F89A8"},
+  {k:"im_orcamento", l:"Planejamento e orçamento", c:"#94A47F"},
+  {k:"im_fechado",   l:"Fechou tratamento",        c:"#B88F4A"},
+  {k:"im_cirurgia",  l:"Cirurgia realizada",       c:"#C08A2E"},
+  {k:"im_protese",   l:"Prótese definitiva",       c:"#A97A1C"},
+  {k:"noshow",       l:"Faltou",                   c:"#8B93A3"},
+  {k:"perdido",      l:"Perdido",                  c:"#8B93A3"}
+];
+const ETAPA = Object.fromEntries(ETAPAS.map(e=>[e.k,e]));
+// etapas antigas da Alinha Face que podem aparecer numa ficha que virou implante
+const MAPA = {exames_ok:"exames_sol", retorno:"compareceu", proposta:"im_orcamento", docs_conv:"im_fechado", autorizacao:"im_fechado",
+              autorizado:"im_fechado", cir_marcada:"im_fechado", cir_feita:"im_cirurgia", posop:"im_cirurgia"};
+const PROCEDIMENTOS = ["Implantes · A definir","Implantes · All-on-4","Implantes · Zigomático","Implantes · All-on-4 + Zigomático"];
+const FECHADOS = ["im_fechado","im_cirurgia","im_protese"];
+
+const $ = s=>document.querySelector(s);
+const el = (t,c,x)=>{ const e=document.createElement(t); if(c) e.className=c; if(x!=null) e.textContent=x; return e; };
+const dataBR = d=>d ? d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4) : "";
+const reais = v=>"R$ "+(Number(v)||0).toLocaleString("pt-BR",{maximumFractionDigits:0});
+const etapaDe = p=>ETAPA[p.etapa] ? p.etapa : (MAPA[p.etapa] || "lead");
+function toast(t){ const x=el("div","toast",t); document.body.appendChild(x); setTimeout(()=>x.remove(),2600); }
+
+let eu = null, pacientes = new Map(), busca = "";
+
+async function carregar(){
+  const { data, error } = await FUNIL.sb.from("funil_pacientes").select("id,dados,cirurgiao_email").eq("dados->>linha","implantes");
+  if(error){ $("#ola").textContent = "Não consegui carregar os pacientes. Recarregue a página."; return; }
+  pacientes = new Map((data||[]).filter(r=>!r.dados?.demo).map(r=>[r.id, Object.assign({id:r.id}, r.dados)]));
+  render();
+}
+
+function render(){
+  const todos = [...pacientes.values()];
+  const q = busca.trim().toLowerCase();
+  const lista = q ? todos.filter(p=>[p.nome,p.telefone,p.cidade].join(" ").toLowerCase().includes(q)) : todos;
+  // resumo
+  const ativos = todos.filter(p=>!["perdido","noshow"].includes(etapaDe(p)));
+  const avaliados = todos.filter(p=>["compareceu","exames_sol","im_orcamento",...FECHADOS].includes(etapaDe(p)));
+  const fechados = todos.filter(p=>FECHADOS.includes(etapaDe(p)));
+  const orcado = todos.filter(p=>etapaDe(p)==="im_orcamento").reduce((s,p)=>s+(Number(p.valorProposta)||0),0);
+  const vendido = fechados.reduce((s,p)=>s+(Number(p.valorProposta)||0),0);
+  const r = $("#resumo"); r.innerHTML = "";
+  [[ativos.length,"pacientes em andamento"],[avaliados.length,"avaliados"],[fechados.length,"fecharam tratamento"],
+   [reais(orcado),"em orçamento"],[reais(vendido),"vendido"]].forEach(([v,t])=>{ const k=el("div","card kpi"); k.append(el("b",null,String(v)), el("span",null,t)); r.appendChild(k); });
+  $("#contagem").textContent = lista.length + (lista.length===1?" paciente":" pacientes");
+  // quadro
+  const b = $("#board"); b.innerHTML = "";
+  for(const e of ETAPAS){
+    const doStage = lista.filter(p=>etapaDe(p)===e.k).sort((a,c)=>String(c.atualizadoEm||"").localeCompare(String(a.atualizadoEm||"")));
+    const col = el("div","col"); col.dataset.k = e.k;
+    const h = el("h3"); const t = el("span"); const pt = el("span","pt"); pt.style.background = e.c; t.append(pt, document.createTextNode(e.l));
+    h.append(t, el("i",null,String(doStage.length))); col.appendChild(h);
+    if(!doStage.length) col.appendChild(el("div","vazio","—"));
+    for(const p of doStage) col.appendChild(cartao(p));
+    col.addEventListener("dragover", ev=>{ ev.preventDefault(); col.classList.add("alvo"); });
+    col.addEventListener("dragleave", ()=>col.classList.remove("alvo"));
+    col.addEventListener("drop", async ev=>{
+      ev.preventDefault(); col.classList.remove("alvo");
+      const id = ev.dataTransfer.getData("text/plain"); const p = pacientes.get(id);
+      if(p && etapaDe(p) !== e.k) await gravar(id, {p_etapa:e.k}, p.nome+" → "+e.l);
+    });
+    b.appendChild(col);
+  }
+}
+
+function cartao(p){
+  const c = el("div","cartao"); c.draggable = true;
+  c.addEventListener("dragstart", ev=>ev.dataTransfer.setData("text/plain", p.id));
+  c.addEventListener("click", ()=>abrir(p.id));
+  c.appendChild(el("b",null,p.nome||"Sem nome"));
+  const proc = String(p.tratamento||"").replace(/^Implantes · /,"");
+  if(proc && proc !== "A definir") c.appendChild(el("span","tag"+(/zigom/i.test(proc)?" z":""), proc));
+  const linhas = [p.cidade, p.dataConsulta ? "Avaliação "+dataBR(p.dataConsulta)+(p.horaConsulta?" "+p.horaConsulta:"") : ""].filter(Boolean).join(" · ");
+  if(linhas) c.appendChild(el("span","l",linhas));
+  if(Number(p.valorProposta)>0) c.appendChild(el("span","l",reais(p.valorProposta)));
+  return c;
+}
+
+function campo(rotulo, entrada){ const l = el("label","f"); l.append(document.createTextNode(rotulo), entrada); return l; }
+function caixa(tipo, valor){ const i = el("input"); i.type = tipo; i.value = valor||""; return i; }
+function lista(opcoes, valor){ const s = el("select"); for(const o of opcoes){ const x = el("option",null,o.l||o); x.value = o.k||o; if((o.k||o)===valor) x.selected = true; s.appendChild(x); } return s; }
+
+function abrir(id){
+  const p = pacientes.get(id); if(!p) return;
+  document.querySelector(".scrim")?.remove(); document.querySelector(".drawer")?.remove();
+  const scrim = el("div","scrim"), dr = el("div","drawer");
+  const fechar = ()=>{ scrim.remove(); dr.remove(); };
+  scrim.addEventListener("click", fechar);
+  const hd = el("header"); hd.appendChild(el("h2",null,p.nome||"Sem nome"));
+  const bx = el("button","btn btn-sm btn-ghost","Fechar"); bx.onclick = fechar; hd.appendChild(bx);
+  const corpo = el("div","corpo");
+
+  const fNome = caixa("text", p.nome), fTel = caixa("text", p.telefone), fCid = caixa("text", p.cidade);
+  const fEtapa = lista(ETAPAS, etapaDe(p));
+  const fProc = lista(PROCEDIMENTOS, PROCEDIMENTOS.includes(p.tratamento) ? p.tratamento : "Implantes · A definir");
+  const fArc = lista(["—","Superior","Inferior","Superior e inferior"], p.arcadas||"—");
+  const fData = caixa("date", p.dataConsulta), fHora = caixa("text", p.horaConsulta); fHora.placeholder = "10:30";
+  const fValor = caixa("number", Number(p.valorProposta)||""); fValor.min = "0"; fValor.step = "100"; fValor.placeholder = "Valor do orçamento (R$)";
+  const fAcao = caixa("text", p.proximaAcao), fAcaoData = caixa("date", p.dataProximaAcao);
+  const fNota = el("textarea"); fNota.placeholder = "Anotação (vai para o histórico com o seu nome)"; fNota.style.minHeight = "80px";
+
+  const g1 = el("div","grid2"); g1.append(campo("Nome", fNome), campo("WhatsApp", fTel));
+  const g2 = el("div","grid2"); g2.append(campo("Cidade", fCid), campo("Etapa", fEtapa));
+  const g3 = el("div","grid2"); g3.append(campo("Procedimento", fProc), campo("Arcadas", fArc));
+  const g4 = el("div","grid2"); g4.append(campo("Data da avaliação", fData), campo("Horário", fHora));
+  const g5 = el("div","grid2"); g5.append(campo("Orçamento (R$)", fValor), campo("Próxima ação — data", fAcaoData));
+  corpo.append(g1, g2, g3, g4, g5, campo("Próxima ação", fAcao));
+
+  const resumo = [p.quizWhats, p.resumoCaso].filter(Boolean).join("\n\n");
+  if(resumo){ corpo.appendChild(el("strong",null,"Resumo da conversa")); corpo.appendChild(el("div","bloco",resumo)); }
+  if(p.resumoConsulta){ corpo.appendChild(el("strong",null,"Resumo da avaliação")); corpo.appendChild(el("div","bloco",p.resumoConsulta)); }
+  corpo.appendChild(campo("Nova anotação", fNota));
+  const hist = Array.isArray(p.historico) ? p.historico.slice().reverse() : [];
+  if(hist.length){
+    corpo.appendChild(el("strong",null,"Histórico"));
+    const h = el("div","hist");
+    hist.slice(0,40).forEach(x=>{ const d = el("div"); d.append(el("span",null,dataBR(x.data)), document.createTextNode(x.texto||"")); h.appendChild(d); });
+    corpo.appendChild(h);
+  }
+
+  const ft = el("footer");
+  const tel = String(fTel.value||"").replace(/\D/g,"");
+  if(tel.length >= 10){ const a = el("a","btn btn-sm wa","💬 WhatsApp"); a.href = "https://wa.me/"+(tel.length<=11?"55"+tel:tel); a.target = "_blank"; a.rel = "noopener"; ft.appendChild(a); }
+  const bs = el("button","btn btn-sm btn-primary","Salvar");
+  bs.onclick = async ()=>{
+    bs.disabled = true;
+    const ok = await gravar(p.id, {
+      p_etapa: fEtapa.value, p_procedimento: fProc.value,
+      p_valor: fValor.value === "" ? null : Number(fValor.value),
+      p_nota: fNota.value,
+      p_dados: { nome:fNome.value.trim(), telefone:fTel.value.trim(), cidade:fCid.value.trim(), dataConsulta:fData.value,
+                 horaConsulta:fHora.value.trim(), proximaAcao:fAcao.value.trim(), dataProximaAcao:fAcaoData.value,
+                 arcadas: fArc.value === "—" ? "" : fArc.value }
+    }, "Ficha salva.");
+    bs.disabled = false;
+    if(ok) fechar();
+  };
+  ft.appendChild(bs);
+  dr.append(hd, corpo, ft);
+  document.body.append(scrim, dr);
+}
+
+async function gravar(id, campos, msg){
+  const args = Object.assign({p_id:id, p_etapa:null, p_procedimento:null, p_valor:null, p_nota:null, p_dados:null}, campos);
+  const { error } = await FUNIL.sb.rpc("implantes_atualizar", args);
+  if(error){ toast("Não consegui salvar: "+(error.message||"erro")); return false; }
+  toast(msg); await carregar(); return true;
+}
+
+(async()=>{
+  eu = await FUNIL.exigir(["admin","cirurgiao","equipe"]);
+  const meuCir = eu.papel === "equipe" ? String(eu.equipe_de||"").toLowerCase() : eu.papel === "cirurgiao" ? String(eu.email).toLowerCase() : "";
+  if(eu.papel !== "admin" && meuCir !== VICTOR){ location.replace(eu.papel === "cirurgiao" ? "medico.html" : "painel.html"); return; }
+  $("#ola").textContent = "Funil de implantes · " + (eu.nome||eu.email);
+  const v = $("#bVoltar");
+  if(eu.papel === "cirurgiao"){ v.href = "medico.html"; v.textContent = "← Minha agenda"; }
+  v.hidden = false;
+  $("#bSair").onclick = FUNIL.sair; $("#bSenha").onclick = FUNIL.trocarSenha;
+  $("#busca").addEventListener("input", e=>{ busca = e.target.value; render(); });
+  await carregar();
+  FUNIL.sb.channel("implantes").on("postgres_changes", {event:"*", schema:"public", table:"funil_pacientes"}, ()=>carregar()).subscribe();
+})();
+</script>
+</body>
+</html>
