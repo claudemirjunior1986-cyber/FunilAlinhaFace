@@ -91,7 +91,7 @@ const quando = (d: string, h: string) => {
 const MEDICOS: Record<string, { nome: string; email: string; unidades: string }> = {
   victor: { nome: "Dr. Victor", email: "admvictorssa@gmail.com", unidades: "Salvador" },
   afonso: { nome: "Dr. Afonso", email: "dr.aptrindadefilho@gmail.com", unidades: "Mooca" },
-  gustavo: { nome: "Dr. Gustavo", email: "gu.martins00@gmail.com", unidades: "Porto Alegre ou Moema (SP, às quartas)" },
+  gustavo: { nome: "Dr. Gustavo", email: "gu.martins00@gmail.com", unidades: "Porto Alegre ou Moema (SP, Av. Jandira, 257, às quartas)" },
 };
 // Moema (SP): Dra. Kathye Bomfim (equipe do Dr. Victor) às terças e sextas, 9h–17h, Av. Iraí, 300, sala 207;
 // o Dr. Gustavo atende em Moema às quartas. Quem pediu quarta vai para o Gustavo; o resto, para a equipe do Dr. Victor.
@@ -105,7 +105,7 @@ function medicoPresencial(estado: string, local: string, pref = ""): string | nu
 }
 function unidadesDe(estado: string) {
   if (NORDESTE.includes(estado)) return "Salvador";
-  if (estado === "SP") return "Mooca (Dr. Afonso, terça, quinta e sexta, 9h–17h) ou Moema (Dra. Kathye Bomfim, da equipe do Dr. Victor, terça e sexta, 9h–17h, na Av. Iraí, 300, sala 207, pertinho do metrô e ao lado do shopping; às quartas, Moema com o Dr. Gustavo)";
+  if (estado === "SP") return "3 endereços em São Paulo: 1) Mooca, Av. Paes de Barros, 3399, com o Dr. Afonso, terça, quinta e sexta, 9h–17h; 2) Moema, Av. Iraí, 300, sala 207 (pertinho do metrô e ao lado do shopping), com a Dra. Kathye Bomfim, da equipe do Dr. Victor, terça e sexta, 9h–17h; 3) Moema, Av. Jandira, 257, com o Dr. Gustavo, às quartas. Ao apresentar, cite os 3 endereços com dia e médico";
   if (estado === "RS") return "Porto Alegre";
   return "";
 }
