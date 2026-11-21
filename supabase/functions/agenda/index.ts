@@ -370,9 +370,15 @@ async function googleVincular(p: any) {
 // quem atende este paciente
 function rota(estado: string, mod: string) {
   if (!estado) return { tipo: "perguntar", instrucao: "Mande no campo estado a SIGLA do estado (UF) da cidade que a pessoa disse (ex.: Ilhéus = BA, Campinas = SP, Caxias do Sul = RS) e use esta intenção de novo, sem perguntar nada à pessoa. Só pergunte o estado se a cidade não foi dita." };
-  if (!mod) return { tipo: "perguntar", instrucao: "Pergunte se a pessoa prefere a consulta online (por vídeo) ou presencial." };
+  if (!mod) {
+    // oferece só o presencial mais perto (nunca Salvador/Porto Alegre para quem mora em SP, por exemplo)
+    const perto = estado === "SP" ? "São Paulo" : NORDESTE.includes(estado) ? "Salvador" : estado === "RS" ? "Porto Alegre" : "";
+    return { tipo: "perguntar", instrucao: perto
+      ? `Pergunte, em 1 frase, se a pessoa prefere consulta on-line (por vídeo) ou presencial em ${perto}. Não cite outras cidades.`
+      : "Ofereça a consulta on-line (por vídeo, sem sair de casa) e siga para os horários. Não cite cidades com presencial, a não ser que a pessoa peça presencial." };
+  }
   if (mod === "Presencial") {
-    if (!medicoPresencial(estado, "")) return { tipo: "perguntar", instrucao: "Consulta presencial existe em São Paulo, Salvador e Porto Alegre. Pergunte se a pessoa prefere a consulta online (sem sair de casa) ou se consegue ir a uma dessas cidades." };
+    if (!medicoPresencial(estado, "")) return { tipo: "perguntar", instrucao: "No estado da pessoa não há consulta presencial. Ofereça a consulta on-line (por vídeo, sem sair de casa). Só se ela insistir no presencial, diga que existe em São Paulo, Salvador e Porto Alegre." };
     return { tipo: "presencial", instrucao:
       "Consulta presencial NÃO é marcada por você e não tem horário para oferecer. "
       + `Unidades para esta pessoa: ${unidadesDe(estado)}. Se ainda não souber, pergunte qual unidade e quais dias e períodos ela prefere. `
@@ -393,7 +399,7 @@ function rota(estado: string, mod: string) {
   if (estado === "RS") {
     return { tipo: "ana_clara", instrucao: "Consulta presencial em Porto Alegre: siga como sempre e envie o link do WhatsApp da Ana Clara para ela marcar." };
   }
-  return { tipo: "perguntar", instrucao: "Consulta presencial existe em São Paulo, Salvador e Porto Alegre. Pergunte se a pessoa prefere a consulta online (sem sair de casa) ou se consegue ir a uma dessas cidades." };
+  return { tipo: "perguntar", instrucao: "No estado da pessoa não há consulta presencial. Ofereça a consulta on-line (por vídeo, sem sair de casa). Só se ela insistir no presencial, diga que existe em São Paulo, Salvador e Porto Alegre." };
 }
 
 async function rpc(fn: string, body: unknown) {
