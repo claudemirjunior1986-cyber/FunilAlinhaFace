@@ -415,7 +415,15 @@ async function vigiar(arr: any[], fora: Set<string>) {
     const novo = await rpc("abrir_alerta", { p_tipo: "bia_sem_resposta", p_chave: "semresp:" + c.chat_id,
       p_titulo: (c.nome || "Paciente") + " está sem resposta da Bia desde " + horaBR(new Date(c.ultima_em)).slice(-5),
       p_detalhe: c.ultima || null, p_chat: c.chat_id });
-    if (novo && retomadas < 3) { retomadas++; emSegundoPlano(biaRetoma(c.chat_id, "Bia (estava sem resposta)")); }
+    // tenta na hora do alerta e de novo por volta de 9 e 15 min (se a 1ª tentativa falhar, o paciente não fica esperando para sempre)
+    const min = idade / 60000;
+    const deNovo = !novo && ((min >= 9 && min < 11) || (min >= 15 && min < 17));
+    if ((novo || deNovo) && retomadas < 3) {
+      retomadas++;
+      emSegundoPlano(biaRetoma(c.chat_id, "Bia (estava sem resposta)")
+        .then((r) => console.log("retoma", c.chat_id.slice(-4), JSON.stringify(r)))
+        .catch((e) => console.log("retoma_erro", c.chat_id.slice(-4), String((e as Error)?.message || e).slice(0, 300))));
+    }
   }
   res.sem_resposta = semResposta; res.retomadas = retomadas;
 
@@ -1333,6 +1341,11 @@ Deno.serve(async (req) => {
         const canal = (Array.isArray(lista) ? lista : []).map((c: any) => c.channelId).find(Boolean);
         if (!canal) return json({ erro: "não achei o canal da Bia" }, 502);
         return json({ ok: true, canal, ...(await situacaoDoCanal(canal)) });
+      }
+      case "retomar": {   // diagnóstico: faz a Bia responder agora e devolve o resultado
+        if (!p.chatId) return json({ erro: "falta chatId" }, 400);
+        try { return json(await biaRetoma(p.chatId, "Bia (retomou)")); }
+        catch (e) { return json({ ok: false, erro: String((e as Error)?.message || e).slice(0, 500) }); }
       }
       case "assumir":
       case "devolver": {
