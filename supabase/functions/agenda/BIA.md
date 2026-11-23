@@ -262,3 +262,4 @@ Outros ajustes feitos na Bia:
 - (20/11) Instrução de unidades SP: a Bia cita os 3 endereços (Mooca/Afonso; Moema Iraí/Dra. Kathye; Moema Jandira/Dr. Gustavo às quartas).
 - (21/11) Quiz do site: a Bia não repete nenhuma pergunta do questionário, agradece e pergunta a cidade. Modalidade: oferece só o presencial mais perto (SP→São Paulo, Nordeste→Salvador, RS→Porto Alegre); outros estados só on-line.
 - (23/11) Economia de créditos: quiz do WhatsApp só com a P1 (queixa); nome pedido junto com os horários; sem 'posso ajudar em mais algo' após agendar. Treinamento QUIZ WHATSAPP atualizado.
+- (23/11) Ações de inatividade do GPT Maker desligadas (retomada fica com a Ana). Bia: depois de agendar só 1 frase (sem falar de link/lembrete); nunca cria evento no Google para SP/Nordeste; nunca corrige mensagens automáticas. Sync do Google: evento por engano não puxa ficha que já tem consulta com outro cirurgião.

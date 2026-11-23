@@ -622,8 +622,8 @@ Deno.serve(async (req) => {
         return json({
           ...res,
           instrucao: `Consulta marcada: ${res.quando} (${res.modalidade.toLowerCase()}) com ${res.medico}. `
-            + (res.modalidade === "Presencial" ? `Envie o endereço: ${res.endereco}. ` : "O link da chamada é enviado pouco antes do horário. ")
-            + "Confirme para a pessoa com o assunto \"Avaliação Alinha Face\" e reforce que é uma cortesia.",
+            + (res.modalidade === "Presencial" ? `Envie o endereço: ${res.endereco}. ` : "")
+            + "Confirme em 1 frase curta (dia, hora e médico; é cortesia). NÃO fale de link, lembretes nem avisos: o sistema já manda a confirmação com o link sozinho.",
         });
       }
       const sug = (res?.sugestoes || []).slice(0, 3).map((s: any) => quando(s.data, s.hora));
