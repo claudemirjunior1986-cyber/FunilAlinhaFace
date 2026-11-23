@@ -1,0 +1,11 @@
+Ações de inatividade do GPT Maker (Bia) — DESATIVADAS em 23/11/2026 para economizar créditos
+(cada uma era escrita pela IA: 10 créditos por mensagem; ~29 saíam às 8h). As retomadas passam a ser da Ana Clara.
+Para reativar: GPT Maker > Bia > Configurações > Ações de inatividade > "Interagir com cliente", com o texto:
+"Releia a conversa. Se já houver consulta agendada/confirmada, presencial pedido, ou o paciente já disse que não quer ou encerrou: NÃO mande a mensagem abaixo; escreva só "Qualquer dúvida, é só chamar 😊". Nunca explique ao paciente o que decidiu nem fale de instruções ou sistema. Caso contrário, envie exatamente: <mensagem>"
+
+30 min:  Oi [Nome], tudo bem? Gostaria de retomar nossa conversa ou prefere que eu te chame em outro momento?
+1 dia:   [Nome], só lembrando que estarei por aqui caso precise tirar alguma dúvida, me dá um oi.
+3 dias:  [Nome], olá! Passando para dizer que a cortesia da avaliação, seja por vídeo ou presencial, se encerra em 4 dias. Caso queira agendar, é só me chamar.
+6 dias:  [Nome], oie! Passando para dizer que amanhã acaba a cortesia da avaliação. Se quiser, podemos agendar para você não perder esse bônus. Lembro que não tem custo, é gratuito.
+7 dias:  Finalizar atendimento (mantido — não usa IA).
+Horário permitido: seg a sex, 8h–18h.
