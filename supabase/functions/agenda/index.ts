@@ -256,13 +256,6 @@ async function googleSync(p: any) {
         });
         if (cands.length === 1) { const r = await dbg(`funil_pacientes?select=id,dados,cirurgiao_email&id=eq.${encodeURIComponent(cands[0].id)}`); f = r.ok ? (await r.json())[0] : null; }
       }
-      // a ficha já tem consulta futura com OUTRO cirurgião (ex.: a Bia criou o evento no Google por engano e depois
-      // agendou com o Dr. Afonso): não puxa a ficha para o Gustavo; tira o evento da agenda dele
-      if (f && f.cirurgiao_email && f.cirurgiao_email !== GUSTAVO && String(f.dados.dataConsulta || "") >= hoje) {
-        if (q.data >= hoje) out.apagar.push(ev.id);
-        out.avisos.push(`evento ${ev.id} apagado: ficha ${f.id} já tem consulta com outro cirurgião`);
-        continue;
-      }
       // ligado a outro evento? não mexe (evita duas consultas brigando pela mesma ficha)
       // ligada a outro evento que ainda existe? não mexe. Se o outro sumiu, foi remarcação: liga neste.
       if (f && f.dados.googleEventId && f.dados.googleEventId !== ev.id && idsRecebidos.has(f.dados.googleEventId)) { out.avisos.push(`ficha ${f.id} já ligada a outro evento`); continue; }
