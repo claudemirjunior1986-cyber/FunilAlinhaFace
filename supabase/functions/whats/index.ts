@@ -19,6 +19,7 @@
 //   arquivo   {chatId, url, tipo:'imagem'|'documento', legenda?, nome?, mime?}
 //             -> envia imagem/PDF já guardado no Storage (bucket "envios", link assinado)
 
+const LINK_AVALIACAO = "https://g.page/r/CQ179zbf70_VEAI/review";   // avaliação da Alinha Face no Google
 const WORKSPACE = "3DB36E552D5A00174085B2C1E91B873D";
 const AGENTE_RESUMO = "3FB07B55850BE022B42DDA18E3B5B6A6";   // agente "Resumo de Consultas" (sem canal)
 const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -242,6 +243,19 @@ async function processarAvisos() {
       if (chatId) {
         // lembrete ao paciente: a Bia continua atendendo a conversa
         if (!doPaciente) { try { await gm(`/chat/${encodeURIComponent(chatId)}/start-human`, { method: "PUT" }); } catch { /* já estava com a equipe */ } }
+        // pesquisa de opinião: se a equipe já perguntou como foi a consulta, não pergunta de novo — manda só o link
+        if (a.tipo === "regua_opiniao") {
+          try {
+            const desde = new Date(Date.now() - 4 * 86400000).toISOString();
+            const ms = (await gm(`/chat/${encodeURIComponent(chatId)}/messages?page=1&pageSize=30`) || []).map(mensagem).filter(Boolean);
+            const jaPerguntou = ms.some((m: any) => m.de === "equipe" && String(m.em) > desde
+              && /(achou|foi|correu|gostou).{0,25}(consulta|avalia)|(consulta|avalia).{0,25}(achou|foi|gostou)/i.test(String(m.texto || "")));
+            if (jaPerguntou) {
+              const ini = (String(a.texto).match(/^Oi[^!]*!/) || ["Oi!"])[0];
+              a.texto = ini + " Se puder, deixe sua opinião sobre a consulta no Google, leva 1 minuto e ajuda muito outros pacientes: " + LINK_AVALIACAO + " 💙";
+            }
+          } catch { /* manda o texto normal */ }
+        }
         await gm(`/chat/${encodeURIComponent(chatId)}/send-message`, { method: "POST", body: JSON.stringify({ message: a.texto }) });
       } else {
         canal = canal || await canalDe();
