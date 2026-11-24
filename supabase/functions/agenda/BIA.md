@@ -264,3 +264,4 @@ Outros ajustes feitos na Bia:
 - (23/11) Economia de créditos: quiz do WhatsApp só com a P1 (queixa); nome pedido junto com os horários; sem 'posso ajudar em mais algo' após agendar. Treinamento QUIZ WHATSAPP atualizado.
 - (23/11) Ações de inatividade do GPT Maker desligadas (retomada fica com a Ana). Bia: depois de agendar só 1 frase (sem falar de link/lembrete); nunca cria evento no Google para SP/Nordeste; nunca corrige mensagens automáticas. (A proteção do sync do Google foi desfeita no mesmo dia: o evento manual do Claudemir na agenda do Gustavo tem que valer.)
 - (052, 23/11) Cassi (555133213338, fixo de Porto Alegre) recebe cópia dos avisos do Dr. Gustavo.
+- (24/11) On-line de SP dividido: 50% Victor, 30% Gustavo (Google), 20% Afonso — vai para quem está mais abaixo da meta nas consultas on-line de SP dos últimos 30 dias (medicoSPOnline).

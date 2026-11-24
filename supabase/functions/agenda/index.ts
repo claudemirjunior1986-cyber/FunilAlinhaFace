@@ -19,7 +19,7 @@
 // Regra de distribuição (decidida pelo Claudemir, out/2026):
 //   - Bahia e todo o Nordeste -> Dr. Victor (online ou presencial em Salvador)
 //   - São Paulo presencial    -> Dr. Afonso, sempre
-//   - SP (online e presencial)  -> Dr. Afonso, nesta agenda
+//   - SP ONLINE (23/11/2026)  -> dividido: 50% Victor, 30% Gustavo (Google), 20% Afonso (medicoSPOnline)
 //   - Online de RS e demais estados -> Dr. Gustavo (agenda do Google, como já é feito)
 //   - PRESENCIAL (nov/2026): a Bia não marca. acao=presencial manda o caso por WhatsApp ao cirurgião
 //     (Nordeste -> Victor; SP -> Afonso, ou Gustavo se Moema; RS -> Gustavo) e a secretária dele marca.
@@ -402,6 +402,34 @@ function rota(estado: string, mod: string) {
   return { tipo: "perguntar", instrucao: "No estado da pessoa não há consulta presencial. Ofereça a consulta on-line (por vídeo, sem sair de casa). Só se ela insistir no presencial, diga que existe em São Paulo, Salvador e Porto Alegre." };
 }
 
+// Divisão das consultas ON-LINE de SP (decisão do Claudemir, 23/11/2026): 50% Dr. Victor, 30% Dr. Gustavo, 20% Dr. Afonso.
+// Vai para quem está mais abaixo da sua meta, contando as consultas on-line de pacientes de SP dos últimos 30 dias
+// (e as futuras). A escolha só muda quando entra uma consulta nova, então "consultar" e "agendar" caem no mesmo médico.
+const META_SP_ONLINE: Record<string, number> = { victor: 0.5, gustavo: 0.3, afonso: 0.2 };
+const EMAIL_CHAVE: Record<string, string> = { "admvictorssa@gmail.com": "victor", "gu.martins00@gmail.com": "gustavo", "dr.aptrindadefilho@gmail.com": "afonso" };
+async function medicoSPOnline(semGustavo = false): Promise<{ chave: string; contagem: Record<string, number> }> {
+  const desde = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  const conta: Record<string, number> = { victor: 0, gustavo: 0, afonso: 0 };
+  try {
+    const r = await dbg(`funil_pacientes?select=cirurgiao_email,cidade:dados->>cidade,tel:dados->>telefone&dados->>modalidade=eq.Online&dados->>dataConsulta=gte.${desde}`);
+    const lista: any[] = r.ok ? await r.json() : [];
+    for (const f of lista) {
+      const ch = EMAIL_CHAVE[f.cirurgiao_email || ""]; if (!ch) continue;
+      const c = String(f.cidade || ""); let t = String(f.tel || "").replace(/\D/g, "");
+      if (t.startsWith("55") && t.length >= 12) t = t.slice(2);
+      const ehSP = /(^|[^a-z])sp\b|s[aã]o paulo/i.test(c) || (/^1[1-9]/.test(t) && !/\b(RS|BA|PR|SC|MG|RJ|GO|DF|PE|CE)\s*$/i.test(c));
+      if (ehSP) conta[ch]++;
+    }
+  } catch { /* sem contagem: segue a meta pura */ }
+  const total = conta.victor + conta.gustavo + conta.afonso;
+  let melhor = "victor", folga = -Infinity;
+  for (const ch of (semGustavo ? ["victor", "afonso"] : ["victor", "gustavo", "afonso"])) {
+    const f = META_SP_ONLINE[ch] * (total + 1) - conta[ch];   // quanto falta para a meta, contando esta consulta
+    if (f > folga) { folga = f; melhor = ch; }
+  }
+  return { chave: melhor, contagem: conta };
+}
+
 async function rpc(fn: string, body: unknown) {
   const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, {
     method: "POST",
@@ -490,7 +518,15 @@ Deno.serve(async (req) => {
   }
   // a intenção de agendar também serve para o presencial (sem data e hora): vira encaminhamento ao cirurgião
   if (acao === "agendar" && mod === "Presencial") acao = "presencial";
-  const r: any = rota(est, mod);
+  let r: any = rota(est, mod);
+  // on-line de SP: dividido entre Victor, Gustavo e Afonso (ver medicoSPOnline)
+  if (est === "SP" && mod === "Online" && r.tipo === "funil" && !["google", "google_vincular"].includes(acao)) {
+    // no "agendar" a Bia já recebeu horários do funil (Victor ou Afonso): escolhe só entre os dois
+    const esc = await medicoSPOnline(acao === "agendar");
+    r = esc.chave === "gustavo"
+      ? { tipo: "gustavo", instrucao: "Esta consulta on-line é com o Dr. Gustavo: ofereça os horários on-line da agenda do Dr. Gustavo (Google Agenda, só :15 e :45) e agende lá, como faz com o RS. Não use \"Consultar horários\" nem \"Agendar consulta\" para esse paciente." }
+      : { tipo: "funil", medico: esc.chave };
+  }
 
   try {
     if (acao === "google") return json({ ok: true, ...(await googleSync(p)) });
@@ -607,10 +643,19 @@ Deno.serve(async (req) => {
       const tel = p.telefone || p.contact_phone || p.phone || "";
       if (!d || !p.hora) return json({ ok: false, instrucao: "Faltou o dia ou o horário escolhido. Confirme com a pessoa e tente de novo." });
       if (!tel) return json({ ok: false, instrucao: "Faltou o telefone do contato na configuração da intenção." });
-      const res = await rpc("agenda_agendar", {
+      let res = await rpc("agenda_agendar", {
         p_chave: r.medico, p_modalidade: mod, p_data: d, p_hora: p.hora,
         p_nome: p.nome || "", p_telefone: tel, p_chat_id: p.chat_id || null, p_obs: p.observacao || null,
       });
+      // on-line de SP: se o horário não estiver livre para o escolhido, tenta o outro médico do funil
+      if (!res?.ok && est === "SP" && mod === "Online" && ["victor", "afonso"].includes(r.medico)) {
+        const outro = r.medico === "victor" ? "afonso" : "victor";
+        const res2 = await rpc("agenda_agendar", {
+          p_chave: outro, p_modalidade: mod, p_data: d, p_hora: p.hora,
+          p_nome: p.nome || "", p_telefone: tel, p_chat_id: p.chat_id || null, p_obs: p.observacao || null,
+        });
+        if (res2?.ok) { res = res2; r = { ...r, medico: outro }; }
+      }
       if (res?.ok) {
         return json({
           ...res,
