@@ -2382,8 +2382,14 @@ async function abrirAnaliseIA(){
         chips.appendChild(c);
       });
       b.append(chips, lista);
+      // casos que a equipe já mexeu depois da análise (histórico novo, etapa mudou ou encerrado) saem da lista principal
+      const diaAn = String(a.em||"").slice(0,10);
+      const atualizado = (c)=>{ const p = pacientes.get(c.id); if(!p) return true;
+        return ["perdido","cir_feita","posop"].includes(p.etapa) || (c.etapa && p.etapa!==c.etapa)
+          || (p.historico||[]).some(hh=>String(hh.data||"")>diaAn); };
+      const tratados = a.casos.filter(atualizado);
       const desenhar = ()=>{ lista.innerHTML="";
-      a.casos.filter(c=>!filtro || String(c.chance||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()===filtro).forEach((c,i)=>{
+      a.casos.filter(c=>!atualizado(c)).filter(c=>!filtro || String(c.chance||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()===filtro).forEach((c,i)=>{
         const k=String(c.chance||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
         const card = el("div","ia-caso");
         const t = el("div","topo");
@@ -2399,7 +2405,22 @@ async function abrirAnaliseIA(){
         if(c.motivo) card.appendChild(el("div",null,c.motivo));
         if(c.acao) card.appendChild(el("div","acao","👉 "+c.acao+(c.quem?" — "+c.quem:"")));
         lista.appendChild(card);
-      }); };
+      });
+      if(!lista.children.length) lista.appendChild(el("div","hint","Todos os casos desta análise já foram atualizados pela equipe. Gere uma nova análise para ver a situação de hoje."));
+      if(tratados.length){
+        const det = document.createElement("details"); det.className="leads-bia";
+        const sm = document.createElement("summary"); sm.textContent = "Já atualizados depois da análise · "+tratados.length; det.appendChild(sm);
+        tratados.forEach(c=>{ const p = pacientes.get(c.id); const card = el("div","ia-caso");
+          const nm = el("a",null,c.nome||"Sem nome"); nm.addEventListener("click",()=>{ if(p){ fecharOverlays(); abrirDrawer(c.id); } });
+          const t = el("div","topo"); const nb=el("b"); nb.appendChild(nm); t.appendChild(nb); card.appendChild(t);
+          const etq = p ? (STAGES.find(e=>e.k===p.etapa)||{}).l || p.etapa : "fora do funil";
+          const ult = p && (p.historico||[]).length ? p.historico[p.historico.length-1] : null;
+          card.appendChild(el("div","meta","Agora: "+etq+(p&&p.dataConsulta&&p.dataConsulta>=hoje()?" · consulta "+dataBR(p.dataConsulta):"")+(p&&p.dataProximaAcao?" · próxima ação "+dataBR(p.dataProximaAcao):"")));
+          if(ult) card.appendChild(el("div","meta",dataBR(ult.data)+": "+String(ult.texto||"").slice(0,140)));
+          det.appendChild(card); });
+        lista.appendChild(det);
+      }
+      };
       desenhar();
     }
     b.appendChild(el("div","hint","A IA lê só o que está escrito nas fichas (etapa, resumo, consulta, histórico). Confira antes de agir."));
