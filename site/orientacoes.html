@@ -27,9 +27,9 @@
   .calc{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 20px;background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-size:14px;color:var(--ink)}
   .acts{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
   .stage{width:100%;overflow:hidden;border-radius:10px;box-shadow:var(--shadow);background:#F7F4EF}
-  .stage-inner{width:1600px;height:1300px;transform-origin:top left}
+  .stage-inner{width:1600px;height:1420px;transform-origin:top left}
   /* ===== o documento (1600 × 1000), cores fixas da marca ===== */
-#doc{position:relative;width:1600px;height:1300px;background:#F7F4EF;font-family:"Poppins",sans-serif;color:#234F64;overflow:hidden}
+#doc{position:relative;width:1600px;height:1420px;background:#F7F4EF;font-family:"Poppins",sans-serif;color:#234F64;overflow:hidden}
 #doc .marca{position:absolute;left:90px;top:70px}
 #doc .wm{font-size:50px;line-height:1;letter-spacing:-.01em}
 #doc .wm b{font-weight:700;color:#234F64}
@@ -52,7 +52,7 @@
 #doc .sect{font-size:17px;font-weight:700;letter-spacing:.2em;color:#B0842F;padding-bottom:10px;border-bottom:2px solid #E6DCCB}
 #doc .it{display:flex;gap:18px;align-items:flex-start}
 #doc .n{flex:none;width:46px;height:46px;border-radius:50%;background:#234F64;color:#fff;font-size:21px;font-weight:700;display:flex;align-items:center;justify-content:center}
-#doc .sec.apos .n{background:#4F8BA6}
+#doc .sec.apos .n,#doc .n2{background:#4F8BA6!important}
 #doc .tx{font-size:21px;line-height:1.45;color:#2E4552;padding-top:4px}
 #doc .duv{margin-top:8px;background:#EDE5D6;border-radius:16px;padding:20px 24px;font-size:20px;line-height:1.45;color:#2E4552}
 #doc .duv b{color:#234F64}
@@ -113,23 +113,26 @@
           <div class="col"><div class="lbl">PACIENTE</div><div class="val" id="vNome">—</div></div>
           <div class="col"><div class="lbl">INTERNAÇÃO</div><div class="val" id="vData">—</div></div>
           <div class="col"><div class="lbl">HORÁRIO</div><div class="val" id="vHora">—</div></div>
-          <div class="col"><div class="lbl">ACOMPANHANTE</div><div class="val jj">Obrigatório<small>leve alguém com você</small></div></div>
+          <div class="col"><div class="lbl">JEJUM TOTAL A PARTIR DE</div><div class="val jj" id="vJej">—</div></div>
         </div>
         <div class="lista">
           <div class="sec">
-            <div class="sect">ANTES DA CIRURGIA</div>
-            <div class="it"><div class="n">1</div><div class="tx">Siga o <b>horário de início do jejum</b> e as orientações sobre água, alimentos, balas e chicletes que a <b>equipe de anestesia</b> passar para você.</div></div>
-            <div class="it"><div class="n">2</div><div class="tx">Se você usa <b>Ozempic, Wegovy, Mounjaro</b> ou outra caneta semelhante, <b>avise a equipe com antecedência</b> e confirme como proceder com o medicamento antes da cirurgia.</div></div>
-            <div class="it"><div class="n">3</div><div class="tx">Leve <b>documento com foto</b>, a <b>carteirinha do convênio</b> e os <b>exames pré-operatórios</b> (hemograma, eletrocardiograma e raio-X de tórax), impressos ou salvos no celular.</div></div>
-            <div class="it"><div class="n">4</div><div class="tx">Compareça <b>com um acompanhante</b>.</div></div>
-            <div class="it"><div class="n">5</div><div class="tx">Retire <b>unhas postiças, cílios postiços e apliques de cabelo</b> antes de ir ao hospital.</div></div>
+            <div class="sect">JEJUM TOTAL DE 8 HORAS</div>
+            <div class="it"><div class="n">1</div><div class="tx" id="t1">Jejum total de 8 horas antes da cirurgia.</div></div>
+            <div class="it"><div class="n">2</div><div class="tx">Durante todo o jejum, <b>não coma, não beba nada, nem água</b>, e não chupe balas nem masque chiclete.</div></div>
+            <div class="sect" style="margin-top:14px">CANETAS (OZEMPIC, WEGOVY, MOUNJARO)</div>
+            <div class="it"><div class="n">!</div><div class="tx"><b>Suspenda o uso 21 dias antes da cirurgia.</b> Se aplicou alguma dose dentro desse período ou usa o medicamento para controlar o diabetes, <b>avise o cirurgião com antecedência</b>.</div></div>
+            <div class="sect" style="margin-top:14px">APÓS A CIRURGIA</div>
+            <div class="it"><div class="n n2">1</div><div class="tx">Ao término do procedimento, a equipe <b>avisará seu acompanhante</b>.</div></div>
+            <div class="it"><div class="n n2">2</div><div class="tx">Previsão de <b>2 a 4 horas na recuperação anestésica</b>. Após a liberação da equipe, você vai para o quarto.</div></div>
           </div>
           <div class="sec apos">
-            <div class="sect">APÓS A CIRURGIA</div>
-            <div class="it"><div class="n">1</div><div class="tx">Assim que o procedimento terminar, a equipe <b>avisará seu acompanhante</b>.</div></div>
-            <div class="it"><div class="n">2</div><div class="tx">Você fica na <b>recuperação anestésica por cerca de 2 a 4 horas</b>, conforme avaliação da equipe, e depois vai para o quarto.</div></div>
-            <div class="it"><div class="n">3</div><div class="tx">Em casa, siga as <b>orientações de alimentação e cuidados</b> que a equipe passar na alta.</div></div>
-            <div class="duv">Se tiver dúvidas, entre em contato com o <b>cirurgião responsável</b>.</div>
+            <div class="sect">NO DIA DA CIRURGIA</div>
+            <div class="it"><div class="n">1</div><div class="tx">Leve seu <b>RG</b> e a <b>carteirinha do convênio</b>.</div></div>
+            <div class="it"><div class="n">2</div><div class="tx">Leve seus <b>exames pré-operatórios</b> impressos ou salvos no celular: hemograma, eletrocardiograma e raio-X de tórax.</div></div>
+            <div class="it"><div class="n">3</div><div class="tx">Compareça <b>com um acompanhante</b>.</div></div>
+            <div class="it"><div class="n">4</div><div class="tx">Retire <b>unhas postiças, cílios postiços e apliques de cabelo</b> antes de ir ao hospital.</div></div>
+            <div class="duv">Em caso de dúvidas, fale com nossa <b>equipe Alinha Face</b>.</div>
           </div>
         </div>
         <div class="rodape">
@@ -160,7 +163,8 @@ function dados(){
   const [h,mi]=($("fHora").value||"").split(":").map(Number);
   if(!y||isNaN(h)) return null;
   const intern=new Date(y,m-1,d,h,mi||0);
-  return {intern,nome:$("fNome").value.trim(),
+  const jejum=new Date(intern.getTime()-8*3600e3);
+  return {intern,jejum,nome:$("fNome").value.trim(),
     hosp:$("fHosp").value.trim()||"Hospital",end:$("fEnd").value.trim(),cont:$("fCont").value.trim()};
 }
 
@@ -170,16 +174,18 @@ function desenhar(){
   $("vData").innerHTML=`${fData(x.intern)}<small>${DIAS[x.intern.getDay()]}</small>`;
   $("vHora").textContent=fHora(x.intern);
   $("vHosp").textContent=x.hosp;
+  $("vJej").innerHTML=`${fHora(x.jejum)}<small>${fData(x.jejum)} · ${DIAS[x.jejum.getDay()]}</small>`;
+  $("t1").innerHTML=`<b>Jejum total</b> a partir das <b>${fHora(x.jejum)} do dia ${fData(x.jejum)}</b> (8 horas antes).`;
   $("vEnd").textContent=x.end;
   $("vCont").textContent=x.cont?("Dúvidas: "+x.cont):"";
   const falta=x.intern.getTime()-Date.now();
   const dia0=d=>{const z=new Date(d);z.setHours(0,0,0,0);return z.getTime();};
   const difDias=Math.round((dia0(x.intern)-dia0(new Date()))/864e5);
   $("vTit").textContent=difDias===0?"é hoje":difDias===1?"é amanhã":"está chegando";
-  $("calc").innerHTML=`<span>Internação: <b>${fData(x.intern)} às ${fHora(x.intern)}</b></span><span>Local: <b>${esc(x.hosp)}</b></span>`;
+  $("calc").innerHTML=`<span>Internação: <b>${fData(x.intern)} às ${fHora(x.intern)}</b></span><span>Jejum total começa: <b>${fData(x.jejum)} às ${fHora(x.jejum)}</b></span>`;
 }
 
-function escalar(){const w=$("stage").clientWidth,s=w/1600;$("stageInner").style.transform=`scale(${s})`;$("stage").style.height=(1300*s)+"px";}
+function escalar(){const w=$("stage").clientWidth,s=w/1600;$("stageInner").style.transform=`scale(${s})`;$("stage").style.height=(1420*s)+"px";}
 
 function nomeOk(){const n=$("fNome").value.trim(); if(n.split(/\s+/).length<2){msg("Escreva o nome completo do paciente.","err");$("fNome").focus();return "";} return n;}
 
@@ -190,7 +196,7 @@ async function baixar(){
     await document.fonts.ready;
     const holder=document.createElement("div"); holder.style.cssText="position:fixed;left:-99999px;top:0";
     const clone=$("doc").cloneNode(true); holder.appendChild(clone); document.body.appendChild(holder);
-    const c=await html2canvas(clone,{scale:1,width:1600,height:1300,backgroundColor:"#F7F4EF"});
+    const c=await html2canvas(clone,{scale:1,width:1600,height:1420,backgroundColor:"#F7F4EF"});
     holder.remove();
     const a=document.createElement("a"); a.href=c.toDataURL("image/png");
     a.download="Orientacoes - "+nome.replace(/[\\/:*?"<>|]/g,"")+".png";
@@ -202,7 +208,7 @@ async function baixar(){
 
 function copiar(){
   const x=dados(); if(!x){msg("Preencha a data e o horário.","err");return;}
-  const t=`*Orientações para a sua cirurgia — Alinha Face*\n${x.nome?"Paciente: "+x.nome+"\n":""}Internação: ${fData(x.intern)} (${DIAS[x.intern.getDay()]}) às ${fHora(x.intern)}, no ${x.hosp}.${x.end?"\nEndereço: "+x.end:""}\n\n*Antes da cirurgia*\n• Siga o horário de início do jejum e as orientações sobre água, alimentos, balas e chicletes que a equipe de anestesia passar para você.\n• Se você usa Ozempic, Wegovy, Mounjaro ou outra caneta semelhante, avise a equipe com antecedência e confirme como proceder com o medicamento antes da cirurgia.\n• Leve um documento com foto, a carteirinha do convênio e os exames pré-operatórios (hemograma, eletrocardiograma e raio-X de tórax). Os exames podem estar impressos ou salvos no celular.\n• Compareça com um acompanhante.\n• Retire unhas postiças, cílios postiços e apliques de cabelo antes de ir ao hospital.\n\n*Após a cirurgia*\n• Assim que o procedimento terminar, a equipe avisará seu acompanhante.\n• Você permanecerá na recuperação anestésica por cerca de 2 a 4 horas, conforme avaliação da equipe, e depois será encaminhada ao quarto.\n• Em casa, siga as orientações de alimentação e cuidados que a equipe passar na alta.\n\nSe tiver dúvidas, entre em contato com o cirurgião responsável.${x.cont?"\nContato: "+x.cont:""}`;
+  const t=`*Orientações para a sua cirurgia — Alinha Face*\n${x.nome?"Paciente: "+x.nome+"\n":""}Internação: ${fData(x.intern)} (${DIAS[x.intern.getDay()]}) às ${fHora(x.intern)}, no ${x.hosp}.${x.end?"\nEndereço: "+x.end:""}\n\n*Jejum total de 8 horas antes da cirurgia*\nSeu jejum começa às *${fHora(x.jejum)} do dia ${fData(x.jejum)}*.\nDurante todo o jejum, não coma, não beba nada, nem água, e não chupe balas nem masque chiclete.\n\n*Uso de canetas como Ozempic, Wegovy ou Mounjaro*\nA orientação para este procedimento é suspender o uso 21 dias antes da cirurgia. Se você aplicou alguma dose dentro desse período ou usa o medicamento para controlar o diabetes, avise o cirurgião com antecedência.\n\n*No dia da cirurgia*\n• Leve seu RG e a carteirinha do convênio.\n• Leve seus exames pré-operatórios impressos ou salvos no celular: hemograma, eletrocardiograma e raio-X de tórax.\n• Compareça com um acompanhante.\n• Retire unhas postiças, cílios postiços e apliques de cabelo antes de ir ao hospital.\n\n*Após a cirurgia*\n• Ao término do procedimento, a equipe avisará seu acompanhante.\n• A previsão é de 2 a 4 horas na recuperação anestésica. Após a liberação da equipe, você será encaminhada ao quarto.\n\nEm caso de dúvidas, fale com nossa equipe Alinha Face.${x.cont?"\nContato: "+x.cont:""}`;
   const ok=()=>msg("Texto copiado. É só colar no WhatsApp.","ok");
   const alt=()=>{const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");ok();}catch(e){msg("Não deu para copiar.","err");}ta.remove();};
   try{navigator.clipboard.writeText(t).then(ok).catch(alt);}catch(e){alt();}
