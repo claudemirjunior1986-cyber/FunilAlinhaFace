@@ -408,7 +408,10 @@ function rota(estado: string, mod: string) {
 const META_SP_ONLINE: Record<string, number> = { victor: 0.5, gustavo: 0.3, afonso: 0.2 };
 const EMAIL_CHAVE: Record<string, string> = { "admvictorssa@gmail.com": "victor", "gu.martins00@gmail.com": "gustavo", "dr.aptrindadefilho@gmail.com": "afonso" };
 async function medicoSPOnline(semGustavo = false): Promise<{ chave: string; contagem: Record<string, number> }> {
-  const desde = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  // conta a partir de 24/11/2026 (início da divisão), no máximo os últimos 30 dias — assim o Victor não recebe
+  // uma fila de "atrasados" de antes da regra
+  const d30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  const desde = d30 > "2026-11-24" ? d30 : "2026-11-24";
   const conta: Record<string, number> = { victor: 0, gustavo: 0, afonso: 0 };
   try {
     const r = await dbg(`funil_pacientes?select=cirurgiao_email,cidade:dados->>cidade,tel:dados->>telefone&dados->>modalidade=eq.Online&dados->>dataConsulta=gte.${desde}`);
