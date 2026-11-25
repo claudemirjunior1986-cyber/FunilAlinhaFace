@@ -24,7 +24,7 @@
   .form{display:grid;grid-template-columns:220px minmax(0,1fr) 170px;gap:12px;align-items:end;padding:16px;margin-bottom:16px}
   @media (max-width:700px){.form{grid-template-columns:1fr}}
   .stage{width:100%;overflow:hidden;border-radius:10px;box-shadow:var(--shadow);background:#F7F4EF}
-  .stage-inner{width:1600px;height:1000px;transform-origin:top left}
+  .stage-inner{width:1600px;height:1130px;transform-origin:top left}
   .aviso{font-size:13px;color:var(--ink-3);margin-top:10px}
   .form .acoes{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
   .form .f.exs{grid-column:1/-1}
@@ -37,8 +37,8 @@
   @media (max-width:800px){.parc .item .lin,.parc .un{grid-template-columns:1fr}}
   .parc input{width:100%}
 
-  /* ===== o voucher (1600 × 1000) ===== */
-  #voucher{position:relative;width:1600px;height:1000px;background:#F7F4EF;font-family:"Poppins",sans-serif;color:#234F64;overflow:hidden}
+  /* ===== o voucher (1600 × 1130) ===== */
+  #voucher{position:relative;width:1600px;height:1130px;background:#F7F4EF;font-family:"Poppins",sans-serif;color:#234F64;overflow:hidden}
   #voucher .marca{position:absolute;left:90px;top:74px}
   #voucher .marca .wm{font-size:50px;line-height:1;letter-spacing:-.01em}
   #voucher .marca .wm b{font-weight:700;color:#234F64}
@@ -62,7 +62,7 @@
   #voucher .col .val.venc{color:#B4521E}
   #voucher .col .val.cod{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:31px;letter-spacing:.02em}
   #voucher .sep{position:absolute;top:526px;width:2px;height:90px;background:#E4D9D2}
-  #voucher .real{position:absolute;left:90px;top:650px}
+  #voucher .real{position:absolute;left:90px;top:676px}
   #voucher .real .lbl{font-size:15px;font-weight:600;letter-spacing:.22em;color:#7E8C95}
   #voucher .real .nm{margin-top:14px;font-size:30px;font-weight:700;color:#234F64}
   #voucher .real{right:90px}
@@ -146,7 +146,7 @@
       <button class="btn btn-sm btn-primary" id="parcSalvar" type="button">Salvar clínicas</button>
     </div>
   </div>
-  <div class="aviso" id="aviso" hidden>"Enviar no WhatsApp" manda a imagem com a mensagem pelo número da Bia e registra na ficha. A imagem tem 1600 × 1000 pixels.</div>
+  <div class="aviso" id="aviso" hidden>"Enviar no WhatsApp" manda a imagem com a mensagem pelo número da Bia e registra na ficha. A imagem tem 1600 × 1130 pixels.</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -216,7 +216,7 @@ function desenhar(){
 function escalar(){
   const w = $("#stage").clientWidth, k = Math.min(1, w/1600);
   $("#stageInner").style.transform = "scale("+k+")";
-  $("#stage").style.height = (1000*k)+"px";
+  $("#stage").style.height = (1130*k)+"px";
 }
 
 function nomeOk(){
@@ -379,7 +379,7 @@ function ligar(){
     $("#bBaixar").textContent = "Gerar e baixar voucher"; $("#bBaixar").classList.add("btn-primary");
     $("#fNome").value = ""; $("#fEmissao").value = hojeSP();
     $("#form").hidden = false; $("#stage").hidden = false; $("#aviso").hidden = false;
-    $("#aviso").textContent = "Voucher avulso: escolha a clínica, preencha o nome completo e a data de início. A validade é calculada sozinha. A imagem tem 1600 × 1000 pixels.";
+    $("#aviso").textContent = "Voucher avulso: escolha a clínica, preencha o nome completo e a data de início. A validade é calculada sozinha. A imagem tem 1600 × 1130 pixels.";
     escalar(); desenhar(); await document.fonts.ready; desenhar();
     ligar(); $("#bBaixar").addEventListener("click", baixar);
     $("#fNome").focus();

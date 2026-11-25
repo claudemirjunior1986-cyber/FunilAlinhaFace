@@ -2,7 +2,7 @@
 --  * Lista de clínicas parceiras: o voucher sai com nome, unidades, telefone e horário da escolhida.
 --  * Todos os logados leem a lista; só administradores alteram (pelo próprio voucher.html).
 --  * A equipe do cirurgião (secretária) também gera voucher.
---  * Régua de exames e voucher automático deixam de citar a Blume e usam o parceiro gravado na ficha.
+--  * Régua de exames deixa de citar a Blume e usa o parceiro gravado na ficha; voucher automático (Blume/SP) desligado.
 -- Pode rodar de novo sem problema.
 
 create table if not exists public.funil_parceiros (
@@ -21,6 +21,14 @@ create policy parc_ler on public.funil_parceiros for select to authenticated usi
 drop policy if exists parc_admin on public.funil_parceiros;
 create policy parc_admin on public.funil_parceiros for all to authenticated
   using (public.eh_admin()) with check (public.eh_admin());
+
+-- Oral Imagem (Salvador/BA)
+insert into public.funil_parceiros (nome, subtitulo, unidades, validade_dias, ativo, ordem)
+select 'Oral Imagem', 'IMAGEM ODONTOLÓGICA · SALVADOR',
+  '[{"nome":"Itaigara","endereco":"Av. Antônio Carlos Magalhães, 413 — Itaigara, Salvador/BA — CEP 41825-000","telefone":"(71) 3565-1333 · WhatsApp (71) 99281-3277","horario":"seg. a sex. 8h às 18h, sáb. 8h às 12h"},
+    {"nome":"CEO","endereco":"Av. Tancredo Neves, 2539 — Torre Londres, salas 811 e 812 — Edf. CEO Salvador Shopping, Salvador/BA","telefone":"(71) 3901-1541 · WhatsApp (71) 98118-6865","horario":"seg. a sex. 8h às 18h, sáb. 8h às 12h"}]'::jsonb,
+  5, true, 0
+where not exists (select 1 from public.funil_parceiros where nome ilike 'Oral Imagem%');
 
 -- Blume fica na lista, desativada (histórico)
 insert into public.funil_parceiros (nome, subtitulo, unidades, validade_dias, ativo, ordem)
@@ -41,20 +49,17 @@ begin
   execute def;
 end $$;
 
--- Voucher automático (cirurgião pede ressonância, paciente de SP): usa o 1º parceiro ativo; sem parceiro ativo, não emite
+-- Voucher automático (era Blume, só SP) desligado: a Oral Imagem é de Salvador e o voucher passa a ser gerado à mão
 do $$
 declare def text; f regprocedure;
 begin
   select p.oid::regprocedure into f from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname = 'registrar_consulta' order by p.oid desc limit 1;
   def := pg_get_functiondef(f);
-  if position('voucherParceiro' in def) = 0 then
-    def := replace(def, 'and coalesce(d->>''voucherEmitido'','''') = '''' then',
-                        'and coalesce(d->>''voucherEmitido'','''') = '''' and exists (select 1 from public.funil_parceiros where ativo) then');
-    def := replace(def, 'jsonb_build_object(''voucherEmitido'', hoje,',
-                        'jsonb_build_object(''voucherParceiro'', (select nome from public.funil_parceiros where ativo order by ordem, criado_em limit 1),'
-                        || ' ''voucherValidade'', (select validade_dias from public.funil_parceiros where ativo order by ordem, criado_em limit 1), ''voucherEmitido'', hoje,');
-    def := replace(def, 'Voucher Blume emitido automaticamente', 'Voucher de exames emitido automaticamente');
+  if position('voucher automático desligado' in def) = 0 then
+    def := regexp_replace(def, '(and\s+coalesce\(d->>''voucherEmitido'',''''\)\s*=\s*''''\s+)then',
+                          '\1and false /* voucher automático desligado */ then');
+    if position('voucher automático desligado' in def) = 0 then raise exception 'não achei o voucher automático em registrar_consulta'; end if;
     execute def;
   end if;
 end $$;

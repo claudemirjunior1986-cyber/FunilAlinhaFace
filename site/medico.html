@@ -700,7 +700,7 @@ function formRegistro(p){
     });
     salvar.disabled = false; salvar.textContent = "Salvar registro";
     if(error){ toast("Não consegui salvar. Tente de novo."); return; }
-    toast(res && res.voucherEmitido ? "Registro salvo. O voucher de exames da clínica parceira já foi emitido para o paciente." : "Registro salvo. A equipe já está vendo.");
+    toast(res && res.voucherEmitido ? "Registro salvo. O voucher de exames já foi emitido para o paciente." : "Registro salvo. A equipe já está vendo.");
     await carregar(); abrir(p.id);
   });
   return f;
