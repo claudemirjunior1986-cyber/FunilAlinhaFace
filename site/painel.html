@@ -571,7 +571,7 @@
       <button id="viewRel" aria-pressed="false">Relatórios</button>
     </div>
     <button class="btn" id="btnRecados" title="Orientações internas da equipe">📩 Recados</button>
-    <button class="btn" id="btnVoucher" title="Voucher Blume avulso: só nome e data de início">Gerar voucher</button>
+    <button class="btn" id="btnVoucher" title="Voucher de exames avulso: clínica parceira, nome e data de início">Gerar voucher</button>
     <button class="btn" id="btnOrient" title="Orientações pré-operatórias para enviar ao paciente">Orientações</button>
     <button class="btn" id="btnComercial" title="Casos com potencial de cirurgia: exames, propostas, convênio">Comercial</button>
     <button class="btn" id="btnAnaliseIA" title="A IA avalia os casos com potencial de cirurgia e diz onde agir">🤖 Análise da IA</button>
@@ -695,7 +695,7 @@ const ACOES = [
   "Cobrar os exames com o paciente",
   "Enviar exames ao cirurgião",
   "Agendar o retorno",
-  "Verificar uso do voucher Blume",
+  "Verificar uso do voucher de exames",
   "Enviar proposta / orçamento",
   "Cobrar resposta da proposta",
   "Pedir carteirinha e documentos ao paciente",
@@ -808,7 +808,7 @@ async function conectar(){
   EQUIPE = eu.papel === "equipe" ? String(eu.equipe_de||"").toLowerCase() : "";
   if(EQUIPE){
     document.body.classList.add("modo-equipe");
-    ["viewWhats","viewAg","viewGus","viewAfo","btnComercial","btnAnaliseIA","btnImport","btnDemo","btnVoucher"].forEach(id=>{ const b = document.getElementById(id); if(b) b.hidden = true; });
+    ["viewWhats","viewAg","viewGus","viewAfo","btnComercial","btnAnaliseIA","btnImport","btnDemo"].forEach(id=>{ const b = document.getElementById(id); if(b) b.hidden = true; });
     const sub = document.querySelector(".brand .sub"); if(sub) sub.textContent = "Equipe do cirurgião · " + (eu.nome||"");
   }
   FUNIL._nome = eu.nome; FUNIL._email = eu.email;
@@ -1264,7 +1264,7 @@ function linhaExame(p, pendente){
     v.addEventListener("click",()=>{
       const q = Object.assign({}, pacientes.get(p.id));
       q.voucherEmitido = hoje(); q.voucherStatus = "Aguardando uso"; q.voucherBaixa = "";
-      registrarHistorico(q, "Voucher Blume emitido pelo painel"); salvar(q); toast("Voucher emitido. Complete o nome e baixe a imagem.");
+      registrarHistorico(q, "Voucher de exames emitido pelo painel"); salvar(q); toast("Voucher emitido. Complete o nome e baixe a imagem.");
       window.open("voucher.html?id="+encodeURIComponent(p.id),"_blank");
     });
     ops.appendChild(v);
@@ -1838,7 +1838,8 @@ function diasUteisDesde(d){
   return n;
 }
 const primeiroNome = p => (p.nome||"").trim().split(/\s+/)[0] || "tudo bem";
-const vencVoucher = p => p.voucherEmitido ? somaDias(p.voucherEmitido, VOUCHER_DIAS) : "";
+const vencVoucher = p => p.voucherEmitido ? somaDias(p.voucherEmitido, Number(p.voucherValidade)||VOUCHER_DIAS) : "";
+const parcVoucher = p => p.voucherParceiro || "clínica parceira";
 
 // nome do cirurgião do paciente (Dr. Gustavo, Dr. Victor, Dr. Afonso…) — nunca fixo
 const drDe = p => p && p.cirurgiao ? nomeCirurgiao(p.cirurgiao) : (EQUIPE ? nomeCirurgiao(EQUIPE) : "Dr. Gustavo");
@@ -1851,14 +1852,14 @@ const linkMaps = end => { const t = String(end||"");
           : /alfazema|caminho das [áa]rvores|salvador/i.test(t) ? "R. da Alfazema, 761 - Caminho das Árvores, Salvador - BA" : "";
   return e ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(e) : ""; };
 const MSG = {
-  d0: p=>`Oi, ${primeiroNome(p)}! Como cortesia da Alinha Face, você ganhou um voucher para a ressonância magnética na Blume Medicina Diagnóstica, sem nenhum custo. Ele é no seu nome e vale até ${dataBR(vencVoucher(p)||somaDias(hoje(),VOUCHER_DIAS))}. Segue em anexo com o endereço da clínica. Qualquer dúvida pra agendar, me chama!`,
+  d0: p=>`Oi, ${primeiroNome(p)}! Como cortesia da Alinha Face, você ganhou um voucher para os exames que o ${drDe(p)} pediu, na ${parcVoucher(p)}. Ele é no seu nome e vale até ${dataBR(vencVoucher(p)||somaDias(hoje(),VOUCHER_DIAS))}. Segue em anexo com o endereço da clínica. Qualquer dúvida pra agendar, me chama!`,
   d1: p=>`Oi, ${primeiroNome(p)}! Tudo bem? Aqui é da Alinha Face. Passando pra saber como você se sentiu na consulta com o ${drDe(p)} e se ficou alguma dúvida. Se puder, deixa sua avaliação pra gente no Google, ajuda muito: [link]`,
   d3: p=>`Oi, ${primeiroNome(p)}! Conseguiu agendar os exames que o ${drDe(p)} pediu? Se precisar de ajuda pra encontrar um laboratório perto de você, me avisa que eu te ajudo.`,
   d7: p=>`Oi, ${primeiroNome(p)}! Os exames já ficaram prontos? Pode me mandar por aqui mesmo que eu encaminho pro ${drDe(p)} e já deixo seu retorno agendado.`,
   d15: p=>`Oi, ${primeiroNome(p)}, tudo certo? Notei que ainda não conseguimos seguir com os exames. Aconteceu alguma coisa? Me conta que a gente vê juntos o melhor caminho.`,
   d30: p=>`Oi, ${primeiroNome(p)}! Vou pausar o acompanhamento por aqui pra não te incomodar. Quando quiser retomar, é só me chamar que seguimos de onde paramos.`,
-  v2: p=>`Oi, ${primeiroNome(p)}! Já conseguiu agendar sua ressonância na Blume? Lembrando que o voucher vale até ${dataBR(vencVoucher(p))}. Se quiser, te ajudo a marcar agora.`,
-  v4: p=>`Oi, ${primeiroNome(p)}! Passando só pra lembrar que seu voucher da ressonância vence amanhã (${dataBR(vencVoucher(p))}). Não deixa passar, tá? É cortesia e ajuda o ${drDe(p)} a seguir com seu caso.`,
+  v2: p=>`Oi, ${primeiroNome(p)}! Já conseguiu agendar seus exames na ${parcVoucher(p)}? Lembrando que o voucher vale até ${dataBR(vencVoucher(p))}. Se quiser, te ajudo a marcar agora.`,
+  v4: p=>`Oi, ${primeiroNome(p)}! Passando só pra lembrar que seu voucher dos exames vence amanhã (${dataBR(vencVoucher(p))}). Não deixa passar, tá? É cortesia e ajuda o ${drDe(p)} a seguir com seu caso.`,
   conf: p=>`Oi, ${primeiroNome(p)}! Passando pra confirmar sua avaliação na Alinha Face ${p.dataConsulta===hoje()?"hoje":"amanhã"}${p.horaConsulta?" às "+p.horaConsulta:""}. ${p.modalidade==="Presencial"?"O endereço é "+(p.local||"")+"."+(linkMaps(p.local)?" Localização: "+linkMaps(p.local):""):"Vou te mandar o link da chamada um pouco antes."} Posso confirmar?`,
   reat: p=>`Oi, ${primeiroNome(p)}! Aqui é da Alinha Face. Vi que a gente não conseguiu terminar de conversar. Sua primeira avaliação é uma cortesia nossa — quer que eu veja um horário pra você essa semana?`,
   gus: p=>`Dr. Gustavo, tudo bem? Sobre o paciente ${p.nome||""}${p.dataConsulta?", que passou em consulta em "+dataBR(p.dataConsulta):""}: consegue me dar um retorno para eu atualizar aqui? Obrigado!`,
@@ -1900,7 +1901,7 @@ function tarefasDe(p){
     const dias = diasDesde(p.dataConsulta);
     // D+0: registrar pedido e emitir voucher
     if(!p.voucherEmitido && !r.d0 && dias>=0 && dias<=VOUCHER_DIAS && !agendadaFrente){
-      out.push({g:"pos", k:"d0", step:"D+0", cls:"v", txt:"Registrar o pedido do "+drDe(p)+" e emitir o voucher Blume",
+      out.push({g:"pos", k:"d0", step:"D+0", cls:"v", txt:"Registrar o pedido do "+drDe(p)+" e emitir o voucher de exames",
         sub:"consulta em "+dataBR(p.dataConsulta), late:dias>=1, msg:"d0", voucher:true});
     }
     // régua: só o passo mais recente que ainda vale
@@ -1913,12 +1914,13 @@ function tarefasDe(p){
   // voucher
   if(p.voucherEmitido && (p.voucherStatus||"Aguardando uso")==="Aguardando uso"){
     const v = diasDesde(p.voucherEmitido), venc = vencVoucher(p);
-    if(v>=VOUCHER_DIAS){
+    const vd = Number(p.voucherValidade)||VOUCHER_DIAS;
+    if(v>=vd){
       out.push({g:"vou", k:"vbaixa", step:"Voucher", cls:"p", txt:"Voucher venceu — marcar se foi usado", sub:"venceu em "+dataBR(venc), late:true, baixa:true});
-    }else if(v>=4 && !r.v4){
+    }else if(v>=vd-1 && !r.v4){
       out.push({g:"vou", k:"v4", step:"D+4", cls:"v", txt:"Voucher vence amanhã — último lembrete", sub:"vence "+dataBR(venc), late:false, msg:"v4", baixa:true});
     }else if(v>=2 && !r.v2){
-      out.push({g:"vou", k:"v2", step:"D+2", cls:"v", txt:"Já agendou a ressonância na Blume?", sub:"vence "+dataBR(venc), late:v>2, msg:"v2", baixa:true});
+      out.push({g:"vou", k:"v2", step:"D+2", cls:"v", txt:"Já agendou os exames com o voucher?", sub:"vence "+dataBR(venc), late:v>2, msg:"v2", baixa:true});
     }
   }
   // cirurgia em andamento: cobrar a cada 3 dias
@@ -2190,7 +2192,7 @@ function renderHoje(){
     pt.appendChild(e);
   }
   const GRUPOS = [
-    ["conf","Consultas de hoje e amanhã"],["cir","Cirurgias em andamento"],["triagem","Conversas a classificar"],["pos","Pós-consulta"],["vou","Vouchers Blume"],["acao","Próximas ações marcadas"],["lead","Leads parados"]
+    ["conf","Consultas de hoje e amanhã"],["cir","Cirurgias em andamento"],["triagem","Conversas a classificar"],["pos","Pós-consulta"],["vou","Vouchers de exames"],["acao","Próximas ações marcadas"],["lead","Leads parados"]
   ];
   for(const [g,l] of GRUPOS){
     const lista = tarefas.filter(x=>x.g===g).sort((a,b)=>(b.late-a.late)||((a.p.nome||"")<(b.p.nome||"")?-1:1));
@@ -2492,7 +2494,7 @@ function abrirResumoSemana(){
 • Consultas feitas: ${consultas}
 • Exames pedidos: ${examesPed} · entregues: ${examesOk}
 • Retornos: ${retornos}
-• Vouchers Blume: ${vEmit} emitidos · ${vUsados} usados · ${vVenc} vencidos
+• Vouchers de exames: ${vEmit} emitidos · ${vUsados} usados · ${vVenc} vencidos
 • Casos parados com parceiro: ${parados}
 • Cirurgias em proposta: ${propostas}`;
   modalTexto("Resumo da semana", blocos, txt);
@@ -2723,7 +2725,7 @@ function renderRel(){
 
   const vs = el("div","mini-stats");
   [[R.voucher.emitidos,"emitidos"],[R.voucher.usados,"usados"],[R.voucher.vencidos,"vencidos"],[R.voucher.abertos,"aguardando uso hoje"]].forEach(([v,l])=>{ const d=el("div"); d.append(el("b",null,String(v)), el("span",null,l)); vs.appendChild(d); });
-  grid.appendChild(painel("Vouchers Blume", vs, "Taxa de uso = usados ÷ (usados + vencidos) no período."));
+  grid.appendChild(painel("Vouchers de exames", vs, "Taxa de uso = usados ÷ (usados + vencidos) no período."));
 
   grid.appendChild(painel("Contatos feitos pela aprendiz", barras(R.contatos,"Nenhum contato registrado no período.")));
 
@@ -2757,7 +2759,7 @@ function textoRelatorio(R, per){
   l.push("ORIGEM DOS LEADS");
   if(R.origens.length) R.origens.forEach(([n,v])=>l.push(`• ${n}: ${v}`)); else l.push("• Nenhum lead novo");
   l.push("");
-  l.push("VOUCHERS BLUME");
+  l.push("VOUCHERS DE EXAMES");
   l.push(`• ${R.voucher.emitidos} emitidos · ${R.voucher.usados} usados · ${R.voucher.vencidos} vencidos · ${R.voucher.abertos} aguardando uso`);
   l.push("");
   l.push("PARCEIROS");
@@ -2822,7 +2824,7 @@ async function baixarPdf(R, per, btn){
     secao("Funil do período"); barrasPdf(R.funil);
     linhas(["Comparecimento: "+(R.taxaComp==null?"-":R.taxaComp+"%")+"  |  Faltas: "+R.noshow]);
     secao("Origem dos leads"); barrasPdf(R.origens,"Nenhum lead novo no período.");
-    secao("Vouchers Blume");
+    secao("Vouchers de exames");
     linhas([R.voucher.emitidos+" emitidos  |  "+R.voucher.usados+" usados  |  "+R.voucher.vencidos+" vencidos  |  "+R.voucher.abertos+" aguardando uso hoje",
             "Taxa de uso: "+(R.voucher.taxa==null?"-":R.voucher.taxa+"%")+" (usados ÷ usados + vencidos)"]);
     secao("Casos com parceiros");
@@ -2962,12 +2964,12 @@ function abrirDrawer(id, pre){
   resumo.placeholder="Ex.: Dor na mandíbula há 2 anos, já usou placa. Unimed, Porto Alegre. Quer resolver logo.";
   fs4.append(g4, campoOutro, campo("Observações", obs), campo("Resumo do caso (aparece para o cirurgião)", resumo)); b.appendChild(fs4);
 
-  const fs5 = el("fieldset"); fs5.append(el("div","legend","Voucher de ressonância · Blume"));
+  const fs5 = el("fieldset"); fs5.append(el("div","legend","Voucher de exames"));
   const g5 = el("div","grid3");
   const vHint = el("div","hint");
   g5.append(campo("Emitido em", inp("f_vemit","date",p.voucherEmitido||"")),
             campo("Situação", sel("f_vstat",VOUCHER_STATUS,p.voucherStatus||"Aguardando uso")),
-            campo("Vence em", (()=>{ const i=inp("f_vvenc","text",p.voucherEmitido?dataBR(somaDias(p.voucherEmitido,VOUCHER_DIAS)):"—"); i.readOnly=true; return i; })()));
+            campo("Vence em", (()=>{ const i=inp("f_vvenc","text",p.voucherEmitido?dataBR(vencVoucher(p)):"—"); i.readOnly=true; return i; })()));
   vHint.textContent = "Voucher nominal, uso único, válido por 5 dias a partir da emissão."+(p.voucherCodigo?" Código: "+p.voucherCodigo+".":"");
   fs5.append(g5, vHint);
   if(id){
@@ -2975,7 +2977,7 @@ function abrirDrawer(id, pre){
     bV.type = "button"; bV.style.marginTop = "8px";
     bV.addEventListener("click",()=>{
       const atual = pacientes.get(id) || {};
-      if(!atual.voucherEmitido){ const q = Object.assign({}, atual); q.voucherEmitido = hoje(); q.voucherStatus = "Aguardando uso"; q.voucherBaixa = ""; registrarHistorico(q,"Voucher Blume emitido pelo painel"); salvar(q); }
+      if(!atual.voucherEmitido){ const q = Object.assign({}, atual); q.voucherEmitido = hoje(); q.voucherStatus = "Aguardando uso"; q.voucherBaixa = ""; registrarHistorico(q,"Voucher de exames emitido pelo painel"); salvar(q); }
       window.open("voucher.html?id="+encodeURIComponent(id),"_blank");
     });
     fs5.appendChild(bV);

@@ -613,7 +613,7 @@ function abrir(id){
     bloco.appendChild(el("h3",null,"Seu registro da consulta"));
     const r = el("div","registrado");
     r.textContent = (p.consultaCompareceu===false ? "Não compareceu." : "Compareceu."+(p.consultaPediuExames ? " Pediu exames: "+[...(p.examesTipos||[]), p.examesPedidos].filter(Boolean).join(" · ")+"." : " Sem pedido de exames."))
-      + (p.voucherAuto && p.voucherEmitido ? "\nVoucher de ressonância Blume emitido em "+dataBR(p.voucherEmitido)+"." : "")
+      + (p.voucherAuto && p.voucherEmitido ? "\nVoucher de exames"+(p.voucherParceiro?" ("+p.voucherParceiro+")":"")+" emitido em "+dataBR(p.voucherEmitido)+"." : "")
       + (p.resumoConsulta ? "\n\n"+p.resumoConsulta : "")
       + "\n\nRegistrado em "+dataBR(String(p.consultaRegistradaEm).slice(0,10))+".";
     bloco.appendChild(r);
@@ -700,7 +700,7 @@ function formRegistro(p){
     });
     salvar.disabled = false; salvar.textContent = "Salvar registro";
     if(error){ toast("Não consegui salvar. Tente de novo."); return; }
-    toast(res && res.voucherEmitido ? "Registro salvo. O voucher de ressonância da Blume já foi emitido para o paciente." : "Registro salvo. A equipe já está vendo.");
+    toast(res && res.voucherEmitido ? "Registro salvo. O voucher de exames da clínica parceira já foi emitido para o paciente." : "Registro salvo. A equipe já está vendo.");
     await carregar(); abrir(p.id);
   });
   return f;

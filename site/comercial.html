@@ -216,7 +216,7 @@ function situacao(p){
       const prazo = s.desde ? new Date(Date.parse(String(s.desde).slice(0,10)) + 10*864e5).toISOString().slice(0,10) : "";
       const resta = s.dias == null ? null : 10 - s.dias;
       s.prazoExame = { prazo, resta, dia: s.dias };
-      const v = p.voucherEmitido ? ` Voucher Blume ${p.voucherStatus==="Usado"?"já usado":p.voucherStatus==="Venceu"?"VENCEU":"emitido em "+dataBR(p.voucherEmitido)+" (vale 5 dias)"}.` : "";
+      const v = p.voucherEmitido ? ` Voucher de exames${p.voucherParceiro?" ("+p.voucherParceiro+")":""} ${p.voucherStatus==="Usado"?"já usado":p.voucherStatus==="Venceu"?"VENCEU":"emitido em "+dataBR(p.voucherEmitido)+" (vale "+(p.voucherValidade||5)+" dias)"}.` : "";
       s.falta = `Exames pedidos${s.desde?" em "+dataBR(s.desde):""}: ${ex}. `
         + (resta==null ? "Prazo de 10 dias para fazer." : resta < 0 ? `PRAZO DE 10 DIAS VENCIDO há ${-resta} dia${resta===-1?"":"s"} (era ${dataBR(prazo)}).`
           : resta === 0 ? `O prazo de 10 dias vence HOJE (${dataBR(prazo)}).` : `Prazo: até ${dataBR(prazo)} (faltam ${resta} dia${resta===1?"":"s"}).`) + v;
@@ -462,7 +462,7 @@ function abrir(id){
   campo("Origem", p.origem);
   campo("Consulta", p.dataConsulta ? dataBR(p.dataConsulta)+(p.horaConsulta?" às "+p.horaConsulta:"")+" · "+(p.modalidade||"Online")+(p.local&&p.local!=="Online"?" · "+p.local:"") : "", true);
   campo("Exames pedidos", exames(p), true);
-  campo("Voucher Blume", p.voucherEmitido ? `Emitido em ${dataBR(p.voucherEmitido)} · ${p.voucherStatus||""}` : "");
+  campo("Voucher de exames", p.voucherEmitido ? `Emitido em ${dataBR(p.voucherEmitido)} · ${p.voucherStatus||""}` : "");
   campo("Proposta", p.valorProposta ? brl(p.valorProposta)+(p.dataProposta?" · "+dataBR(p.dataProposta):"") : "");
   campo("Pagamento", p.pagamento && p.pagamento!=="A definir" ? p.pagamento : "");
   campo("Material (OPME)", p.empresaOpme ? (p.empresaOpme==="Outra empresa" ? "Outra empresa"+(p.empresaOutraNome?" ("+p.empresaOutraNome+")":"") : p.empresaOpme) : "");

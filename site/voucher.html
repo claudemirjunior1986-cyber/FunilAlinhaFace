@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icones/favicon-32.png">
-<title>Voucher Blume · Alinha Face</title>
+<title>Voucher de exames · Alinha Face</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Bricolage+Grotesque:opsz,wght@12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -21,11 +21,21 @@
   .shell{max-width:1240px;margin:0 auto;padding:18px 16px 60px}
   .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
   .top h1{font-size:20px;margin-right:auto}
-  .form{display:grid;grid-template-columns:minmax(0,1fr) 180px auto;gap:12px;align-items:end;padding:16px;margin-bottom:16px}
+  .form{display:grid;grid-template-columns:220px minmax(0,1fr) 170px;gap:12px;align-items:end;padding:16px;margin-bottom:16px}
   @media (max-width:700px){.form{grid-template-columns:1fr}}
   .stage{width:100%;overflow:hidden;border-radius:10px;box-shadow:var(--shadow);background:#F7F4EF}
   .stage-inner{width:1600px;height:1000px;transform-origin:top left}
   .aviso{font-size:13px;color:var(--ink-3);margin-top:10px}
+  .form .acoes{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+  .form .f.exs{grid-column:1/-1}
+  .parc{margin-top:22px;padding:16px}
+  .parc h2{font-size:16px;margin:0 0 4px}
+  .parc .lst{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+  .parc .item{border:1px solid var(--line,#e3e3e3);border-radius:10px;padding:12px;display:grid;gap:8px}
+  .parc .item .lin{display:grid;grid-template-columns:1fr 1fr 110px 110px;gap:8px}
+  .parc .un{display:grid;grid-template-columns:150px 1fr 170px 1fr 34px;gap:6px}
+  @media (max-width:800px){.parc .item .lin,.parc .un{grid-template-columns:1fr}}
+  .parc input{width:100%}
 
   /* ===== o voucher (1600 × 1000) ===== */
   #voucher{position:relative;width:1600px;height:1000px;background:#F7F4EF;font-family:"Poppins",sans-serif;color:#234F64;overflow:hidden}
@@ -35,8 +45,8 @@
   #voucher .marca .wm span{font-weight:400;color:#4F8BA6}
   #voucher .marca .sub{font-size:16px;letter-spacing:.24em;color:#6B7B86;margin-top:10px}
   #voucher .divisor{position:absolute;left:838px;top:70px;width:2px;height:86px;background:#DCD3CA}
-  #voucher .blume{position:absolute;right:92px;top:80px;text-align:right}
-  #voucher .blume .wm{font-size:40px;font-weight:700;letter-spacing:.01em;line-height:1}
+  #voucher .blume{position:absolute;right:92px;top:80px;text-align:right;max-width:640px}
+  #voucher .blume .wm{font-size:40px;font-weight:700;letter-spacing:.01em;line-height:1;text-transform:uppercase}
   #voucher .blume .sub{font-size:16px;letter-spacing:.2em;color:#6B7B86;margin-top:12px}
   #voucher .selo{position:absolute;left:90px;top:200px;height:51px;padding:0 28px;background:#234F64;color:#fff;border-radius:3px;
     display:flex;align-items:center;font-weight:700;font-size:19px;letter-spacing:.28em}
@@ -55,7 +65,10 @@
   #voucher .real{position:absolute;left:90px;top:650px}
   #voucher .real .lbl{font-size:15px;font-weight:600;letter-spacing:.22em;color:#7E8C95}
   #voucher .real .nm{margin-top:14px;font-size:30px;font-weight:700;color:#234F64}
-  #voucher .real .end{margin-top:10px;font-size:23px;line-height:1.42;color:#3D5666}
+  #voucher .real{right:90px}
+  #voucher .real .uns{margin-top:10px;display:grid;grid-template-columns:repeat(var(--n,1),1fr);gap:40px}
+  #voucher .real .end{font-size:20px;line-height:1.42;color:#3D5666}
+  #voucher .real .end b{color:#234F64}
   #voucher .rodape{position:absolute;left:0;right:0;bottom:0;height:186px;background:#234F64;overflow:hidden}
   #voucher .rodape::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:linear-gradient(90deg,#CDA45A,#E9CF96 60%,#F3E3BE)}
   #voucher .rodape .curva{position:absolute;right:-330px;top:0;width:900px;height:900px;border-radius:50%;background:#3F6C85}
@@ -67,18 +80,24 @@
 <body>
 <div class="shell">
   <div class="top">
-    <h1>Voucher de ressonância · Blume</h1>
+    <h1>Voucher de exames</h1>
     <a class="btn btn-sm btn-ghost" href="painel.html">Voltar ao painel</a>
   </div>
 
   <div class="card form" id="form" hidden>
+    <label class="f">Clínica parceira
+      <select id="fParc"></select>
+    </label>
     <label class="f">Nome completo do paciente
       <input type="text" id="fNome" placeholder="Nome e sobrenome, como no documento">
     </label>
     <label class="f">Emissão
       <input type="date" id="fEmissao">
     </label>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <label class="f exs">Exames (opcional — deixe vazio para valer para os exames do pedido médico)
+      <input type="text" id="fExames" placeholder="Ex.: tomografia, ressonância, documentação ortodôntica">
+    </label>
+    <div class="acoes">
       <button class="btn btn-primary" id="bEnviar" type="button">Enviar no WhatsApp do paciente</button>
       <button class="btn" id="bBaixar" type="button">Só baixar a imagem</button>
     </div>
@@ -90,10 +109,10 @@
       <div id="voucher">
         <div class="marca"><div class="wm"><b>Alinha</b><span>Face</span></div><div class="sub">CIRURGIA ORTOGNÁTICA &amp; ATM</div></div>
         <div class="divisor"></div>
-        <div class="blume"><div class="wm">BLUME</div><div class="sub">MEDICINA DIAGNÓSTICA</div></div>
+        <div class="blume"><div class="wm" id="vParc">Clínica</div><div class="sub" id="vParcSub"></div></div>
         <div class="selo">VOUCHER CORTESIA</div>
-        <div class="titulo"><b>Ressonância</b> <span>magnética</span></div>
-        <div class="texto">Cortesia exclusiva para o paciente avaliado pela Alinha Face. Sem nenhum custo, mediante apresentação deste voucher e do pedido médico.</div>
+        <div class="titulo"><b>Exames</b> <span id="vSubTit"></span></div>
+        <div class="texto" id="vTexto"></div>
         <div class="linha"></div>
 
         <div class="col" style="left:90px;width:400px"><div class="lbl">PACIENTE</div><div class="val nome" id="vNome">Nome do Paciente</div></div>
@@ -106,16 +125,25 @@
 
         <div class="real">
           <div class="lbl">REALIZAÇÃO</div>
-          <div class="nm">Blume Medicina Diagnóstica</div>
-          <div class="end">Av. dos Bandeirantes, 679 — Subsolo 1 — Vila Olímpia, São Paulo/SP — CEP 04553-010<br>Agendamento: (11) 5198-0900 — seg. a sex. 7h às 19h, sáb. 7h às 12h</div>
+          <div class="nm" id="vRealNome"></div>
+          <div class="uns" id="vUns"></div>
         </div>
 
         <div class="rodape">
           <div class="curva"></div>
-          <div class="cond"><b>Condições:</b> voucher nominal, intransferível e de uso único, válido por 5 dias a partir da emissão. Necessário pedido médico e documento com foto. Agendamento prévio sujeito à disponibilidade de agenda da clínica. Não cumulativo com outras promoções e sem valor de troca em dinheiro.</div>
+          <div class="cond"><b>Condições:</b> voucher nominal, intransferível e de uso único, válido por <span id="vDias">5</span> dias a partir da emissão. Necessário pedido médico e documento com foto. Agendamento prévio sujeito à disponibilidade de agenda da clínica. Não cumulativo com outras promoções e sem valor de troca em dinheiro.</div>
           <div class="links">alinhaface.com.br<br>@alinhafaceoficial</div>
         </div>
       </div>
+    </div>
+  </div>
+  <div class="card parc" id="parcAdm" hidden>
+    <h2>Clínicas parceiras</h2>
+    <div class="aviso" style="margin-top:0">Só você (administrador) vê esta parte. Desmarque "Ativa" para tirar uma clínica da lista sem apagar o histórico.</div>
+    <div class="lst" id="parcLista"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-sm" id="parcNova" type="button">+ Nova clínica</button>
+      <button class="btn btn-sm btn-primary" id="parcSalvar" type="button">Salvar clínicas</button>
     </div>
   </div>
   <div class="aviso" id="aviso" hidden>"Enviar no WhatsApp" manda a imagem com a mensagem pelo número da Bia e registra na ficha. A imagem tem 1600 × 1000 pixels.</div>
@@ -129,24 +157,27 @@
 <script>
 const $ = s => document.querySelector(s);
 const sb = FUNIL.sb;
-const VALIDADE = 5;
 const hojeSP = () => new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo"}).format(new Date());
 const somaDias = (d,n) => { const x = new Date(d+"T12:00:00"); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
 const br = d => d ? d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4) : "—";
+const esc = t => String(t||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let avulso = false, paciente = null, id = new URLSearchParams(location.search).get("id");
+let PARC = [], TODOS = [], ehAdmin = false;
 
 function msg(t, tipo){ const m = $("#msg"); m.hidden = !t; m.className = "msg "+(tipo||"info"); m.textContent = t||""; }
+const parc = () => PARC.find(x=>x.id===$("#fParc").value) || PARC[0] || {nome:"Clínica parceira",subtitulo:"",unidades:[],validade_dias:5};
+const VALIDADE = () => Number(parc().validade_dias)||5;
+const exames = () => $("#fExames").value.trim();
 
 function codigo(p, emissao){
   if(p.voucherCodigo && p.voucherEmitido === emissao) return p.voucherCodigo;
   const d = emissao.slice(8,10)+emissao.slice(5,7)+emissao.slice(2,4);
   const tel = String(p.telefone||"").replace(/\D/g,"");
   const fim = tel.length >= 4 ? tel.slice(-4) : (p._fim = p._fim || String(Math.floor(1000+Math.random()*9000)));
-  return "AF-RM-"+d+"-"+fim;
+  return "AF-EX-"+d+"-"+fim;
 }
 
 function ajustarNome(){
-  // uma linha até 30px; se não couber, quebra em duas linhas (até 24px)
   const el = $("#vNome"); let tam = 38;
   el.style.whiteSpace = "nowrap"; el.style.width = "auto"; el.style.lineHeight = "1.15";
   el.style.fontSize = tam+"px";
@@ -155,15 +186,31 @@ function ajustarNome(){
   el.style.whiteSpace = "normal"; el.style.width = "410px"; tam = 32; el.style.fontSize = tam+"px";
   while((el.scrollHeight > tam*1.15*2 + 4 || el.scrollWidth > 412) && tam > 24){ tam -= 1; el.style.fontSize = tam+"px"; }
 }
+function ajustarParc(){
+  const el = $("#vParc"); let tam = 40; el.style.fontSize = tam+"px";
+  while(el.scrollWidth > 640 && tam > 24){ tam -= 1; el.style.fontSize = tam+"px"; }
+}
 
 function desenhar(){
+  const P = parc();
   const nome = $("#fNome").value.trim() || "Nome do Paciente";
   const em = $("#fEmissao").value || hojeSP();
   $("#vNome").textContent = nome;
   $("#vEmissao").textContent = br(em);
-  $("#vVenc").textContent = br(somaDias(em, VALIDADE));
+  $("#vVenc").textContent = br(somaDias(em, VALIDADE()));
   $("#vCod").textContent = codigo(paciente, em);
-  ajustarNome();
+  $("#vParc").textContent = P.nome;
+  $("#vParcSub").textContent = P.subtitulo || "";
+  $("#vRealNome").textContent = P.nome;
+  $("#vDias").textContent = VALIDADE();
+  const ex = exames();
+  $("#vTexto").innerHTML = "Cortesia exclusiva para o paciente avaliado pela Alinha Face"
+    + (ex ? ", para os exames: <b>"+esc(ex)+"</b>." : ", para os exames solicitados pelo cirurgião.")
+    + " Apresente este voucher e o pedido médico.";
+  const uns = (P.unidades||[]).filter(u=>u && (u.endereco||u.telefone));
+  $("#vUns").style.setProperty("--n", Math.max(1, Math.min(uns.length, 2)));
+  $("#vUns").innerHTML = uns.slice(0,2).map(u=>`<div class="end">${u.nome?"<b>Unidade "+esc(u.nome)+"</b><br>":""}${esc(u.endereco)}${u.telefone?"<br>Agendamento: "+esc(u.telefone):""}${u.horario?"<br>"+esc(u.horario):""}</div>`).join("");
+  ajustarNome(); ajustarParc();
 }
 
 function escalar(){
@@ -173,11 +220,13 @@ function escalar(){
 }
 
 function nomeOk(){
+  if(!PARC.length){ msg("Nenhuma clínica parceira ativa. Cadastre uma antes de gerar o voucher.", "err"); return null; }
   const nome = $("#fNome").value.trim();
   if(nome.split(/\s+/).length < 2){ msg("Coloque o nome completo do paciente (nome e sobrenome), como está no documento.", "err"); $("#fNome").focus(); return null; }
   return nome;
 }
-const arquivoDe = nome => "voucher-blume-"+nome.toLowerCase().normalize("NFD").replace(/[^a-z0-9 ]/g,"").trim().replace(/\s+/g,"-")+".png";
+const slug = t => String(t||"").toLowerCase().normalize("NFD").replace(/[^a-z0-9 ]/g,"").trim().replace(/\s+/g,"-");
+const arquivoDe = nome => "voucher-"+slug(parc().nome).split("-")[0]+"-"+slug(nome)+".png";
 async function gerarCanvas(){
   await document.fonts.ready;
   const inner = $("#stageInner"), t = inner.style.transform;
@@ -185,15 +234,17 @@ async function gerarCanvas(){
   try{ return await html2canvas($("#voucher"), {scale:1, backgroundColor:"#F7F4EF", useCORS:true}); }
   finally{ inner.style.transform = t; }
 }
-// grava na ficha: nome completo, emissão e código do voucher (+ extras)
 async function registrar(nome, em, cod, extra, textoHist){
+  const P = parc();
   const dados = Object.assign({}, paciente, {
     nomeCompleto: nome, voucherEmitido: em, voucherCodigo: cod,
+    voucherParceiro: P.nome, voucherValidade: VALIDADE(), voucherExames: exames(),
     voucherStatus: paciente.voucherStatus && paciente.voucherEmitido === em ? paciente.voucherStatus : "Aguardando uso",
     atualizadoEm: new Date().toISOString()
   }, extra||{});
   const hist = [];
-  if(paciente.voucherEmitido !== em || !paciente.voucherCodigo) hist.push({data: hojeSP(), texto: "Voucher Blume gerado ("+cod+"), válido até "+br(somaDias(em,VALIDADE))});
+  if(paciente.voucherEmitido !== em || !paciente.voucherCodigo || paciente.voucherParceiro !== P.nome)
+    hist.push({data: hojeSP(), texto: "Voucher de exames ("+P.nome+") gerado ("+cod+"), válido até "+br(somaDias(em,VALIDADE()))});
   if(textoHist) hist.push({data: hojeSP(), texto: textoHist});
   if(hist.length) dados.historico = (paciente.historico||[]).concat(hist).slice(-40);
   delete dados.id;
@@ -212,7 +263,7 @@ async function baixar(){
     const a = document.createElement("a");
     a.href = canvas.toDataURL("image/png"); a.download = arquivoDe(nome);
     document.body.appendChild(a); a.click(); a.remove();
-    if(avulso){ msg("Voucher gerado e baixado. Válido até "+br(somaDias(em,VALIDADE))+".", "ok"); }
+    if(avulso){ msg("Voucher gerado e baixado. Válido até "+br(somaDias(em,VALIDADE()))+".", "ok"); }
     else { await registrar(nome, em, cod); msg("Voucher baixado e registrado na ficha.", "ok"); }
   }catch(e){
     msg("Não consegui gerar o voucher. Recarregue a página e tente de novo.", "err");
@@ -224,8 +275,9 @@ async function baixar(){
 function textoWhats(em){
   const pn = String(paciente.nome||"").trim().split(/\s+/)[0] || "";
   const nome1 = pn ? pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase() : "";
-  const venc = somaDias(em, VALIDADE);
-  return "Oi"+(nome1?", "+nome1:"")+"! Como cortesia da Alinha Face, você ganhou um voucher para a ressonância magnética na Blume Medicina Diagnóstica, sem nenhum custo. Ele é no seu nome e vale até "+venc.slice(8,10)+"/"+venc.slice(5,7)+". O endereço e o telefone para agendar estão no voucher. Qualquer dúvida pra agendar, me chama!";
+  const venc = somaDias(em, VALIDADE());
+  const ex = exames();
+  return "Oi"+(nome1?", "+nome1:"")+"! Como cortesia da Alinha Face, você ganhou um voucher para "+(ex?"os exames ("+ex+")":"os exames que o cirurgião pediu")+" na "+parc().nome+". Ele é no seu nome e vale até "+venc.slice(8,10)+"/"+venc.slice(5,7)+". O endereço e o telefone para agendar estão no voucher. Qualquer dúvida pra agendar, me chama!";
 }
 async function enviar(){
   const nome = nomeOk(); if(!nome) return;
@@ -242,7 +294,7 @@ async function enviar(){
     const blob = await new Promise(r=>canvas.toBlob(r, "image/png"));
     await waEnviarArquivo(chat.chat_id, blob, arquivoDe(nome), legenda);
     await registrar(nome, em, cod, { regua: Object.assign({}, paciente.regua, { d0: hojeSP() }) },
-      "Voucher Blume enviado ao paciente pelo WhatsApp (pelo site)");
+      "Voucher de exames ("+parc().nome+") enviado ao paciente pelo WhatsApp (pelo site)");
     msg("Voucher enviado para o paciente e registrado na ficha. ✔", "ok");
     b.textContent = "Enviado ✔";
     return;
@@ -252,39 +304,102 @@ async function enviar(){
   b.disabled = false; b.textContent = "Enviar no WhatsApp do paciente";
 }
 
+/* ===== lista de parceiros ===== */
+async function carregarParceiros(){
+  const { data, error } = await sb.from("funil_parceiros").select("*").order("ordem").order("criado_em");
+  if(error){ msg("Não consegui carregar as clínicas parceiras.", "err"); return; }
+  TODOS = data || [];
+  PARC = TODOS.filter(x=>x.ativo);
+  const sel = $("#fParc"), atual = sel.value;
+  sel.innerHTML = PARC.map(x=>`<option value="${x.id}">${esc(x.nome)}</option>`).join("") || `<option value="">— nenhuma ativa —</option>`;
+  const quer = paciente && paciente.voucherParceiro ? (PARC.find(x=>x.nome===paciente.voucherParceiro)||{}).id : null;
+  if(PARC.some(x=>x.id===atual)) sel.value = atual; else if(quer) sel.value = quer;
+  if(ehAdmin) montarAdm();
+}
+const unVazia = () => ({nome:"",endereco:"",telefone:"",horario:""});
+function montarAdm(){
+  $("#parcAdm").hidden = false;
+  const box = $("#parcLista"); box.innerHTML = "";
+  TODOS.forEach((P,i)=>{
+    const it = document.createElement("div"); it.className = "item"; it.dataset.i = i;
+    it.innerHTML = `<div class="lin">
+        <label class="f">Nome da clínica<input data-k="nome" value="${esc(P.nome)}"></label>
+        <label class="f">Linha embaixo do nome<input data-k="subtitulo" value="${esc(P.subtitulo)}" placeholder="Ex.: RADIOLOGIA ODONTOLÓGICA"></label>
+        <label class="f">Validade (dias)<input data-k="validade_dias" type="number" min="1" max="90" value="${P.validade_dias||5}"></label>
+        <label class="f">Ativa<select data-k="ativo"><option value="1"${P.ativo?" selected":""}>Sim</option><option value="0"${P.ativo?"":" selected"}>Não</option></select></label>
+      </div>
+      <div class="uns"></div>
+      <div><button class="btn btn-sm btn-ghost" type="button" data-addun>+ Unidade</button></div>`;
+    const uns = it.querySelector(".uns");
+    const linhaUn = u => { const d = document.createElement("div"); d.className = "un";
+      d.innerHTML = `<input data-u="nome" placeholder="Unidade (bairro)" value="${esc(u.nome)}"><input data-u="endereco" placeholder="Endereço completo" value="${esc(u.endereco)}"><input data-u="telefone" placeholder="Telefone/WhatsApp" value="${esc(u.telefone)}"><input data-u="horario" placeholder="Dias e horário" value="${esc(u.horario)}"><button class="btn btn-sm btn-ghost" type="button" title="Tirar unidade">✕</button>`;
+      d.querySelector("button").onclick = () => d.remove(); uns.appendChild(d); };
+    (P.unidades && P.unidades.length ? P.unidades : [unVazia()]).forEach(linhaUn);
+    it.querySelector("[data-addun]").onclick = () => linhaUn(unVazia());
+    box.appendChild(it);
+  });
+}
+async function salvarParceiros(){
+  const b = $("#parcSalvar"); b.disabled = true; b.textContent = "Salvando…";
+  try{
+    const itens = [...document.querySelectorAll("#parcLista .item")];
+    for(let k=0;k<itens.length;k++){
+      const it = itens[k], P = TODOS[Number(it.dataset.i)] || {};
+      const v = key => it.querySelector(`[data-k="${key}"]`).value;
+      const reg = { nome: v("nome").trim(), subtitulo: v("subtitulo").trim(), validade_dias: Number(v("validade_dias"))||5,
+        ativo: v("ativo")==="1", ordem: k,
+        unidades: [...it.querySelectorAll(".un")].map(d=>({nome:d.querySelector('[data-u="nome"]').value.trim(),endereco:d.querySelector('[data-u="endereco"]').value.trim(),telefone:d.querySelector('[data-u="telefone"]').value.trim(),horario:d.querySelector('[data-u="horario"]').value.trim()})).filter(u=>u.endereco||u.telefone) };
+      if(!reg.nome) continue;
+      const q = P.id ? sb.from("funil_parceiros").update(reg).eq("id", P.id) : sb.from("funil_parceiros").insert(reg);
+      const { error } = await q; if(error) throw error;
+    }
+    await carregarParceiros(); desenhar();
+    msg("Clínicas parceiras salvas.", "ok");
+  }catch(e){ msg("Não consegui salvar as clínicas: "+e.message, "err"); }
+  b.disabled = false; b.textContent = "Salvar clínicas";
+}
+
+function ligar(){
+  ["input","change"].forEach(ev=>["#fNome","#fEmissao","#fExames","#fParc"].forEach(s=>$(s).addEventListener(ev, desenhar)));
+  addEventListener("resize", escalar);
+  $("#parcNova").addEventListener("click", ()=>{ TODOS.push({nome:"",subtitulo:"",unidades:[unVazia()],validade_dias:5,ativo:true}); montarAdm(); });
+  $("#parcSalvar").addEventListener("click", salvarParceiros);
+}
+
 (async ()=>{
-  await FUNIL.exigir(["admin"]);
+  const eu = await FUNIL.exigir(["admin","equipe"]);
+  ehAdmin = eu && eu.papel === "admin";
+  if(!ehAdmin) $("#bEnviar").remove(); // a secretária baixa a imagem e manda pelo WhatsApp dela
   if(!id){
-    // voucher avulso: só nome e data de início; não grava em ficha nenhuma
     avulso = true;
     paciente = { telefone: "" };
-    document.querySelector("label.f:nth-of-type(2)").firstChild.textContent = "Data de início ";
-    $("#bEnviar").style.display = "none";
+    await carregarParceiros();
+    $("#fEmissao").closest("label").firstChild.textContent = "Data de início ";
+    if($("#bEnviar")) $("#bEnviar").style.display = "none";
     $("#bBaixar").textContent = "Gerar e baixar voucher"; $("#bBaixar").classList.add("btn-primary");
     $("#fNome").value = ""; $("#fEmissao").value = hojeSP();
     $("#form").hidden = false; $("#stage").hidden = false; $("#aviso").hidden = false;
-    $("#aviso").textContent = "Voucher avulso: preencha o nome completo e a data de início. A validade (5 dias) é calculada sozinha. A imagem tem 1600 × 1000 pixels.";
+    $("#aviso").textContent = "Voucher avulso: escolha a clínica, preencha o nome completo e a data de início. A validade é calculada sozinha. A imagem tem 1600 × 1000 pixels.";
     escalar(); desenhar(); await document.fonts.ready; desenhar();
-    ["input","change"].forEach(ev=>{ $("#fNome").addEventListener(ev, desenhar); $("#fEmissao").addEventListener(ev, desenhar); });
-    $("#bBaixar").addEventListener("click", baixar);
-    addEventListener("resize", escalar);
+    ligar(); $("#bBaixar").addEventListener("click", baixar);
     $("#fNome").focus();
     return;
   }
   const { data, error } = await sb.from("funil_pacientes").select("id,dados").eq("id", id).maybeSingle();
   if(error || !data){ msg("Paciente não encontrado.", "err"); return; }
   paciente = Object.assign({id:data.id}, data.dados);
+  await carregarParceiros();
   $("#fNome").value = paciente.nomeCompleto || paciente.nome || "";
   $("#fEmissao").value = paciente.voucherEmitido || hojeSP();
+  $("#fExames").value = paciente.voucherExames || "";
   $("#form").hidden = false; $("#stage").hidden = false; $("#aviso").hidden = false;
   if(!paciente.nomeCompleto && (paciente.nome||"").trim().split(/\s+/).length < 2)
     msg("A ficha só tem o primeiro nome. Complete com o nome inteiro antes de baixar.", "info");
   escalar(); desenhar();
   await document.fonts.ready; desenhar();
-  ["input","change"].forEach(ev=>{ $("#fNome").addEventListener(ev, desenhar); $("#fEmissao").addEventListener(ev, desenhar); });
+  ligar();
   $("#bBaixar").addEventListener("click", baixar);
-  $("#bEnviar").addEventListener("click", enviar);
-  addEventListener("resize", escalar);
+  if($("#bEnviar")) $("#bEnviar").addEventListener("click", enviar);
 })();
 </script>
 <script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
