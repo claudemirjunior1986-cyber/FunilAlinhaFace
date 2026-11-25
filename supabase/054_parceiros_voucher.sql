@@ -42,8 +42,8 @@ do $$
 declare def text;
 begin
   select pg_get_functiondef('public.regua_exames()'::regprocedure) into def;
-  def := replace(def, '''voucher de cortesia da Blume, válido até ''',
-                      '''voucher de cortesia da '' || coalesce(nullif(d->>''voucherParceiro'',''''), ''clínica parceira'') || '', válido até ''');
+  def := replace(def, 'voucher de cortesia da Blume, válido até ''',
+                      'voucher de cortesia da '' || coalesce(nullif(d->>''voucherParceiro'',''''), ''clínica parceira'') || '', válido até ''');
   def := replace(def, 'left(d->>''voucherEmitido'',10)::date + 5',
                       'left(d->>''voucherEmitido'',10)::date + coalesce(nullif(d->>''voucherValidade'','''')::int, 5)');
   execute def;
