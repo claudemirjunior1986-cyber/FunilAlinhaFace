@@ -278,8 +278,11 @@ async function googleSync(p: any) {
       if (/^(Consulta apagada|Paciente desmarcou)/.test(String(d.proximaAcao || ""))) { d.proximaAcao = ""; d.dataProximaAcao = ""; }
       if (d.dataConsulta !== q.data || (d.horaConsulta || "").slice(0, 5) !== q.hora) histAdd(d, `Consulta na agenda do Google do Dr. Gustavo: ${q.data.split("-").reverse().join("/")} às ${q.hora}`);
       d.dataConsulta = q.data; d.horaConsulta = q.hora; d.cirurgiao = GUSTAVO;
-      if (!d.modalidade || d.modalidade === "Online" || online) d.modalidade = online ? "Online" : "Presencial";
-      if (online) d.local = "Online";
+      // o evento do Google só preenche a modalidade quando a ficha não tem; nunca troca Presencial por Online
+      if (!d.modalidade) d.modalidade = online ? "Online" : "Presencial";
+      else if (d.modalidade === "Online" && !online) d.modalidade = "Presencial";
+      if (d.modalidade === "Online") d.local = "Online";
+      else if (!d.local || d.local === "Online") d.local = "";
       if (["triagem", "lead", "noshow", "perdido", undefined, ""].includes(d.etapa) && q.data >= hoje) d.etapa = "agendou";
       ligados.add(f.id);
       if (nova && SIMULAR) { out.fichas_novas++; out.avisos.push("nova ficha: " + d.nome + " " + q.data + " " + q.hora); }

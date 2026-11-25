@@ -2865,6 +2865,7 @@ function abrirDrawer(id, pre){
     pagamento:"A definir", modalidade:"Online", local:"Online",
     criadoEm:new Date().toISOString(), opme:0, ...(pre||{})
   };
+  const snap = JSON.parse(JSON.stringify(p));   // como a ficha estava quando abriu (para não desfazer o que outra pessoa salvou depois)
   fecharOverlays();
   const scrim = el("div","scrim"); scrim.id="scrim"; scrim.addEventListener("click",fecharOverlays);
   const d = el("aside","drawer"); d.id="drawer"; d.setAttribute("role","dialog"); d.setAttribute("aria-label","Ficha do paciente");
@@ -2908,8 +2909,22 @@ function abrirDrawer(id, pre){
   if(!EQUIPE){ const o0 = el("option",null,"— nenhum ainda —"); o0.value = ""; selCir.appendChild(o0); }
   for(const c of CIRURGIOES){ const o = el("option",null,c.nome); o.value = c.email; if((p.cirurgiao||"")===c.email) o.selected = true; selCir.appendChild(o); }
   const g2d = el("div","grid2");
-  g2d.append(campo("Local", sel("f_local",LOCAIS,p.local)), campo("Cirurgião responsável", selCir));
+  g2d.append(campo("Local", sel("f_local",LOCAIS,p.local,"— escolha o endereço —")), campo("Cirurgião responsável", selCir));
   fs2.append(g2,g2b,g2d);
+  // Online ⇒ local Online; Presencial ⇒ sugere a unidade pelo DDD do paciente
+  const localPorDDD = () => { const t = String($("#f_tel").value||p.telefone||"").replace(/\D/g,"").replace(/^55(?=\d{10,11}$)/,""); const ddd = t.slice(0,2);
+    if(/^5[1-5]$/.test(ddd)) return LOCAIS.find(l=>/^Porto Alegre/.test(l));
+    if(/^7[1-9]$/.test(ddd)) return LOCAIS.find(l=>/^Salvador/.test(l));
+    return ""; };
+  fs2.addEventListener("change", e=>{
+    if(e.target.id==="f_mod"){
+      const m = $("#f_mod").value, l = $("#f_local");
+      if(m==="Online") l.value = "Online";
+      else if(l.value==="Online"){ const sug = localPorDDD(); l.value = sug || ""; if(!sug) toast("Escolha o endereço da consulta presencial em Local."); }
+    } else if(e.target.id==="f_local"){
+      const l = $("#f_local").value; if(l) $("#f_mod").value = l==="Online" ? "Online" : "Presencial";
+    }
+  });
   const hCir = el("div","hint"); hCir.textContent = "O cirurgião escolhido vê este paciente na agenda dele no site, e só ele.";
   fs2.append(hCir);
   const btsCons = el("div","rc-ficha-bts");
@@ -3069,7 +3084,7 @@ function abrirDrawer(id, pre){
     const empAntes = p.empresaOpme||"";
     const etapaSel = $("#f_etapa").value, perdOutra = etapaSel==="perdido_outra";
     const empNova = perdOutra ? "Outra empresa" : $("#f_emp").value, ehOutra = empNova==="Outra empresa";
-    Object.assign(p,{
+    const FORM = ({
       empresaOpme: empNova,
       empresaOutraNome: ehOutra ? $("#f_empnome").value.trim() : "",
       empresaOutraMotivo: ehOutra ? $("#f_empmot").value : "",
@@ -3084,6 +3099,16 @@ function abrirDrawer(id, pre){
       cirurgiao:$("#f_cir").value || EQUIPE,
       dataCirurgia:$("#f_dcir").value, hospital:$("#f_hosp").value.trim()
     });
+    if(FORM.modalidade==="Presencial" && (!FORM.local || FORM.local==="Online") && FORM.dataConsulta){
+      toast("Consulta presencial precisa do endereço: escolha em Local."); $("#f_local").focus(); return;
+    }
+    // alguém salvou esta ficha depois que você abriu? fica o que a outra pessoa mudou e entra só o que VOCÊ mudou
+    const atual = editandoId ? pacientes.get(editandoId) : null;
+    if(atual && atual.atualizadoEm && atual.atualizadoEm !== snap.atualizadoEm){
+      for(const k of Object.keys(atual)) if(!(k in FORM)) p[k] = atual[k];
+      for(const k of Object.keys(FORM)) if(String(FORM[k] ?? "") === String(snap[k] ?? "") && k in atual) FORM[k] = atual[k];
+    }
+    Object.assign(p, FORM);
     if(p.presencialEncaminhado && p.dataConsulta){
       registrarHistorico(p, "Secretária marcou a consulta presencial: "+dataBR(p.dataConsulta)+(p.horaConsulta?" às "+p.horaConsulta:""));
       p.presencialEncaminhado = "";
