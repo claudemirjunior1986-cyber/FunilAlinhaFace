@@ -2928,7 +2928,7 @@ function abrirDrawer(id, pre){
   const hCir = el("div","hint"); hCir.textContent = "O cirurgião escolhido vê este paciente na agenda dele no site, e só ele.";
   fs2.append(hCir);
   const btsCons = el("div","rc-ficha-bts");
-  if(typeof agBotaoFicha === "function") btsCons.append(agBotaoFicha(p));
+  if(typeof agBotaoFicha === "function"){ const bAg = agBotaoFicha(p); if(bAg) btsCons.append(bAg); }
   if(id){
     const bt = el("button","btn btn-sm","🎥 Teleconsulta"); bt.type = "button";
     bt.title = "Cria a sala de vídeo da consulta e manda o link para o paciente";

@@ -297,6 +297,9 @@ function agBotaoFicha(p){
     v.addEventListener("click",()=>{ try{ localStorage.setItem("funil_ag", kf); }catch(e){} AG.k = kf; fecharOverlays(); if(typeof trocarModo === "function") trocarModo("ag"); renderAgendaMed(kf); });
     return v;
   }
+  // Dr. Gustavo: ao salvar a ficha com data e horário, o funil lança sozinho na agenda do Google dele (googleSync).
+  // O botão manual virou redundante (26/11).
+  return null;
   const b = el("button","btn btn-sm","📅 Agendar no Google (Dr. Gustavo)"); b.type = "button";
   b.title = "Abre a agenda do cirurgião escolhido na ficha (sem cirurgião: Dr. Gustavo) com a consulta preenchida";
   b.addEventListener("click",()=>{
