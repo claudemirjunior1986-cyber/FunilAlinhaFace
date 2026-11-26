@@ -25,7 +25,7 @@ create policy parc_admin on public.funil_parceiros for all to authenticated
 -- Oral Imagem (Salvador/BA)
 insert into public.funil_parceiros (nome, subtitulo, unidades, validade_dias, ativo, ordem)
 select 'Oral Imagem', 'IMAGEM ODONTOLÓGICA · SALVADOR',
-  '[{"nome":"","endereco":"Av. Antônio Carlos Magalhães, 442 — Itaigara, Salvador/BA","telefone":"(71) 3565-1333 · WhatsApp (71) 99281-3277","horario":"seg. a sex. 8h às 18h, sáb. 8h às 12h"}]'::jsonb,
+  '[{"nome":"","endereco":"Av. Antônio Carlos Magalhães, 413 — Itaigara, Salvador/BA — CEP 41825-000","telefone":"(71) 3565-1333 · WhatsApp (71) 99281-3277","horario":"seg. a sex. 8h às 18h, sáb. 8h às 12h"}]'::jsonb,
   5, true, 0
 where not exists (select 1 from public.funil_parceiros where nome ilike 'Oral Imagem%');
 
