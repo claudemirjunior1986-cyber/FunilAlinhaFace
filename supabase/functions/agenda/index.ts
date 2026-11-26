@@ -19,7 +19,7 @@
 // Regra de distribuição (decidida pelo Claudemir, out/2026):
 //   - Bahia e todo o Nordeste -> Dr. Victor (online ou presencial em Salvador)
 //   - São Paulo presencial    -> Dr. Afonso, sempre
-//   - SP ONLINE (23/11/2026)  -> dividido: 50% Victor, 30% Gustavo (Google), 20% Afonso (medicoSPOnline)
+//   - SP ONLINE (26/11/2026)  -> dividido: 80% Victor, 20% Afonso (medicoSPOnline); Gustavo não recebe on-line de SP
 //   - Online de RS e demais estados -> Dr. Gustavo (agenda do Google, como já é feito)
 //   - PRESENCIAL (nov/2026): a Bia não marca. acao=presencial manda o caso por WhatsApp ao cirurgião
 //     (Nordeste -> Victor; SP -> Afonso, ou Gustavo se Moema; RS -> Gustavo) e a secretária dele marca.
@@ -408,13 +408,13 @@ function rota(estado: string, mod: string) {
 // Divisão das consultas ON-LINE de SP (decisão do Claudemir, 23/11/2026): 50% Dr. Victor, 30% Dr. Gustavo, 20% Dr. Afonso.
 // Vai para quem está mais abaixo da sua meta, contando as consultas on-line de pacientes de SP dos últimos 30 dias
 // (e as futuras). A escolha só muda quando entra uma consulta nova, então "consultar" e "agendar" caem no mesmo médico.
-const META_SP_ONLINE: Record<string, number> = { victor: 0.5, gustavo: 0.3, afonso: 0.2 };
+const META_SP_ONLINE: Record<string, number> = { victor: 0.8, gustavo: 0, afonso: 0.2 };   // 26/11: Gustavo saiu do on-line de SP
 const EMAIL_CHAVE: Record<string, string> = { "admvictorssa@gmail.com": "victor", "gu.martins00@gmail.com": "gustavo", "dr.aptrindadefilho@gmail.com": "afonso" };
 async function medicoSPOnline(semGustavo = false): Promise<{ chave: string; contagem: Record<string, number> }> {
-  // conta a partir de 24/11/2026 (início da divisão), no máximo os últimos 30 dias — assim o Victor não recebe
+  // conta a partir de 26/11/2026 (início da divisão 80/20), no máximo os últimos 30 dias — assim o Victor não recebe
   // uma fila de "atrasados" de antes da regra
   const d30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-  const desde = d30 > "2026-11-24" ? d30 : "2026-11-24";
+  const desde = d30 > "2026-11-26" ? d30 : "2026-11-26";   // contagem recomeça com a regra 80/20
   const conta: Record<string, number> = { victor: 0, gustavo: 0, afonso: 0 };
   try {
     const r = await dbg(`funil_pacientes?select=cirurgiao_email,cidade:dados->>cidade,tel:dados->>telefone&dados->>modalidade=eq.Online&dados->>dataConsulta=gte.${desde}`);
@@ -429,7 +429,7 @@ async function medicoSPOnline(semGustavo = false): Promise<{ chave: string; cont
   } catch { /* sem contagem: segue a meta pura */ }
   const total = conta.victor + conta.gustavo + conta.afonso;
   let melhor = "victor", folga = -Infinity;
-  for (const ch of (semGustavo ? ["victor", "afonso"] : ["victor", "gustavo", "afonso"])) {
+  for (const ch of ["victor", "afonso"]) {   // Gustavo fora do on-line de SP (26/11)
     const f = META_SP_ONLINE[ch] * (total + 1) - conta[ch];   // quanto falta para a meta, contando esta consulta
     if (f > folga) { folga = f; melhor = ch; }
   }
@@ -525,7 +525,7 @@ Deno.serve(async (req) => {
   // a intenção de agendar também serve para o presencial (sem data e hora): vira encaminhamento ao cirurgião
   if (acao === "agendar" && mod === "Presencial") acao = "presencial";
   let r: any = rota(est, mod);
-  // on-line de SP: dividido entre Victor, Gustavo e Afonso (ver medicoSPOnline)
+  // on-line de SP: 80% Victor, 20% Afonso (ver medicoSPOnline)
   if (est === "SP" && mod === "Online" && r.tipo === "funil" && !["google", "google_vincular"].includes(acao)) {
     // no "agendar" a Bia já recebeu horários do funil (Victor ou Afonso): escolhe só entre os dois
     const esc = await medicoSPOnline(acao === "agendar");

@@ -266,3 +266,4 @@ Outros ajustes feitos na Bia:
 - (052, 23/11) Cassi (555133213338, fixo de Porto Alegre) recebe cópia dos avisos do Dr. Gustavo.
 - (24/11) On-line de SP dividido: 50% Victor, 30% Gustavo (Google), 20% Afonso — vai para quem está mais abaixo da meta nas consultas on-line de SP dos últimos 30 dias (medicoSPOnline).
 - (053, 24/11) Pesquisa de opinião: 1 mensagem só, já com o link do Google; se a equipe já perguntou como foi a consulta, vai só o pedido + link. Treinamento PESQUISA DE OPINIÃO: não reenviar o link.
+- 26/11/2026: on-line de SP passa a 80% Victor / 20% Afonso (Gustavo fora); contagem desde 26/11.
