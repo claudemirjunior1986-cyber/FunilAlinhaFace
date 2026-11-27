@@ -267,3 +267,4 @@ Outros ajustes feitos na Bia:
 - (24/11) On-line de SP dividido: 50% Victor, 30% Gustavo (Google), 20% Afonso — vai para quem está mais abaixo da meta nas consultas on-line de SP dos últimos 30 dias (medicoSPOnline).
 - (053, 24/11) Pesquisa de opinião: 1 mensagem só, já com o link do Google; se a equipe já perguntou como foi a consulta, vai só o pedido + link. Treinamento PESQUISA DE OPINIÃO: não reenviar o link.
 - 26/11/2026: on-line de SP passa a 80% Victor / 20% Afonso (Gustavo fora); contagem desde 26/11.
+- 27/11/2026: GPT Maker tempo de resposta 5s→30s (junta mensagens seguidas); regra 'não perguntar dia/horário já dito'; Implantes: quiz com 4 perguntas, sem cidade/estado (campanha só BA), aceita número sem confirmar; agendamento oferece presencial em Salvador ou on-line.
